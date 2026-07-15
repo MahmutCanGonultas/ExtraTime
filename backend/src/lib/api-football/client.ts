@@ -22,6 +22,17 @@ export function resetRequestCount(): void {
 
 const REQUEST_TIMEOUT_MS = 15_000
 
+// The free plan rate-limits ~10 requests/minute. We serialize requests with a
+// minimum gap so a burst (e.g. a multi-league backfill) never trips HTTP 429.
+const MIN_REQUEST_GAP_MS = 6_500
+let lastRequestAt = 0
+
+async function throttle(): Promise<void> {
+  const wait = lastRequestAt + MIN_REQUEST_GAP_MS - Date.now()
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
+  lastRequestAt = Date.now()
+}
+
 function hasErrors(errors: unknown): boolean {
   if (Array.isArray(errors)) return errors.length > 0
   if (errors && typeof errors === 'object') return Object.keys(errors).length > 0
@@ -39,6 +50,8 @@ export async function apiFootballGet<T>(
   if (!env.API_FOOTBALL_KEY) {
     throw new Error('API_FOOTBALL_KEY is not configured')
   }
+
+  await throttle()
 
   const url = new URL(path.replace(/^\//, ''), `${env.API_FOOTBALL_BASE_URL}/`)
   for (const [key, value] of Object.entries(params)) {
