@@ -24,23 +24,105 @@ export async function upsertTeam(
   return rows[0].id
 }
 
-export async function upsertFixture(
+export interface TeamInput {
+  apiId: number
+  name: string
+  stadium?: string | null
+  city?: string | null
+}
+
+// Collects the unique teams from a fixtures response (a team appears in many
+// matches). Deduping is required: a batch INSERT ... ON CONFLICT cannot touch
+// the same row twice. Venue info comes from the home side.
+export function collectTeams(fixtures: RawFixture[]): TeamInput[] {
+  const map = new Map<number, TeamInput>()
+  for (const f of fixtures) {
+    const prevHome = map.get(f.teams.home.id)
+    map.set(f.teams.home.id, {
+      apiId: f.teams.home.id,
+      name: f.teams.home.name,
+      stadium: f.fixture.venue.name ?? prevHome?.stadium ?? null,
+      city: f.fixture.venue.city ?? prevHome?.city ?? null,
+    })
+    if (!map.has(f.teams.away.id)) {
+      map.set(f.teams.away.id, { apiId: f.teams.away.id, name: f.teams.away.name })
+    }
+  }
+  return [...map.values()]
+}
+
+// One multi-row UPSERT for all (deduped) teams, returning api_football_id -> id.
+export async function upsertTeamsBatch(
+  db: PoolClient,
+  teams: TeamInput[],
+): Promise<Map<number, number>> {
+  const idByApiId = new Map<number, number>()
+  if (teams.length === 0) return idByApiId
+
+  const params: unknown[] = []
+  const tuples = teams.map((t) => {
+    params.push(t.apiId, t.name, t.stadium ?? null, t.city ?? null)
+    const n = params.length
+    return `($${n - 3}, $${n - 2}, $${n - 1}, $${n})`
+  })
+
+  const { rows } = await db.query<{ id: number; api_football_id: number }>(
+    `INSERT INTO teams (api_football_id, name, stadium_name, city)
+     VALUES ${tuples.join(', ')}
+     ON CONFLICT (api_football_id) DO UPDATE SET
+       name = EXCLUDED.name,
+       stadium_name = COALESCE(EXCLUDED.stadium_name, teams.stadium_name),
+       city = COALESCE(EXCLUDED.city, teams.city),
+       updated_at = now()
+     RETURNING id, api_football_id`,
+    params,
+  )
+  for (const r of rows) idByApiId.set(r.api_football_id, r.id)
+  return idByApiId
+}
+
+// One multi-row UPSERT for all fixtures of a league. Fixtures whose teams didn't
+// resolve are skipped defensively.
+export async function upsertFixturesBatch(
   db: PoolClient,
   leagueId: number,
-  raw: RawFixture,
-): Promise<void> {
-  const homeId = await upsertTeam(db, raw.teams.home.id, raw.teams.home.name, {
-    stadium: raw.fixture.venue.name,
-    city: raw.fixture.venue.city,
+  fixtures: RawFixture[],
+  teamIds: Map<number, number>,
+): Promise<number> {
+  const seen = new Set<number>()
+  const valid = fixtures.filter((f) => {
+    if (!teamIds.has(f.teams.home.id) || !teamIds.has(f.teams.away.id)) return false
+    if (seen.has(f.fixture.id)) return false
+    seen.add(f.fixture.id)
+    return true
   })
-  const awayId = await upsertTeam(db, raw.teams.away.id, raw.teams.away.name)
+  if (valid.length === 0) return 0
+
+  const params: unknown[] = []
+  const tuples = valid.map((f) => {
+    params.push(
+      f.fixture.id,
+      leagueId,
+      teamIds.get(f.teams.home.id),
+      teamIds.get(f.teams.away.id),
+      f.fixture.date,
+      f.fixture.status.short,
+      f.goals.home,
+      f.goals.away,
+      f.score.halftime.home,
+      f.score.halftime.away,
+      f.league.round,
+    )
+    const n = params.length
+    return `($${n - 10}, $${n - 9}, $${n - 8}, $${n - 7}, $${n - 6}, $${n - 5}, $${n - 4}, $${n - 3}, $${n - 2}, $${n - 1}, $${n})`
+  })
 
   await db.query(
     `INSERT INTO fixtures (
        api_football_id, league_id, home_team_id, away_team_id, kickoff_at, status,
        home_score, away_score, halftime_home, halftime_away, round
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     VALUES ${tuples.join(', ')}
      ON CONFLICT (api_football_id) DO UPDATE SET
        kickoff_at = EXCLUDED.kickoff_at,
        status = EXCLUDED.status,
@@ -50,20 +132,9 @@ export async function upsertFixture(
        halftime_away = EXCLUDED.halftime_away,
        round = EXCLUDED.round,
        updated_at = now()`,
-    [
-      raw.fixture.id,
-      leagueId,
-      homeId,
-      awayId,
-      raw.fixture.date,
-      raw.fixture.status.short,
-      raw.goals.home,
-      raw.goals.away,
-      raw.score.halftime.home,
-      raw.score.halftime.away,
-      raw.league.round,
-    ],
+    params,
   )
+  return valid.length
 }
 
 export async function upsertStanding(

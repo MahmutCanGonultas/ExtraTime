@@ -4,7 +4,14 @@ import { logger } from '../../../lib/logger'
 import { apiFootballGet, getRequestCount, resetRequestCount } from '../../../lib/api-football/client'
 import type { RawFixture, RawStandingsLeague, RawTopScorer } from '../types'
 import { seedLeagues } from '../leagues.config'
-import { replaceTopAssists, replaceTopScorers, upsertFixture, upsertStanding } from './upserts'
+import {
+  collectTeams,
+  replaceTopAssists,
+  replaceTopScorers,
+  upsertFixturesBatch,
+  upsertStanding,
+  upsertTeamsBatch,
+} from './upserts'
 
 export interface SyncResult {
   job: string
@@ -116,10 +123,8 @@ export async function syncFixtures(includeInactive = false): Promise<SyncResult>
         league: league.api_football_id,
         season: league.season,
       })
-      for (const raw of fixtures) {
-        await upsertFixture(client, league.id, raw)
-      }
-      return fixtures.length
+      const teamIds = await upsertTeamsBatch(client, collectTeams(fixtures))
+      return upsertFixturesBatch(client, league.id, fixtures, teamIds)
     })
   })
 }
@@ -134,10 +139,8 @@ export async function syncResults(): Promise<SyncResult> {
         season: league.season,
         date: today,
       })
-      for (const raw of fixtures) {
-        await upsertFixture(client, league.id, raw)
-      }
-      return fixtures.length
+      const teamIds = await upsertTeamsBatch(client, collectTeams(fixtures))
+      return upsertFixturesBatch(client, league.id, fixtures, teamIds)
     })
   })
 }
