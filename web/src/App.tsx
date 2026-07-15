@@ -13,7 +13,8 @@ import { TeamPage } from '@/pages/TeamPage'
 import { GroupPage } from '@/pages/GroupPage'
 import { PredictionsPage } from '@/pages/PredictionsPage'
 import { MatchPage } from '@/pages/MatchPage'
-import { Placeholder } from '@/components/Placeholder'
+import { StatsPage } from '@/pages/StatsPage'
+import { AdminPage } from '@/pages/AdminPage'
 
 export function App() {
   return (
@@ -33,8 +34,8 @@ export function App() {
                 <Route path="/matches/:id" element={<MatchPage />} />
                 <Route path="/group" element={<GroupPage />} />
                 <Route path="/predictions" element={<PredictionsPage />} />
-                <Route path="/stats" element={<Placeholder title="İstatistik" />} />
-                <Route path="/admin" element={<Placeholder title="Admin" />} />
+                <Route path="/stats" element={<StatsPage />} />
+                <Route path="/admin" element={<AdminPage />} />
               </Route>
             </Route>
 

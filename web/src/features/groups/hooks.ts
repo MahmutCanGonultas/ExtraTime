@@ -6,6 +6,7 @@ import type {
   GroupSummary,
   LeaderboardEntry,
   MyPrediction,
+  SettledPoint,
 } from './types'
 
 export function useMyGroups() {
@@ -90,5 +91,29 @@ export function useRegenerateInvite(groupId: number) {
   return useMutation({
     mutationFn: () => api.post<{ inviteCode: string }>(`/groups/${groupId}/regenerate-invite`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['group', groupId] }),
+  })
+}
+
+export function useGroupStats(groupId: number) {
+  return useQuery({
+    queryKey: ['group-stats', groupId],
+    queryFn: () => api.get<{ settled: SettledPoint[] }>(`/groups/${groupId}/stats`),
+    select: (d) => d.settled,
+    enabled: groupId > 0,
+  })
+}
+
+export function useRemoveMember(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: number) => api.del(`/groups/${groupId}/members/${userId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['group', groupId] }),
+  })
+}
+
+export function useResetPassword(groupId: number) {
+  return useMutation({
+    mutationFn: (userId: number) =>
+      api.post<{ temporaryPassword: string }>(`/groups/${groupId}/members/${userId}/reset-password`),
   })
 }

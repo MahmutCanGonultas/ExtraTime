@@ -59,3 +59,10 @@ export interface FixturePredictions {
   locked: boolean
   predictions: MemberPrediction[]
 }
+
+export interface SettledPoint {
+  userId: number
+  displayName: string
+  kickoffAt: string
+  points: number | null
+}
