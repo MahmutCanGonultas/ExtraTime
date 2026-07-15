@@ -39,6 +39,18 @@ export const LEAGUE_SEEDS: LeagueSeed[] = [
   { apiFootballId: 1, name: 'Dünya Kupası', country: 'Dünya', season: 2022, isActive: false },
 ]
 
+// Tournaments (as opposed to yearly club leagues): once every match is played the
+// event is over, so it gets auto-retired from the home page. Club leagues never
+// auto-retire — their completed season stays browsable.
+export const TOURNAMENT_API_IDS = [1]
+
+// The single source of truth for "our leagues". Any browse/upcoming/live list is
+// restricted to these api_football_ids — no stray competition ever leaks in.
+export const CONFIGURED_LEAGUE_API_IDS = [
+  ...CLUB_COMPETITIONS.map((c) => c.apiFootballId),
+  ...TOURNAMENT_API_IDS,
+]
+
 // Upserts the configured league-seasons into the DB. Safe to run repeatedly.
 export async function seedLeagues(db: PoolClient): Promise<number> {
   for (const l of LEAGUE_SEEDS) {

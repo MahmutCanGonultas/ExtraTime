@@ -99,8 +99,9 @@ footballRouter.get(
 footballRouter.get(
   '/fixtures/:id',
   asyncHandler(async (req, res) => {
-    const fixture = await repo.getFixtureById(parseId(req.params.id))
+    const id = parseId(req.params.id)
+    const fixture = await repo.getFixtureById(id)
     if (!fixture) throw AppError.notFound('Fixture not found')
-    res.json({ fixture })
+    res.json({ fixture, goals: await repo.getFixtureGoals(id) })
   }),
 )

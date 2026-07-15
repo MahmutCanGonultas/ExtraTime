@@ -2,10 +2,11 @@ import type { PoolClient } from 'pg'
 import { getPool, query } from '../../../db/pool'
 import { logger } from '../../../lib/logger'
 import { apiFootballGet, getRequestCount, resetRequestCount } from '../../../lib/api-football/client'
-import type { RawFixture, RawStandingsLeague, RawTopScorer } from '../types'
-import { seedLeagues } from '../leagues.config'
+import type { RawFixture, RawFixtureEvent, RawStandingsLeague, RawTopScorer } from '../types'
+import { seedLeagues, TOURNAMENT_API_IDS } from '../leagues.config'
 import {
   collectTeams,
+  replaceFixtureGoals,
   replaceTopAssists,
   replaceTopScorers,
   upsertFixturesBatch,
@@ -209,11 +210,12 @@ export async function syncLiveScores(): Promise<SyncResult> {
 
     const fixtures = await apiFootballGet<RawFixture[]>('fixtures', { live: 'all' })
     let updated = 0
+    const tracked: Array<{ apiId: number; fixtureId: number }> = []
     for (const raw of fixtures) {
-      const res = await query(
+      const res = await query<{ id: number }>(
         `UPDATE fixtures SET status = $2, home_score = $3, away_score = $4,
-           halftime_home = $5, halftime_away = $6, updated_at = now()
-         WHERE api_football_id = $1`,
+           halftime_home = $5, halftime_away = $6, elapsed = $7, updated_at = now()
+         WHERE api_football_id = $1 RETURNING id`,
         [
           raw.fixture.id,
           raw.fixture.status.short,
@@ -221,12 +223,52 @@ export async function syncLiveScores(): Promise<SyncResult> {
           raw.goals.away,
           raw.score.halftime.home,
           raw.score.halftime.away,
+          raw.fixture.status.elapsed,
         ],
       )
-      updated += res.rowCount ?? 0
+      if (res.rowCount) {
+        updated += 1
+        tracked.push({ apiId: raw.fixture.id, fixtureId: res.rows[0].id })
+      }
+    }
+
+    // For each live match we track, refresh who scored (one request each).
+    if (tracked.length > 0) {
+      const client = await getPool()!.connect()
+      try {
+        for (const t of tracked) {
+          const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', {
+            fixture: t.apiId,
+          })
+          await replaceFixtureGoals(client, t.fixtureId, events)
+        }
+      } finally {
+        client.release()
+      }
     }
     return updated
   })
+}
+
+/**
+ * Retire tournaments (e.g. the World Cup) once every match has been played, so
+ * they drop off the home page automatically. Club leagues never auto-retire.
+ */
+export async function deactivateEndedTournaments(): Promise<number> {
+  const res = await query(
+    `UPDATE leagues SET is_active = false, updated_at = now()
+     WHERE is_active = true
+       AND api_football_id = ANY($1)
+       AND EXISTS (SELECT 1 FROM fixtures f WHERE f.league_id = leagues.id)
+       AND NOT EXISTS (
+         SELECT 1 FROM fixtures f
+         WHERE f.league_id = leagues.id
+           AND ((f.status = 'NS' AND f.kickoff_at > now())
+                OR f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT'))
+       )`,
+    [TOURNAMENT_API_IDS],
+  )
+  return res.rowCount ?? 0
 }
 
 /**

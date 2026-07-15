@@ -1,4 +1,5 @@
 import { query } from '../../db/pool'
+import { CONFIGURED_LEAGUE_API_IDS } from './leagues.config'
 
 // Read side of the football cache. Every one of these serves from Postgres and
 // never touches API-Football.
@@ -15,6 +16,9 @@ export interface FixtureDTO {
   kickoffAt: string
   status: string
   round: string | null
+  elapsed: number | null
+  leagueName: string
+  leagueApiId: number
   home: TeamRef
   away: TeamRef
   homeScore: number | null
@@ -29,6 +33,9 @@ interface FixtureRow {
   kickoff_at: Date
   status: string
   round: string | null
+  elapsed: number | null
+  league_name: string
+  league_api_id: number
   home_score: number | null
   away_score: number | null
   halftime_home: number | null
@@ -48,6 +55,9 @@ function mapFixture(r: FixtureRow): FixtureDTO {
     kickoffAt: r.kickoff_at.toISOString(),
     status: r.status,
     round: r.round,
+    elapsed: r.elapsed,
+    leagueName: r.league_name,
+    leagueApiId: r.league_api_id,
     home: { id: r.home_id, apiFootballId: r.home_api_id, name: r.home_name },
     away: { id: r.away_id, apiFootballId: r.away_api_id, name: r.away_name },
     homeScore: r.home_score,
@@ -58,11 +68,13 @@ function mapFixture(r: FixtureRow): FixtureDTO {
 }
 
 const FIXTURE_SELECT = `
-  SELECT f.id, f.api_football_id, f.kickoff_at, f.status, f.round,
+  SELECT f.id, f.api_football_id, f.kickoff_at, f.status, f.round, f.elapsed,
          f.home_score, f.away_score, f.halftime_home, f.halftime_away,
+         lg.name AS league_name, lg.api_football_id AS league_api_id,
          ht.id AS home_id, ht.api_football_id AS home_api_id, ht.name AS home_name,
          at.id AS away_id, at.api_football_id AS away_api_id, at.name AS away_name
   FROM fixtures f
+  JOIN leagues lg ON lg.id = f.league_id
   JOIN teams ht ON ht.id = f.home_team_id
   JOIN teams at ON at.id = f.away_team_id`
 
@@ -113,7 +125,8 @@ export async function getLeagueFixtures(
 
 export async function getTopScorers(leagueId: number) {
   const { rows } = await query(
-    `SELECT ts.rank, ts.player_name AS "playerName", ts.goals, ts.penalties, ts.appearances,
+    `SELECT ts.rank, ts.player_name AS "playerName", ts.player_api_id AS "playerApiId",
+            ts.goals, ts.penalties, ts.appearances,
             t.id AS "teamId", t.api_football_id AS "teamApiId", t.name AS "teamName"
      FROM top_scorers ts LEFT JOIN teams t ON t.id = ts.team_id
      WHERE ts.league_id = $1 ORDER BY ts.rank`,
@@ -124,7 +137,8 @@ export async function getTopScorers(leagueId: number) {
 
 export async function getTopAssists(leagueId: number) {
   const { rows } = await query(
-    `SELECT ta.rank, ta.player_name AS "playerName", ta.assists, ta.appearances,
+    `SELECT ta.rank, ta.player_name AS "playerName", ta.player_api_id AS "playerApiId",
+            ta.assists, ta.appearances,
             t.id AS "teamId", t.api_football_id AS "teamApiId", t.name AS "teamName"
      FROM top_assists ta LEFT JOIN teams t ON t.id = ta.team_id
      WHERE ta.league_id = $1 ORDER BY ta.rank`,
@@ -156,39 +170,83 @@ export async function getFixtureById(fixtureId: number): Promise<FixtureDTO | nu
   return rows[0] ? mapFixture(rows[0]) : null
 }
 
-// Matches currently in progress, across every league.
-export async function getLiveFixtures(): Promise<FixtureDTO[]> {
-  const { rows } = await query<FixtureRow>(
-    `${FIXTURE_SELECT}
-     WHERE f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
-     ORDER BY f.kickoff_at`,
-  )
-  return rows.map(mapFixture)
+export interface LiveFixtureDTO extends FixtureDTO {
+  goals: FixtureGoal[]
 }
 
-// Soonest upcoming matches across ACTIVE leagues (for the home page and the
-// prediction center) — bounded so we never ship hundreds of rows.
+// Matches currently in progress, restricted to our configured competitions, each
+// with its goal scorers attached (one extra query for the whole set).
+export async function getLiveFixtures(): Promise<LiveFixtureDTO[]> {
+  const { rows } = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     WHERE lg.api_football_id = ANY($1)
+       AND f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
+     ORDER BY f.kickoff_at`,
+    [CONFIGURED_LEAGUE_API_IDS],
+  )
+  const fixtures = rows.map(mapFixture)
+  if (fixtures.length === 0) return []
+
+  const goalsRes = await query<FixtureGoal & { fixtureId: number }>(
+    `SELECT fixture_id AS "fixtureId", team_api_id AS "teamApiId", player_name AS "playerName",
+            assist_name AS "assistName", minute, detail
+     FROM fixture_goals WHERE fixture_id = ANY($1)
+     ORDER BY minute NULLS LAST, id`,
+    [fixtures.map((f) => f.id)],
+  )
+  const byFixture = new Map<number, FixtureGoal[]>()
+  for (const row of goalsRes.rows) {
+    const { fixtureId, ...goal } = row
+    const list = byFixture.get(fixtureId) ?? []
+    list.push(goal)
+    byFixture.set(fixtureId, list)
+  }
+  return fixtures.map((f) => ({ ...f, goals: byFixture.get(f.id) ?? [] }))
+}
+
+// Soonest upcoming matches in our ACTIVE, configured competitions — bounded so
+// we never ship hundreds of rows.
 export async function getUpcomingFixtures(limit = 12): Promise<FixtureDTO[]> {
   const { rows } = await query<FixtureRow>(
     `${FIXTURE_SELECT}
-     JOIN leagues lg ON lg.id = f.league_id
-     WHERE lg.is_active = true AND f.status = 'NS' AND f.kickoff_at > now()
+     WHERE lg.is_active = true AND lg.api_football_id = ANY($2)
+       AND f.status = 'NS' AND f.kickoff_at > now()
      ORDER BY f.kickoff_at ASC
      LIMIT $1`,
-    [limit],
+    [limit, CONFIGURED_LEAGUE_API_IDS],
   )
   return rows.map(mapFixture)
 }
 
-// Most recent finished matches across ACTIVE leagues (home results strip).
+// Most recent finished matches in our ACTIVE, configured competitions.
 export async function getRecentFixtures(limit = 12): Promise<FixtureDTO[]> {
   const { rows } = await query<FixtureRow>(
     `${FIXTURE_SELECT}
-     JOIN leagues lg ON lg.id = f.league_id
-     WHERE lg.is_active = true AND f.status IN ('FT','AET','PEN')
+     WHERE lg.is_active = true AND lg.api_football_id = ANY($2)
+       AND f.status IN ('FT','AET','PEN')
      ORDER BY f.kickoff_at DESC
      LIMIT $1`,
-    [limit],
+    [limit, CONFIGURED_LEAGUE_API_IDS],
   )
   return rows.map(mapFixture)
+}
+
+export interface FixtureGoal {
+  teamApiId: number
+  playerName: string
+  assistName: string | null
+  minute: number | null
+  detail: string | null
+}
+
+// Goal timeline for one fixture (who scored, when), ordered chronologically.
+export async function getFixtureGoals(fixtureId: number): Promise<FixtureGoal[]> {
+  const { rows } = await query<FixtureGoal>(
+    `SELECT team_api_id AS "teamApiId", player_name AS "playerName",
+            assist_name AS "assistName", minute, detail
+     FROM fixture_goals WHERE fixture_id = $1
+     ORDER BY minute NULLS LAST, id`,
+    [fixtureId],
+  )
+  return rows
 }

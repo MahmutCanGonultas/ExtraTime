@@ -5,7 +5,7 @@ export interface RawFixture {
   fixture: {
     id: number
     date: string // ISO 8601 with timezone
-    status: { long: string; short: string }
+    status: { long: string; short: string; elapsed: number | null }
     venue: { name: string | null; city: string | null }
   }
   league: { id: number; name: string; country: string; season: number; round: string }
@@ -59,4 +59,14 @@ export interface RawLeague {
   league: { id: number; name: string; type: string }
   country: { name: string }
   seasons: Array<{ year: number; current: boolean }>
+}
+
+// A single in-match event (goal, card, substitution). We only store goals.
+export interface RawFixtureEvent {
+  time: { elapsed: number | null; extra: number | null }
+  team: { id: number; name: string }
+  player: { id: number | null; name: string | null }
+  assist: { id: number | null; name: string | null }
+  type: string // 'Goal' | 'Card' | 'subst' | 'Var'
+  detail: string // 'Normal Goal' | 'Penalty' | 'Own Goal' | 'Missed Penalty' ...
 }

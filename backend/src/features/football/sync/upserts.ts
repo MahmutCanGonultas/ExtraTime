@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg'
-import type { RawFixture, RawStandingRow, RawTopScorer } from '../types'
+import type { RawFixture, RawFixtureEvent, RawStandingRow, RawTopScorer } from '../types'
 
 // All writes go through a PoolClient so a sync can wrap a whole league in one
 // transaction. Every statement is parameterized — never string-concatenated.
@@ -112,15 +112,16 @@ export async function upsertFixturesBatch(
       f.score.halftime.home,
       f.score.halftime.away,
       f.league.round,
+      f.fixture.status.elapsed,
     )
     const n = params.length
-    return `($${n - 10}, $${n - 9}, $${n - 8}, $${n - 7}, $${n - 6}, $${n - 5}, $${n - 4}, $${n - 3}, $${n - 2}, $${n - 1}, $${n})`
+    return `($${n - 11}, $${n - 10}, $${n - 9}, $${n - 8}, $${n - 7}, $${n - 6}, $${n - 5}, $${n - 4}, $${n - 3}, $${n - 2}, $${n - 1}, $${n})`
   })
 
   await db.query(
     `INSERT INTO fixtures (
        api_football_id, league_id, home_team_id, away_team_id, kickoff_at, status,
-       home_score, away_score, halftime_home, halftime_away, round
+       home_score, away_score, halftime_home, halftime_away, round, elapsed
      )
      VALUES ${tuples.join(', ')}
      ON CONFLICT (api_football_id) DO UPDATE SET
@@ -131,10 +132,33 @@ export async function upsertFixturesBatch(
        halftime_home = EXCLUDED.halftime_home,
        halftime_away = EXCLUDED.halftime_away,
        round = EXCLUDED.round,
+       elapsed = EXCLUDED.elapsed,
        updated_at = now()`,
     params,
   )
   return valid.length
+}
+
+// Replace the goal list for one fixture (delete + re-insert), so a VAR reversal
+// simply drops the goal on the next sync. Only 'Goal' events are stored.
+export async function replaceFixtureGoals(
+  db: PoolClient,
+  fixtureId: number,
+  events: RawFixtureEvent[],
+): Promise<number> {
+  await db.query('DELETE FROM fixture_goals WHERE fixture_id = $1', [fixtureId])
+  const goals = events.filter((e) => e.type === 'Goal' && e.detail !== 'Missed Penalty')
+  let n = 0
+  for (const g of goals) {
+    if (!g.player.name) continue
+    await db.query(
+      `INSERT INTO fixture_goals (fixture_id, team_api_id, player_name, assist_name, minute, detail)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [fixtureId, g.team.id, g.player.name, g.assist?.name ?? null, g.time.elapsed, g.detail],
+    )
+    n += 1
+  }
+  return n
 }
 
 export async function upsertStanding(
@@ -192,9 +216,9 @@ export async function replaceTopScorers(
     rank += 1
     const teamId = await upsertTeam(db, stat.team.id, stat.team.name)
     await db.query(
-      `INSERT INTO top_scorers (league_id, player_name, team_id, goals, penalties, appearances, rank)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [leagueId, s.player.name, teamId, stat.goals.total ?? 0, stat.penalty.scored, stat.games.appearences, rank],
+      `INSERT INTO top_scorers (league_id, player_name, player_api_id, team_id, goals, penalties, appearances, rank)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [leagueId, s.player.name, s.player.id, teamId, stat.goals.total ?? 0, stat.penalty.scored, stat.games.appearences, rank],
     )
   }
   return rank
@@ -213,9 +237,9 @@ export async function replaceTopAssists(
     rank += 1
     const teamId = await upsertTeam(db, stat.team.id, stat.team.name)
     await db.query(
-      `INSERT INTO top_assists (league_id, player_name, team_id, assists, appearances, rank)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [leagueId, a.player.name, teamId, stat.goals.assists ?? 0, stat.games.appearences, rank],
+      `INSERT INTO top_assists (league_id, player_name, player_api_id, team_id, assists, appearances, rank)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [leagueId, a.player.name, a.player.id, teamId, stat.goals.assists ?? 0, stat.games.appearences, rank],
     )
   }
   return rank
