@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/* Design tokens — a dark, floodlit-stadium palette. These become Tailwind
+   utilities (bg-ink-900, text-brand-400, border-ink-700, ...). */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+
+  /* Surfaces and text, dark to light */
+  --color-ink-950: #0a0e13;
+  --color-ink-900: #0e141b;
+  --color-ink-850: #131b24;
+  --color-ink-800: #18212c;
+  --color-ink-750: #1e2833;
+  --color-ink-700: #26323f;
+  --color-ink-600: #33404f;
+  --color-ink-500: #4a5a6b;
+  --color-ink-400: #6b7a8c;
+  --color-ink-300: #93a1b1;
+  --color-ink-200: #c2ccd6;
+  --color-ink-100: #e6ebf0;
+
+  /* Brand — pitch green */
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+
+  /* Result semantics (win / draw / loss) */
+  --color-win: #22c55e;
+  --color-draw: #8a97a6;
+  --color-loss: #f05252;
+
+  --radius-card: 0.85rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-ink-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
