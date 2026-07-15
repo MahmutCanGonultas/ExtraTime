@@ -1,8 +1,5 @@
-import { useQueries } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { api } from '@/lib/api'
-import { useLeagues } from '@/features/football/hooks'
-import type { Fixture } from '@/features/football/types'
+import { useUpcomingFixtures } from '@/features/football/hooks'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import { useMyPredictions } from '@/features/groups/hooks'
 import type { MyPrediction } from '@/features/groups/types'
@@ -17,16 +14,7 @@ import { formatDate } from '@/lib/format'
 
 export function PredictionsPage() {
   const { active, isLoading: groupLoading } = useActiveGroup()
-  const leaguesQ = useLeagues(true)
-  const leagues = leaguesQ.data ?? []
-
-  const upcomingQueries = useQueries({
-    queries: leagues.map((l) => ({
-      queryKey: ['fixtures', l.id, 'upcoming'],
-      queryFn: () => api.get<{ fixtures: Fixture[] }>(`/leagues/${l.id}/fixtures?status=upcoming`),
-    })),
-  })
-
+  const upcomingQ = useUpcomingFixtures(30)
   const myPreds = useMyPredictions(active?.id ?? 0)
 
   if (groupLoading) return <Skeleton className="h-64" />
@@ -44,10 +32,8 @@ export function PredictionsPage() {
     )
   }
 
-  const upcoming = upcomingQueries
-    .flatMap((q) => q.data?.fixtures ?? [])
-    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
-  const loadingUpcoming = leaguesQ.isLoading || upcomingQueries.some((q) => q.isLoading)
+  const upcoming = upcomingQ.data ?? []
+  const loadingUpcoming = upcomingQ.isLoading
   const predByFixture = new Map(myPreds.data?.map((p) => [p.fixtureId, p]))
 
   return (

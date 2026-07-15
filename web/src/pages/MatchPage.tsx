@@ -30,6 +30,8 @@ export function MatchPage() {
 
   const f = fixture.data
   const finished = isFinished(f.status)
+  const live = isLive(f.status)
+  const showScore = finished || live
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -45,10 +47,21 @@ export function MatchPage() {
               <span className="text-center text-sm font-medium text-ink-100">{f.home.name}</span>
             </div>
             <div className="text-center">
-              {finished ? (
-                <div className="text-3xl font-bold tabular-nums text-ink-100">
-                  {f.homeScore} - {f.awayScore}
-                </div>
+              {showScore ? (
+                <>
+                  <div className="text-3xl font-bold tabular-nums text-ink-100">
+                    {f.homeScore ?? 0} - {f.awayScore ?? 0}
+                  </div>
+                  {live && (
+                    <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold text-loss">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-loss opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-loss" />
+                      </span>
+                      CANLI
+                    </div>
+                  )}
+                </>
               ) : (
                 <StatusBadge status={f.status} />
               )}

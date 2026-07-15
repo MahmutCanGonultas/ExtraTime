@@ -59,3 +59,28 @@ export function useFixture(fixtureId: number) {
     select: (d) => d.fixture,
   })
 }
+
+export function useLiveFixtures() {
+  return useQuery({
+    queryKey: ['fixtures', 'live'],
+    queryFn: () => api.get<{ fixtures: Fixture[] }>('/fixtures/live'),
+    select: (d) => d.fixtures,
+    refetchInterval: 20_000, // live matches: refresh every 20s
+  })
+}
+
+export function useUpcomingFixtures(limit = 12) {
+  return useQuery({
+    queryKey: ['fixtures', 'upcoming', limit],
+    queryFn: () => api.get<{ fixtures: Fixture[] }>(`/fixtures/upcoming?limit=${limit}`),
+    select: (d) => d.fixtures,
+  })
+}
+
+export function useRecentFixtures(limit = 12) {
+  return useQuery({
+    queryKey: ['fixtures', 'recent', limit],
+    queryFn: () => api.get<{ fixtures: Fixture[] }>(`/fixtures/recent?limit=${limit}`),
+    select: (d) => d.fixtures,
+  })
+}
