@@ -8,14 +8,17 @@ import { logger } from '../lib/logger'
 // comparisons, and any `=== number` logic on the client.
 types.setTypeParser(20, (value) => parseInt(value, 10))
 
-const isLocal = (url: string) => url.includes('localhost') || url.includes('127.0.0.1')
+// SSL off for local Postgres (localhost / docker-compose) or when explicitly
+// disabled; on for managed providers like Neon.
+const sslDisabled = (url: string) =>
+  url.includes('localhost') || url.includes('127.0.0.1') || url.includes('sslmode=disable')
 
 function createPoolFromEnv(): Pool | null {
   if (!env.DATABASE_URL) return null
   const pool = new Pool({
     connectionString: env.DATABASE_URL,
     // Managed Postgres (Neon) requires SSL; a local Postgres usually doesn't.
-    ssl: isLocal(env.DATABASE_URL) ? false : { rejectUnauthorized: false },
+    ssl: sslDisabled(env.DATABASE_URL) ? false : { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
