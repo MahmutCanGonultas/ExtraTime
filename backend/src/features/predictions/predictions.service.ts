@@ -163,3 +163,22 @@ export async function getLeaderboard(groupId: number, requesterId: number): Prom
     exactAccuracy: r.settledCount > 0 ? r.exactCount / r.settledCount : null,
   }))
 }
+
+// Settled predictions over time, for the points-trend chart. The client turns
+// this into a cumulative line per member.
+export async function getGroupStats(groupId: number, requesterId: number) {
+  if (!(await isMember(groupId, requesterId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const { rows } = await query(
+    `SELECT p.user_id AS "userId", u.display_name AS "displayName",
+            f.kickoff_at AS "kickoffAt", p.points_awarded AS "points"
+     FROM predictions p
+     JOIN users u ON u.id = p.user_id
+     JOIN fixtures f ON f.id = p.fixture_id
+     WHERE p.group_id = $1 AND p.settled_at IS NOT NULL
+     ORDER BY f.kickoff_at ASC`,
+    [groupId],
+  )
+  return { settled: rows }
+}

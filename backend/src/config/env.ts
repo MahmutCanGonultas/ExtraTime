@@ -24,6 +24,10 @@ const envSchema = z
 
     SYNC_SECRET: z.string().min(1).optional(),
 
+    // Comma-separated emails that are platform admins (the app owner). They can
+    // run syncs and view sync health from the /admin panel with their login.
+    ADMIN_EMAILS: z.string().default(''),
+
     CORS_ORIGIN: z.string().default('*'),
 
     LOG_LEVEL: z

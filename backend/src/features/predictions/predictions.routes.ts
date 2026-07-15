@@ -57,3 +57,11 @@ predictionsRouter.get(
     res.json({ leaderboard: await predictions.getLeaderboard(groupId, req.userId!) })
   }),
 )
+
+predictionsRouter.get(
+  '/:groupId/stats',
+  asyncHandler(async (req, res) => {
+    const groupId = parseIdParam(req.params.groupId)
+    res.json(await predictions.getGroupStats(groupId, req.userId!))
+  }),
+)

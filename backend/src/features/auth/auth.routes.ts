@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { AppError } from '../../lib/errors'
-import { getUserById, loginUser, registerUser } from './auth.service'
+import { getUserById, isPlatformAdmin, loginUser, registerUser } from './auth.service'
 import { requireAuth } from './requireAuth'
 
 export const authRouter = Router()
@@ -52,6 +52,6 @@ authRouter.get(
   asyncHandler(async (req, res) => {
     const user = await getUserById(req.userId!)
     if (!user) throw AppError.unauthorized('User no longer exists')
-    res.json({ user })
+    res.json({ user, isPlatformAdmin: isPlatformAdmin(user.email) })
   }),
 )

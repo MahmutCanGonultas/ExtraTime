@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { query } from '../../db/pool'
 import { asyncHandler } from '../../lib/middleware/async'
-import { requireSyncSecret } from './sync.middleware'
+import { requireSyncAccess } from './sync.middleware'
 import {
   backfillAllSeasons,
   seedLeaguesJob,
@@ -14,8 +14,8 @@ import { syncResultsAndSettle } from '../predictions/settle'
 
 export const adminRouter = Router()
 
-// Every admin route requires the sync secret.
-adminRouter.use(requireSyncSecret)
+// Every admin route requires the sync secret OR a platform-admin login.
+adminRouter.use(requireSyncAccess)
 
 adminRouter.post(
   '/sync/seed',

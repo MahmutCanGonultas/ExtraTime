@@ -1,10 +1,19 @@
 import bcrypt from 'bcryptjs'
 import { query } from '../../db/pool'
+import { env } from '../../config/env'
 import { AppError } from '../../lib/errors'
 import { isUniqueViolation } from '../../lib/pg-error'
 import { signToken } from '../../lib/jwt'
 
 const SALT_ROUNDS = 10
+
+// Platform admins (the app owner) are configured by email in ADMIN_EMAILS.
+export function isPlatformAdmin(email: string): boolean {
+  const admins = env.ADMIN_EMAILS.split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+  return admins.includes(email.trim().toLowerCase())
+}
 
 export interface PublicUser {
   id: number
