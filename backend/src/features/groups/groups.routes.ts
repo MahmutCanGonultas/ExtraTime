@@ -14,6 +14,14 @@ groupsRouter.use(requireAuth)
 const createSchema = z.object({ name: z.string().min(2).max(60) })
 const joinSchema = z.object({ inviteCode: z.string().min(4).max(16) })
 
+// Groups the current user belongs to (used to resolve their active group).
+groupsRouter.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    res.json({ groups: await groups.getMyGroups(req.userId!) })
+  }),
+)
+
 groupsRouter.post(
   '/',
   asyncHandler(async (req, res) => {

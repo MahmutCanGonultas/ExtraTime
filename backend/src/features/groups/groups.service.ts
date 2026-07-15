@@ -61,6 +61,19 @@ export async function joinGroup(inviteCode: string, userId: number): Promise<{ i
   return group
 }
 
+export async function getMyGroups(userId: number) {
+  const { rows } = await query<{ id: number; name: string; isAdmin: boolean; memberCount: number }>(
+    `SELECT g.id, g.name, (g.admin_user_id = $1) AS "isAdmin",
+            (SELECT COUNT(*)::int FROM group_members m WHERE m.group_id = g.id) AS "memberCount"
+     FROM group_members gm
+     JOIN groups g ON g.id = gm.group_id
+     WHERE gm.user_id = $1
+     ORDER BY g.created_at`,
+    [userId],
+  )
+  return rows
+}
+
 export async function isMember(groupId: number, userId: number): Promise<boolean> {
   const { rowCount } = await query(
     `SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2`,
