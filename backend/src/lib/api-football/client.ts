@@ -1,0 +1,74 @@
+import { env } from '../../config/env'
+import { logger } from '../logger'
+
+// Shape every API-Football v3 endpoint returns.
+export interface ApiFootballEnvelope<T> {
+  get: string
+  results: number
+  paging: { current: number; total: number }
+  errors: unknown
+  response: T
+}
+
+// The daily budget is precious (100/day on the free plan), so we count every
+// request. Sync jobs snapshot this counter to record api_requests_used.
+let requestCount = 0
+export function getRequestCount(): number {
+  return requestCount
+}
+export function resetRequestCount(): void {
+  requestCount = 0
+}
+
+const REQUEST_TIMEOUT_MS = 15_000
+
+function hasErrors(errors: unknown): boolean {
+  if (Array.isArray(errors)) return errors.length > 0
+  if (errors && typeof errors === 'object') return Object.keys(errors).length > 0
+  return false
+}
+
+/**
+ * Single choke point for talking to API-Football. Nothing else in the codebase
+ * calls fetch against the external API — this is where the daily budget is spent.
+ */
+export async function apiFootballGet<T>(
+  path: string,
+  params: Record<string, string | number> = {},
+): Promise<T> {
+  if (!env.API_FOOTBALL_KEY) {
+    throw new Error('API_FOOTBALL_KEY is not configured')
+  }
+
+  const url = new URL(path.replace(/^\//, ''), `${env.API_FOOTBALL_BASE_URL}/`)
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value))
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  requestCount += 1
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'x-apisports-key': env.API_FOOTBALL_KEY },
+      signal: controller.signal,
+    })
+    logger.info({ path, params, requestCount }, 'API-Football request')
+
+    if (!res.ok) {
+      throw new Error(`API-Football ${path} responded with HTTP ${res.status}`)
+    }
+
+    const body = (await res.json()) as ApiFootballEnvelope<T>
+    // API-Football sometimes returns HTTP 200 with a non-empty errors object
+    // (rate limit hit, invalid params). Surface it but don't crash the caller.
+    if (hasErrors(body.errors)) {
+      logger.warn({ path, errors: body.errors }, 'API-Football returned errors')
+    }
+
+    return body.response
+  } finally {
+    clearTimeout(timer)
+  }
+}
