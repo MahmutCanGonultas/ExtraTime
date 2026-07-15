@@ -14,10 +14,13 @@ function parseId(raw: string): number {
   return result.data
 }
 
+const leaguesQuerySchema = z.object({ active: z.enum(['true', 'false']).optional() })
+
 footballRouter.get(
   '/leagues',
-  asyncHandler(async (_req, res) => {
-    res.json({ leagues: await repo.listActiveLeagues() })
+  asyncHandler(async (req, res) => {
+    const { active } = leaguesQuerySchema.parse(req.query)
+    res.json({ leagues: await repo.listLeagues(active === 'true') })
   }),
 )
 

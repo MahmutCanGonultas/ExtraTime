@@ -20,9 +20,13 @@ interface ActiveLeague {
   season: number
 }
 
-async function getActiveLeagues(): Promise<ActiveLeague[]> {
+// includeInactive=true also returns past (inactive) seasons — used only by the
+// one-time backfill. The daily cron always stays on active leagues.
+async function getLeagues(includeInactive = false): Promise<ActiveLeague[]> {
   const { rows } = await query<ActiveLeague>(
-    'SELECT id, api_football_id, season FROM leagues WHERE is_active = true ORDER BY id',
+    includeInactive
+      ? 'SELECT id, api_football_id, season FROM leagues ORDER BY id'
+      : 'SELECT id, api_football_id, season FROM leagues WHERE is_active = true ORDER BY id',
   )
   return rows
 }
@@ -104,9 +108,9 @@ export async function seedLeaguesJob(): Promise<SyncResult> {
   })
 }
 
-export async function syncFixtures(): Promise<SyncResult> {
+export async function syncFixtures(includeInactive = false): Promise<SyncResult> {
   return runJob('fixtures', async () => {
-    const leagues = await getActiveLeagues()
+    const leagues = await getLeagues(includeInactive)
     return perLeague(leagues, async (client, league) => {
       const fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
         league: league.api_football_id,
@@ -122,7 +126,7 @@ export async function syncFixtures(): Promise<SyncResult> {
 
 export async function syncResults(): Promise<SyncResult> {
   return runJob('results', async () => {
-    const leagues = await getActiveLeagues()
+    const leagues = await getLeagues(false)
     const today = new Date().toISOString().slice(0, 10)
     return perLeague(leagues, async (client, league) => {
       const fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
@@ -138,9 +142,9 @@ export async function syncResults(): Promise<SyncResult> {
   })
 }
 
-export async function syncStandings(): Promise<SyncResult> {
+export async function syncStandings(includeInactive = false): Promise<SyncResult> {
   return runJob('standings', async () => {
-    const leagues = await getActiveLeagues()
+    const leagues = await getLeagues(includeInactive)
     return perLeague(leagues, async (client, league) => {
       const data = await apiFootballGet<RawStandingsLeague[]>('standings', {
         league: league.api_football_id,
@@ -159,9 +163,9 @@ export async function syncStandings(): Promise<SyncResult> {
   })
 }
 
-export async function syncTopScorers(): Promise<SyncResult> {
+export async function syncTopScorers(includeInactive = false): Promise<SyncResult> {
   return runJob('topscorers', async () => {
-    const leagues = await getActiveLeagues()
+    const leagues = await getLeagues(includeInactive)
     return perLeague(leagues, async (client, league) => {
       const scorers = await apiFootballGet<RawTopScorer[]>('players/topscorers', {
         league: league.api_football_id,
@@ -172,9 +176,9 @@ export async function syncTopScorers(): Promise<SyncResult> {
   })
 }
 
-export async function syncTopAssists(): Promise<SyncResult> {
+export async function syncTopAssists(includeInactive = false): Promise<SyncResult> {
   return runJob('topassists', async () => {
-    const leagues = await getActiveLeagues()
+    const leagues = await getLeagues(includeInactive)
     return perLeague(leagues, async (client, league) => {
       const assisters = await apiFootballGet<RawTopScorer[]>('players/topassists', {
         league: league.api_football_id,
@@ -183,4 +187,19 @@ export async function syncTopAssists(): Promise<SyncResult> {
       return replaceTopAssists(client, league.id, assisters)
     })
   })
+}
+
+/**
+ * One-time historical load: seed the leagues, then sync fixtures, standings and
+ * scorers for ALL seasons (including inactive past ones). Heavier than the daily
+ * jobs, so it is triggered manually. Ongoing sync stays on active leagues.
+ */
+export async function backfillAllSeasons(): Promise<SyncResult[]> {
+  return [
+    await seedLeaguesJob(),
+    await syncFixtures(true),
+    await syncStandings(true),
+    await syncTopScorers(true),
+    await syncTopAssists(true),
+  ]
 }

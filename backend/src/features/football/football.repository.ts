@@ -66,10 +66,15 @@ const FIXTURE_SELECT = `
   JOIN teams ht ON ht.id = f.home_team_id
   JOIN teams at ON at.id = f.away_team_id`
 
-export async function listActiveLeagues() {
+// Returns every league-season by default so the UI can browse history; pass
+// activeOnly for just the current season (e.g. the home page).
+export async function listLeagues(activeOnly = false) {
   const { rows } = await query(
-    `SELECT id, api_football_id AS "apiFootballId", name, country, season, logo_url AS "logoUrl", is_active AS "isActive"
-     FROM leagues WHERE is_active = true ORDER BY id`,
+    `SELECT id, api_football_id AS "apiFootballId", name, country, season,
+            logo_url AS "logoUrl", is_active AS "isActive"
+     FROM leagues
+     ${activeOnly ? 'WHERE is_active = true' : ''}
+     ORDER BY name ASC, season DESC`,
   )
   return rows
 }

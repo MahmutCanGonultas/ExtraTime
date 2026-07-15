@@ -3,6 +3,7 @@ import { query } from '../../db/pool'
 import { asyncHandler } from '../../lib/middleware/async'
 import { requireSyncSecret } from './sync.middleware'
 import {
+  backfillAllSeasons,
   seedLeaguesJob,
   syncFixtures,
   syncStandings,
@@ -19,6 +20,12 @@ adminRouter.use(requireSyncSecret)
 adminRouter.post(
   '/sync/seed',
   asyncHandler(async (_req, res) => res.json(await seedLeaguesJob())),
+)
+
+// One-time historical load across all seasons (seed + fixtures + standings + scorers).
+adminRouter.post(
+  '/sync/backfill',
+  asyncHandler(async (_req, res) => res.json({ results: await backfillAllSeasons() })),
 )
 adminRouter.post(
   '/sync/fixtures',
