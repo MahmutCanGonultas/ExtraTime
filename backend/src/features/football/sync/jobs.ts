@@ -1,0 +1,186 @@
+import type { PoolClient } from 'pg'
+import { pool, query } from '../../../db/pool'
+import { logger } from '../../../lib/logger'
+import { apiFootballGet, getRequestCount, resetRequestCount } from '../../../lib/api-football/client'
+import type { RawFixture, RawStandingsLeague, RawTopScorer } from '../types'
+import { seedLeagues } from '../leagues.config'
+import { replaceTopAssists, replaceTopScorers, upsertFixture, upsertStanding } from './upserts'
+
+export interface SyncResult {
+  job: string
+  success: boolean
+  records: number
+  requests: number
+  error?: string
+}
+
+interface ActiveLeague {
+  id: number
+  api_football_id: number
+  season: number
+}
+
+async function getActiveLeagues(): Promise<ActiveLeague[]> {
+  const { rows } = await query<ActiveLeague>(
+    'SELECT id, api_football_id, season FROM leagues WHERE is_active = true ORDER BY id',
+  )
+  return rows
+}
+
+async function logSync(
+  job: string,
+  records: number,
+  requests: number,
+  success: boolean,
+  error: string | null,
+): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO sync_logs (job_name, records_upserted, api_requests_used, success, error_message)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [job, records, requests, success, error],
+    )
+  } catch (err) {
+    logger.error({ err, job }, 'Failed to write sync_logs')
+  }
+}
+
+// Wraps a job: reset the request counter, run the work, record one sync_logs row.
+// A failing job is logged and returned as unsuccessful — it never throws upward,
+// so a broken API or exhausted budget cannot crash the app.
+async function runJob(job: string, work: () => Promise<number>): Promise<SyncResult> {
+  if (!pool) {
+    logger.error({ job }, 'DATABASE_URL not configured; skipping sync')
+    return { job, success: false, records: 0, requests: 0, error: 'no database' }
+  }
+  resetRequestCount()
+  try {
+    const records = await work()
+    const requests = getRequestCount()
+    await logSync(job, records, requests, true, null)
+    logger.info({ job, records, requests }, 'Sync completed')
+    return { job, success: true, records, requests }
+  } catch (err) {
+    const requests = getRequestCount()
+    const message = err instanceof Error ? err.message : String(err)
+    await logSync(job, 0, requests, false, message)
+    logger.error({ err, job }, 'Sync failed')
+    return { job, success: false, records: 0, requests, error: message }
+  }
+}
+
+// Runs `fn` for each league in its own transaction, so one failing league does
+// not roll back the others.
+async function perLeague(
+  leagues: ActiveLeague[],
+  fn: (client: PoolClient, league: ActiveLeague) => Promise<number>,
+): Promise<number> {
+  let total = 0
+  for (const league of leagues) {
+    const client = await pool!.connect()
+    try {
+      await client.query('BEGIN')
+      total += await fn(client, league)
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {})
+      logger.error({ err, league: league.api_football_id }, 'League sync failed; rolled back')
+    } finally {
+      client.release()
+    }
+  }
+  return total
+}
+
+/** Seed the configured leagues into the DB (no API requests). */
+export async function seedLeaguesJob(): Promise<SyncResult> {
+  return runJob('seed', async () => {
+    const client = await pool!.connect()
+    try {
+      return await seedLeagues(client)
+    } finally {
+      client.release()
+    }
+  })
+}
+
+export async function syncFixtures(): Promise<SyncResult> {
+  return runJob('fixtures', async () => {
+    const leagues = await getActiveLeagues()
+    return perLeague(leagues, async (client, league) => {
+      const fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
+        league: league.api_football_id,
+        season: league.season,
+      })
+      for (const raw of fixtures) {
+        await upsertFixture(client, league.id, raw)
+      }
+      return fixtures.length
+    })
+  })
+}
+
+export async function syncResults(): Promise<SyncResult> {
+  return runJob('results', async () => {
+    const leagues = await getActiveLeagues()
+    const today = new Date().toISOString().slice(0, 10)
+    return perLeague(leagues, async (client, league) => {
+      const fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
+        league: league.api_football_id,
+        season: league.season,
+        date: today,
+      })
+      for (const raw of fixtures) {
+        await upsertFixture(client, league.id, raw)
+      }
+      return fixtures.length
+    })
+  })
+}
+
+export async function syncStandings(): Promise<SyncResult> {
+  return runJob('standings', async () => {
+    const leagues = await getActiveLeagues()
+    return perLeague(leagues, async (client, league) => {
+      const data = await apiFootballGet<RawStandingsLeague[]>('standings', {
+        league: league.api_football_id,
+        season: league.season,
+      })
+      const groups = data[0]?.league.standings ?? []
+      let n = 0
+      for (const group of groups) {
+        for (const row of group) {
+          await upsertStanding(client, league.id, row)
+          n += 1
+        }
+      }
+      return n
+    })
+  })
+}
+
+export async function syncTopScorers(): Promise<SyncResult> {
+  return runJob('topscorers', async () => {
+    const leagues = await getActiveLeagues()
+    return perLeague(leagues, async (client, league) => {
+      const scorers = await apiFootballGet<RawTopScorer[]>('players/topscorers', {
+        league: league.api_football_id,
+        season: league.season,
+      })
+      return replaceTopScorers(client, league.id, scorers)
+    })
+  })
+}
+
+export async function syncTopAssists(): Promise<SyncResult> {
+  return runJob('topassists', async () => {
+    const leagues = await getActiveLeagues()
+    return perLeague(leagues, async (client, league) => {
+      const assisters = await apiFootballGet<RawTopScorer[]>('players/topassists', {
+        league: league.api_football_id,
+        season: league.season,
+      })
+      return replaceTopAssists(client, league.id, assisters)
+    })
+  })
+}
