@@ -10,24 +10,32 @@ export const predictionsRouter = Router()
 
 predictionsRouter.use(requireAuth)
 
-const scoreSchema = z.object({
-  predictedHome: z.number().int().min(0).max(99),
-  predictedAway: z.number().int().min(0).max(99),
-})
+// The outcome (1X2) is required; the exact score is optional and must be given
+// as a pair (both numbers) or not at all.
+const predictionSchema = z
+  .object({
+    outcome: z.enum(['HOME', 'DRAW', 'AWAY']),
+    predictedHome: z.number().int().min(0).max(99).nullable().optional(),
+    predictedAway: z.number().int().min(0).max(99).nullable().optional(),
+  })
+  .refine((b) => (b.predictedHome == null) === (b.predictedAway == null), {
+    message: 'Skor girecekseniz her iki takım için de girin',
+  })
 
-// Upsert a prediction. Server-side lock lives inside the service SQL.
+// Upsert a prediction. Server-side guards (lock, game membership) live in the service SQL.
 predictionsRouter.put(
   '/:groupId/predictions/:fixtureId',
   asyncHandler(async (req, res) => {
     const groupId = parseIdParam(req.params.groupId)
     const fixtureId = parseIdParam(req.params.fixtureId)
-    const body = scoreSchema.parse(req.body)
+    const body = predictionSchema.parse(req.body)
     const prediction = await predictions.upsertPrediction(
       req.userId!,
       groupId,
       fixtureId,
-      body.predictedHome,
-      body.predictedAway,
+      body.outcome,
+      body.predictedHome ?? null,
+      body.predictedAway ?? null,
     )
     res.json({ prediction })
   }),

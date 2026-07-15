@@ -1,6 +1,6 @@
 import { query } from '../../db/pool'
 import { isFinal } from '../football/status'
-import { syncResults } from '../football/sync/jobs'
+import { deactivateEndedTournaments, syncResults } from '../football/sync/jobs'
 import { calculatePoints } from './scoring'
 
 /**
@@ -20,14 +20,22 @@ export async function settleFixture(fixtureId: number): Promise<number> {
   }
 
   const actual = { home: fixture.home_score, away: fixture.away_score }
-  const preds = await query<{ id: number; predicted_home: number; predicted_away: number }>(
-    `SELECT id, predicted_home, predicted_away FROM predictions WHERE fixture_id = $1`,
+  const preds = await query<{
+    id: number
+    predicted_outcome: 'HOME' | 'DRAW' | 'AWAY'
+    predicted_home: number | null
+    predicted_away: number | null
+  }>(
+    `SELECT id, predicted_outcome, predicted_home, predicted_away FROM predictions WHERE fixture_id = $1`,
     [fixtureId],
   )
 
   let scored = 0
   for (const p of preds.rows) {
-    const points = calculatePoints({ home: p.predicted_home, away: p.predicted_away }, actual)
+    const points = calculatePoints(
+      { outcome: p.predicted_outcome, home: p.predicted_home, away: p.predicted_away },
+      actual,
+    )
     await query(`UPDATE predictions SET points_awarded = $1, settled_at = now() WHERE id = $2`, [
       points,
       p.id,
@@ -60,5 +68,7 @@ export async function settleFinishedFixtures(): Promise<number> {
 export async function syncResultsAndSettle() {
   const sync = await syncResults()
   const settled = await settleFinishedFixtures()
-  return { ...sync, settled }
+  // Retire any tournament that just played its last match (drops off the home page).
+  const retired = await deactivateEndedTournaments()
+  return { ...sync, settled, retired }
 }

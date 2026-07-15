@@ -84,9 +84,17 @@ describe('API integration (in-memory Postgres)', () => {
     const group = await api('POST', '/api/v1/groups', { token, body: { name: 'Kanka Ligi' } })
     const groupId = group.json.group.id as number
 
+    // The leader curates the match into the group's game before anyone predicts.
+    const add = await api('POST', `/api/v1/groups/${groupId}/fixtures`, {
+      token,
+      body: { fixtureId: 1 },
+    })
+    expect(add.status).toBe(201)
+
+    // Predict the winner AND the exact score.
     const pred = await api('PUT', `/api/v1/groups/${groupId}/predictions/1`, {
       token,
-      body: { predictedHome: 2, predictedAway: 1 },
+      body: { outcome: 'HOME', predictedHome: 2, predictedAway: 1 },
     })
     expect(pred.status).toBe(200)
 
@@ -98,15 +106,22 @@ describe('API integration (in-memory Postgres)', () => {
 
     const locked = await api('PUT', `/api/v1/groups/${groupId}/predictions/1`, {
       token,
-      body: { predictedHome: 0, predictedAway: 0 },
+      body: { outcome: 'DRAW' },
     })
     expect(locked.status).toBe(409)
     expect(locked.json.error.code).toBe('PREDICTION_LOCKED')
 
     const lb = await api('GET', `/api/v1/groups/${groupId}/leaderboard`, { token })
     const mine = lb.json.leaderboard.find((e: { userId: number }) => e.userId === userId)
-    expect(mine.points).toBe(3)
+    // Exact score is now worth 5.
+    expect(mine.points).toBe(5)
     expect(mine.exactCount).toBe(1)
+
+    // Finishing the game crowns the leader as champion.
+    const finish = await api('POST', `/api/v1/groups/${groupId}/finish`, { token })
+    expect(finish.status).toBe(200)
+    expect(finish.json.champion.userId).toBe(userId)
+    expect(finish.json.champion.points).toBe(5)
   })
 
   it('rejects protected routes without a token', async () => {

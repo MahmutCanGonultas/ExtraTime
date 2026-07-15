@@ -1,8 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { query } from '../../db/pool'
+import { getPool, query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
 import { isUniqueViolation } from '../../lib/pg-error'
+import { CONFIGURED_LEAGUE_API_IDS } from '../football/leagues.config'
+import { seasonLeaderboard } from '../predictions/leaderboard'
 
 const SALT_ROUNDS = 10
 // No ambiguous characters (0/O, 1/I) so codes are easy to read out loud.
@@ -37,6 +39,11 @@ export async function createGroup(name: string, adminUserId: number): Promise<Gr
          ON CONFLICT (group_id, user_id) DO NOTHING`,
         [groupId, adminUserId],
       )
+      // Every group starts with an open first game the leader fills with matches.
+      await query(`INSERT INTO group_seasons (group_id, title, status) VALUES ($1, $2, 'active')`, [
+        groupId,
+        '1. Oyun',
+      ])
       return { id: groupId, name: name.trim(), inviteCode, adminUserId }
     } catch (err) {
       if (isUniqueViolation(err)) continue
@@ -100,6 +107,8 @@ export async function getGroupDetail(groupId: number, requesterId: number) {
     [groupId],
   )
 
+  const activeSeason = await getActiveSeason(groupId)
+
   const isAdmin = group.admin_user_id === requesterId
   return {
     id: group.id,
@@ -109,7 +118,46 @@ export async function getGroupDetail(groupId: number, requesterId: number) {
     // Only the admin sees the invite code.
     inviteCode: isAdmin ? group.invite_code : undefined,
     members: members.rows,
+    activeSeason,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Seasons — a group runs one game (season) at a time; finished ones are history.
+// ---------------------------------------------------------------------------
+
+export interface SeasonRef {
+  id: number
+  title: string
+  status: 'active' | 'finished'
+}
+
+/** The group's current open game, or null when it is between games. */
+export async function getActiveSeason(groupId: number): Promise<SeasonRef | null> {
+  const { rows } = await query<SeasonRef>(
+    `SELECT id, title, status FROM group_seasons
+     WHERE group_id = $1 AND status = 'active'
+     ORDER BY started_at DESC LIMIT 1`,
+    [groupId],
+  )
+  return rows[0] ?? null
+}
+
+async function requireActiveSeasonId(groupId: number): Promise<number> {
+  const season = await getActiveSeason(groupId)
+  if (!season) throw AppError.badRequest('Bu grupta açık bir oyun yok; önce yeni oyun başlat')
+  return season.id
+}
+
+/** The season whose standings we show "now": the open game, or, between games,
+ *  the most recent finished one — so the final table stays on screen. */
+export async function getCurrentSeasonId(groupId: number): Promise<number | null> {
+  const { rows } = await query<{ id: number }>(
+    `SELECT id FROM group_seasons WHERE group_id = $1
+     ORDER BY (status = 'active') DESC, started_at DESC LIMIT 1`,
+    [groupId],
+  )
+  return rows[0]?.id ?? null
 }
 
 export async function regenerateInvite(groupId: number): Promise<string> {
@@ -131,6 +179,195 @@ export async function removeMember(groupId: number, targetUserId: number, adminU
     throw AppError.badRequest('The admin cannot be removed from the group')
   }
   await query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId])
+}
+
+// ---------------------------------------------------------------------------
+// The leader curates the season's matches; members predict only these.
+// ---------------------------------------------------------------------------
+
+const FIXTURE_FIELDS = `
+  f.api_football_id AS "fixtureApiId", f.kickoff_at AS "kickoffAt", f.status,
+  f.round, f.elapsed, f.home_score AS "homeScore", f.away_score AS "awayScore",
+  lg.name AS "leagueName", lg.api_football_id AS "leagueApiId",
+  ht.id AS "homeId", ht.api_football_id AS "homeApiId", ht.name AS "homeName",
+  at.id AS "awayId", at.api_football_id AS "awayApiId", at.name AS "awayName"`
+
+/** Add a fixture to the group's current game. Admin-only (enforced by route). */
+export async function addGroupFixture(
+  groupId: number,
+  fixtureId: number,
+  addedBy: number,
+): Promise<void> {
+  const seasonId = await requireActiveSeasonId(groupId)
+  const { rows } = await query<{ open: boolean; league_api: number }>(
+    `SELECT (f.status = 'NS' AND f.kickoff_at > now()) AS open, lg.api_football_id AS league_api
+     FROM fixtures f JOIN leagues lg ON lg.id = f.league_id WHERE f.id = $1`,
+    [fixtureId],
+  )
+  const fixture = rows[0]
+  if (!fixture) throw AppError.notFound('Maç bulunamadı')
+  if (!CONFIGURED_LEAGUE_API_IDS.includes(fixture.league_api)) {
+    throw AppError.badRequest('Bu lig oyuna eklenemez')
+  }
+  if (!fixture.open) throw AppError.badRequest('Başlamış ya da oynanmış bir maç eklenemez')
+
+  await query(
+    `INSERT INTO group_fixtures (season_id, group_id, fixture_id, added_by)
+     VALUES ($1, $2, $3, $4) ON CONFLICT (season_id, fixture_id) DO NOTHING`,
+    [seasonId, groupId, fixtureId, addedBy],
+  )
+}
+
+/** Remove a fixture from the current game, dropping any predictions on it. */
+export async function removeGroupFixture(groupId: number, fixtureId: number): Promise<void> {
+  const seasonId = await requireActiveSeasonId(groupId)
+  const client = await getPool()!.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM predictions WHERE group_id = $1 AND fixture_id = $2`, [
+      groupId,
+      fixtureId,
+    ])
+    await client.query(`DELETE FROM group_fixtures WHERE season_id = $1 AND fixture_id = $2`, [
+      seasonId,
+      fixtureId,
+    ])
+    await client.query('COMMIT')
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+/** The curated matches of a season, each with the requester's own prediction. */
+export async function listGroupFixtures(groupId: number, userId: number, seasonId?: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const targetSeason = seasonId ?? (await getActiveSeason(groupId))?.id ?? null
+  if (targetSeason === null) return []
+  const { rows } = await query(
+    `SELECT gf.fixture_id AS "fixtureId", ${FIXTURE_FIELDS},
+            mp.predicted_outcome AS "myOutcome", mp.predicted_home AS "myHome",
+            mp.predicted_away AS "myAway", mp.points_awarded AS "myPoints",
+            (SELECT COUNT(*)::int FROM predictions p2
+             WHERE p2.group_id = $1 AND p2.fixture_id = gf.fixture_id) AS "predictionCount",
+            (f.status = 'NS' AND f.kickoff_at > now()) AS "open"
+     FROM group_fixtures gf
+     JOIN fixtures f ON f.id = gf.fixture_id
+     JOIN leagues lg ON lg.id = f.league_id
+     JOIN teams ht ON ht.id = f.home_team_id
+     JOIN teams at ON at.id = f.away_team_id
+     LEFT JOIN predictions mp ON mp.group_id = $1 AND mp.fixture_id = gf.fixture_id AND mp.user_id = $3
+     WHERE gf.season_id = $2
+     ORDER BY f.kickoff_at ASC`,
+    [groupId, targetSeason, userId],
+  )
+  return rows
+}
+
+/** Upcoming, still-predictable matches the leader can add (excludes ones already in). */
+export async function getCandidateFixtures(groupId: number) {
+  const seasonId = await requireActiveSeasonId(groupId)
+  const { rows } = await query(
+    `SELECT f.id AS "fixtureId", ${FIXTURE_FIELDS}
+     FROM fixtures f
+     JOIN leagues lg ON lg.id = f.league_id
+     JOIN teams ht ON ht.id = f.home_team_id
+     JOIN teams at ON at.id = f.away_team_id
+     WHERE lg.api_football_id = ANY($2)
+       AND f.status = 'NS' AND f.kickoff_at > now()
+       AND f.id NOT IN (SELECT fixture_id FROM group_fixtures WHERE season_id = $1)
+     ORDER BY f.kickoff_at ASC
+     LIMIT 100`,
+    [seasonId, CONFIGURED_LEAGUE_API_IDS],
+  )
+  return rows
+}
+
+// ---------------------------------------------------------------------------
+// Ending a game and the group's history.
+// ---------------------------------------------------------------------------
+
+export interface Champion {
+  userId: number
+  displayName: string
+  points: number
+}
+
+/** End the current game: crown the points leader and lock the season. */
+export async function finishActiveSeason(groupId: number): Promise<Champion | null> {
+  const seasonId = await requireActiveSeasonId(groupId)
+  const standings = await seasonLeaderboard(groupId, seasonId)
+  const winner = standings[0] ?? null
+  await query(
+    `UPDATE group_seasons
+       SET status = 'finished', finished_at = now(),
+           champion_user_id = $2, champion_points = $3
+     WHERE id = $1`,
+    [seasonId, winner?.userId ?? null, winner?.points ?? null],
+  )
+  return winner ? { userId: winner.userId, displayName: winner.displayName, points: winner.points } : null
+}
+
+/** Start a fresh game. Only allowed when the previous one has been finished. */
+export async function startNewSeason(groupId: number, title?: string): Promise<SeasonRef> {
+  if (await getActiveSeason(groupId)) {
+    throw AppError.badRequest('Zaten açık bir oyun var; önce onu bitir')
+  }
+  const { rows: countRows } = await query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM group_seasons WHERE group_id = $1`,
+    [groupId],
+  )
+  const finalTitle = title?.trim() || `${(countRows[0]?.count ?? 0) + 1}. Oyun`
+  const { rows } = await query<SeasonRef>(
+    `INSERT INTO group_seasons (group_id, title, status) VALUES ($1, $2, 'active')
+     RETURNING id, title, status`,
+    [groupId, finalTitle],
+  )
+  return rows[0]
+}
+
+/** Every game the group has run, newest first — the history list. */
+export async function listSeasons(groupId: number, userId: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const { rows } = await query(
+    `SELECT gs.id, gs.title, gs.status, gs.started_at AS "startedAt", gs.finished_at AS "finishedAt",
+            gs.champion_points AS "championPoints", gs.champion_user_id AS "championUserId",
+            cu.display_name AS "championName",
+            (SELECT COUNT(*)::int FROM group_fixtures gf WHERE gf.season_id = gs.id) AS "matchCount"
+     FROM group_seasons gs
+     LEFT JOIN users cu ON cu.id = gs.champion_user_id
+     WHERE gs.group_id = $1
+     ORDER BY gs.started_at DESC`,
+    [groupId],
+  )
+  return rows
+}
+
+/** A single game's full record: final standings + every match result. */
+export async function getSeasonDetail(groupId: number, userId: number, seasonId: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const { rows: seasonRows } = await query(
+    `SELECT gs.id, gs.title, gs.status, gs.started_at AS "startedAt", gs.finished_at AS "finishedAt",
+            gs.champion_points AS "championPoints", gs.champion_user_id AS "championUserId",
+            cu.display_name AS "championName"
+     FROM group_seasons gs LEFT JOIN users cu ON cu.id = gs.champion_user_id
+     WHERE gs.id = $1 AND gs.group_id = $2`,
+    [seasonId, groupId],
+  )
+  const season = seasonRows[0]
+  if (!season) throw AppError.notFound('Oyun bulunamadı')
+
+  const standings = await seasonLeaderboard(groupId, seasonId)
+  const fixtures = await listGroupFixtures(groupId, userId, seasonId)
+  return { season, standings, fixtures }
 }
 
 /**
