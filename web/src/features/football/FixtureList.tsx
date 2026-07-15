@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Badge } from '@/components/ui/Badge'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, liveMinuteLabel } from '@/lib/format'
 import { isCancelled, isFinished, isLive, isPostponed } from './matchStatus'
 import type { Fixture } from './types'
 
@@ -37,7 +37,7 @@ export function FixtureRow({ fixture }: { fixture: Fixture }) {
         {finished ? (
           <Badge tone="neutral">Bitti</Badge>
         ) : isLive(fixture.status) ? (
-          <Badge tone="win">Canlı</Badge>
+          <Badge tone="loss">{liveMinuteLabel(fixture.status, fixture.elapsed)}</Badge>
         ) : isPostponed(fixture.status) ? (
           <Badge tone="warning">Ertelendi</Badge>
         ) : isCancelled(fixture.status) ? (

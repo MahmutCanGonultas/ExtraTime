@@ -20,12 +20,24 @@ export interface Fixture {
   kickoffAt: string
   status: string
   round: string | null
+  elapsed: number | null
+  leagueName: string
+  leagueApiId: number
   home: TeamRef
   away: TeamRef
   homeScore: number | null
   awayScore: number | null
   halftimeHome: number | null
   halftimeAway: number | null
+  goals?: FixtureGoal[]
+}
+
+export interface FixtureGoal {
+  teamApiId: number
+  playerName: string
+  assistName: string | null
+  minute: number | null
+  detail: string | null
 }
 
 export interface StandingRow {
@@ -46,6 +58,7 @@ export interface StandingRow {
 export interface TopScorer {
   rank: number
   playerName: string
+  playerApiId: number | null
   goals: number
   penalties: number | null
   appearances: number | null
@@ -57,6 +70,7 @@ export interface TopScorer {
 export interface TopAssist {
   rank: number
   playerName: string
+  playerApiId: number | null
   assists: number
   appearances: number | null
   teamId: number | null

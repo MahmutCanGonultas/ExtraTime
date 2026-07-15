@@ -31,3 +31,25 @@ export function teamLogoUrl(apiFootballId: number): string {
 export function leagueLogoUrl(apiFootballId: number): string {
   return `https://media.api-sports.io/football/leagues/${apiFootballId}.png`
 }
+
+export function playerPhotoUrl(playerApiId: number): string {
+  return `https://media.api-sports.io/football/players/${playerApiId}.png`
+}
+
+export type Outcome = 'HOME' | 'DRAW' | 'AWAY'
+
+// A short human label for a 1X2 pick, given the two team names.
+export function outcomeLabel(outcome: Outcome, homeName: string, awayName: string): string {
+  if (outcome === 'HOME') return `${homeName} kazanır`
+  if (outcome === 'AWAY') return `${awayName} kazanır`
+  return 'Beraberlik'
+}
+
+// The badge shown on a live match: "45+2'", "Devre", "67'", or "Canlı".
+export function liveMinuteLabel(status: string, elapsed: number | null): string {
+  if (status === 'HT') return 'Devre'
+  if (status === 'P') return 'Penaltılar'
+  if (status === 'BT') return 'Uzatma arası'
+  if (elapsed != null) return `${elapsed}'`
+  return 'Canlı'
+}

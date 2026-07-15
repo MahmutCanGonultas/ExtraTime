@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Fixture, League, StandingRow, Team, TopAssist, TopScorer } from './types'
+import type { Fixture, FixtureGoal, League, StandingRow, Team, TopAssist, TopScorer } from './types'
 
 type FixtureFilter = 'upcoming' | 'finished' | 'all'
 
@@ -55,8 +55,12 @@ export function useTeam(teamId: number) {
 export function useFixture(fixtureId: number) {
   return useQuery({
     queryKey: ['fixture', fixtureId],
-    queryFn: () => api.get<{ fixture: Fixture }>(`/fixtures/${fixtureId}`),
-    select: (d) => d.fixture,
+    queryFn: () => api.get<{ fixture: Fixture; goals: FixtureGoal[] }>(`/fixtures/${fixtureId}`),
+    // Refresh the detail while the match is live so the score/goals stay current.
+    refetchInterval: (q) => {
+      const s = q.state.data?.fixture.status
+      return s && ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'].includes(s) ? 20_000 : false
+    },
   })
 }
 

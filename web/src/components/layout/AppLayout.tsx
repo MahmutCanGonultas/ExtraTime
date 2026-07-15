@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
+import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/cn'
 
 const navLinks = [
@@ -19,9 +20,8 @@ export function AppLayout() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
-          <NavLink to="/" className="flex items-center gap-2 font-bold text-brand-400">
-            <img src="/favicon.svg" width={22} height={22} alt="" />
-            <span className="hidden sm:inline">ExtraTime</span>
+          <NavLink to="/" className="shrink-0">
+            <Brand markSize={24} />
           </NavLink>
 
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
