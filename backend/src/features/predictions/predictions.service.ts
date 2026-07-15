@@ -59,8 +59,13 @@ export async function getMyPredictions(groupId: number, userId: number) {
     `SELECT p.fixture_id AS "fixtureId", p.predicted_home AS "predictedHome",
             p.predicted_away AS "predictedAway", p.points_awarded AS "pointsAwarded",
             p.settled_at AS "settledAt", f.kickoff_at AS "kickoffAt", f.status,
-            f.home_score AS "homeScore", f.away_score AS "awayScore"
-     FROM predictions p JOIN fixtures f ON f.id = p.fixture_id
+            f.home_score AS "homeScore", f.away_score AS "awayScore",
+            ht.name AS "homeName", ht.api_football_id AS "homeApiId",
+            at.name AS "awayName", at.api_football_id AS "awayApiId"
+     FROM predictions p
+     JOIN fixtures f ON f.id = p.fixture_id
+     JOIN teams ht ON ht.id = f.home_team_id
+     JOIN teams at ON at.id = f.away_team_id
      WHERE p.group_id = $1 AND p.user_id = $2
      ORDER BY f.kickoff_at DESC`,
     [groupId, userId],
