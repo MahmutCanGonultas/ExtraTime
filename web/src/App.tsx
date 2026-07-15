@@ -1,6 +1,32 @@
+import { lazy, Suspense, useEffect } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
+import { Spinner } from '@/components/ui/feedback'
+
+// Sets the browser-tab title from the current route.
+const TITLES: Array<[RegExp, string]> = [
+  [/^\/$/, 'Ana Sayfa'],
+  [/^\/leagues\/\d+/, 'Lig'],
+  [/^\/leagues/, 'Ligler'],
+  [/^\/teams\//, 'Takım'],
+  [/^\/matches\//, 'Maç'],
+  [/^\/group/, 'Grup'],
+  [/^\/predictions/, 'Tahminler'],
+  [/^\/stats/, 'İstatistik'],
+  [/^\/admin/, 'Admin'],
+  [/^\/login/, 'Giriş'],
+  [/^\/register/, 'Kayıt'],
+]
+
+function RouteTitle() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const match = TITLES.find(([re]) => re.test(pathname))
+    document.title = match ? `${match[1]} · ExtraTime` : 'ExtraTime'
+  }, [pathname])
+  return null
+}
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -13,14 +39,17 @@ import { TeamPage } from '@/pages/TeamPage'
 import { GroupPage } from '@/pages/GroupPage'
 import { PredictionsPage } from '@/pages/PredictionsPage'
 import { MatchPage } from '@/pages/MatchPage'
-import { StatsPage } from '@/pages/StatsPage'
 import { AdminPage } from '@/pages/AdminPage'
+
+// Charts (Recharts) are heavy, so the stats page is code-split into its own chunk.
+const StatsPage = lazy(() => import('@/pages/StatsPage').then((m) => ({ default: m.StatsPage })))
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
+          <RouteTitle />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -34,7 +63,20 @@ export function App() {
                 <Route path="/matches/:id" element={<MatchPage />} />
                 <Route path="/group" element={<GroupPage />} />
                 <Route path="/predictions" element={<PredictionsPage />} />
-                <Route path="/stats" element={<StatsPage />} />
+                <Route
+                  path="/stats"
+                  element={
+                    <Suspense
+                      fallback={
+                        <div className="grid place-items-center py-20">
+                          <Spinner className="h-8 w-8" />
+                        </div>
+                      }
+                    >
+                      <StatsPage />
+                    </Suspense>
+                  }
+                />
                 <Route path="/admin" element={<AdminPage />} />
               </Route>
             </Route>
