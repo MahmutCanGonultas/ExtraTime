@@ -1,0 +1,29 @@
+name: Scheduled Sync
+
+# Wakes the (possibly sleeping) free-tier backend and triggers data syncs from
+# outside. Configure two repository secrets: API_BASE_URL (e.g.
+# https://extratime-api.onrender.com) and SYNC_SECRET (same as the backend).
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # daily data: fixtures, standings, scorers, assists
+    - cron: '5 18-22 * * *' # results, hourly through the evening
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Daily data sync
+        if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          for job in fixtures standings topscorers topassists; do
+            curl -fsS -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/$job" \
+              -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
+          done
+
+      - name: Results sync
+        if: github.event.schedule == '5 18-22 * * *'
+        run: |
+          curl -fsS -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/results" \
+            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
