@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg'
-import { pool, query } from '../../../db/pool'
+import { getPool, query } from '../../../db/pool'
 import { logger } from '../../../lib/logger'
 import { apiFootballGet, getRequestCount, resetRequestCount } from '../../../lib/api-football/client'
 import type { RawFixture, RawStandingsLeague, RawTopScorer } from '../types'
@@ -49,7 +49,7 @@ async function logSync(
 // A failing job is logged and returned as unsuccessful — it never throws upward,
 // so a broken API or exhausted budget cannot crash the app.
 async function runJob(job: string, work: () => Promise<number>): Promise<SyncResult> {
-  if (!pool) {
+  if (!getPool()) {
     logger.error({ job }, 'DATABASE_URL not configured; skipping sync')
     return { job, success: false, records: 0, requests: 0, error: 'no database' }
   }
@@ -77,7 +77,7 @@ async function perLeague(
 ): Promise<number> {
   let total = 0
   for (const league of leagues) {
-    const client = await pool!.connect()
+    const client = await getPool()!.connect()
     try {
       await client.query('BEGIN')
       total += await fn(client, league)
@@ -95,7 +95,7 @@ async function perLeague(
 /** Seed the configured leagues into the DB (no API requests). */
 export async function seedLeaguesJob(): Promise<SyncResult> {
   return runJob('seed', async () => {
-    const client = await pool!.connect()
+    const client = await getPool()!.connect()
     try {
       return await seedLeagues(client)
     } finally {

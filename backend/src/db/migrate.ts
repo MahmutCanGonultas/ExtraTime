@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PoolClient } from 'pg'
-import { pool } from './pool'
+import { getPool } from './pool'
 import { logger } from '../lib/logger'
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations')
@@ -24,6 +24,7 @@ async function getApplied(client: PoolClient): Promise<Set<string>> {
 }
 
 async function run(): Promise<void> {
+  const pool = getPool()
   if (!pool) {
     logger.error('DATABASE_URL is not set; cannot run migrations')
     process.exit(1)
