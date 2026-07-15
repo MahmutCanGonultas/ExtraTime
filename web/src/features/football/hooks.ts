@@ -1,0 +1,61 @@
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import type { Fixture, League, StandingRow, Team, TopAssist, TopScorer } from './types'
+
+type FixtureFilter = 'upcoming' | 'finished' | 'all'
+
+export function useLeagues(activeOnly = false) {
+  return useQuery({
+    queryKey: ['leagues', { activeOnly }],
+    queryFn: () => api.get<{ leagues: League[] }>(`/leagues${activeOnly ? '?active=true' : ''}`),
+    select: (d) => d.leagues,
+  })
+}
+
+export function useStandings(leagueId: number) {
+  return useQuery({
+    queryKey: ['standings', leagueId],
+    queryFn: () => api.get<{ standings: StandingRow[] }>(`/leagues/${leagueId}/standings`),
+    select: (d) => d.standings,
+  })
+}
+
+export function useLeagueFixtures(leagueId: number, filter: FixtureFilter = 'all') {
+  return useQuery({
+    queryKey: ['fixtures', leagueId, filter],
+    queryFn: () =>
+      api.get<{ fixtures: Fixture[] }>(`/leagues/${leagueId}/fixtures?status=${filter}`),
+    select: (d) => d.fixtures,
+  })
+}
+
+export function useTopScorers(leagueId: number) {
+  return useQuery({
+    queryKey: ['topscorers', leagueId],
+    queryFn: () => api.get<{ topscorers: TopScorer[] }>(`/leagues/${leagueId}/topscorers`),
+    select: (d) => d.topscorers,
+  })
+}
+
+export function useTopAssists(leagueId: number) {
+  return useQuery({
+    queryKey: ['topassists', leagueId],
+    queryFn: () => api.get<{ topassists: TopAssist[] }>(`/leagues/${leagueId}/topassists`),
+    select: (d) => d.topassists,
+  })
+}
+
+export function useTeam(teamId: number) {
+  return useQuery({
+    queryKey: ['team', teamId],
+    queryFn: () => api.get<{ team: Team; fixtures: Fixture[] }>(`/teams/${teamId}`),
+  })
+}
+
+export function useFixture(fixtureId: number) {
+  return useQuery({
+    queryKey: ['fixture', fixtureId],
+    queryFn: () => api.get<{ fixture: Fixture }>(`/fixtures/${fixtureId}`),
+    select: (d) => d.fixture,
+  })
+}

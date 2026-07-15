@@ -6,6 +6,10 @@ import { ProtectedRoute } from '@/routes/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
+import { HomePage } from '@/pages/HomePage'
+import { LeaguesPage } from '@/pages/LeaguesPage'
+import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
+import { TeamPage } from '@/pages/TeamPage'
 import { Placeholder } from '@/components/Placeholder'
 
 export function App() {
@@ -19,10 +23,10 @@ export function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<Placeholder title="Ana Sayfa" />} />
-                <Route path="/leagues" element={<Placeholder title="Ligler" />} />
-                <Route path="/leagues/:id" element={<Placeholder title="Lig" />} />
-                <Route path="/teams/:id" element={<Placeholder title="Takım" />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/leagues" element={<LeaguesPage />} />
+                <Route path="/leagues/:id" element={<LeagueDetailPage />} />
+                <Route path="/teams/:id" element={<TeamPage />} />
                 <Route path="/matches/:id" element={<Placeholder title="Maç" />} />
                 <Route path="/group" element={<Placeholder title="Grup" />} />
                 <Route path="/predictions" element={<Placeholder title="Tahminler" />} />
