@@ -5,11 +5,11 @@ import { requireSyncSecret } from './sync.middleware'
 import {
   seedLeaguesJob,
   syncFixtures,
-  syncResults,
   syncStandings,
   syncTopAssists,
   syncTopScorers,
 } from '../football/sync/jobs'
+import { syncResultsAndSettle } from '../predictions/settle'
 
 export const adminRouter = Router()
 
@@ -26,7 +26,7 @@ adminRouter.post(
 )
 adminRouter.post(
   '/sync/results',
-  asyncHandler(async (_req, res) => res.json(await syncResults())),
+  asyncHandler(async (_req, res) => res.json(await syncResultsAndSettle())),
 )
 adminRouter.post(
   '/sync/standings',
