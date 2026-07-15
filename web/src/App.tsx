@@ -10,6 +10,9 @@ import { HomePage } from '@/pages/HomePage'
 import { LeaguesPage } from '@/pages/LeaguesPage'
 import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { GroupPage } from '@/pages/GroupPage'
+import { PredictionsPage } from '@/pages/PredictionsPage'
+import { MatchPage } from '@/pages/MatchPage'
 import { Placeholder } from '@/components/Placeholder'
 
 export function App() {
@@ -27,9 +30,9 @@ export function App() {
                 <Route path="/leagues" element={<LeaguesPage />} />
                 <Route path="/leagues/:id" element={<LeagueDetailPage />} />
                 <Route path="/teams/:id" element={<TeamPage />} />
-                <Route path="/matches/:id" element={<Placeholder title="Maç" />} />
-                <Route path="/group" element={<Placeholder title="Grup" />} />
-                <Route path="/predictions" element={<Placeholder title="Tahminler" />} />
+                <Route path="/matches/:id" element={<MatchPage />} />
+                <Route path="/group" element={<GroupPage />} />
+                <Route path="/predictions" element={<PredictionsPage />} />
                 <Route path="/stats" element={<Placeholder title="İstatistik" />} />
                 <Route path="/admin" element={<Placeholder title="Admin" />} />
               </Route>
