@@ -70,6 +70,33 @@ footballRouter.get(
 )
 
 footballRouter.get(
+  '/fixtures/live',
+  asyncHandler(async (_req, res) => {
+    res.json({ fixtures: await repo.getLiveFixtures() })
+  }),
+)
+
+const upcomingQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(12),
+})
+
+footballRouter.get(
+  '/fixtures/upcoming',
+  asyncHandler(async (req, res) => {
+    const { limit } = upcomingQuerySchema.parse(req.query)
+    res.json({ fixtures: await repo.getUpcomingFixtures(limit) })
+  }),
+)
+
+footballRouter.get(
+  '/fixtures/recent',
+  asyncHandler(async (req, res) => {
+    const { limit } = upcomingQuerySchema.parse(req.query)
+    res.json({ fixtures: await repo.getRecentFixtures(limit) })
+  }),
+)
+
+footballRouter.get(
   '/fixtures/:id',
   asyncHandler(async (req, res) => {
     const fixture = await repo.getFixtureById(parseId(req.params.id))

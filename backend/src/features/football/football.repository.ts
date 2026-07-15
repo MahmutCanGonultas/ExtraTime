@@ -155,3 +155,40 @@ export async function getFixtureById(fixtureId: number): Promise<FixtureDTO | nu
   const { rows } = await query<FixtureRow>(`${FIXTURE_SELECT} WHERE f.id = $1`, [fixtureId])
   return rows[0] ? mapFixture(rows[0]) : null
 }
+
+// Matches currently in progress, across every league.
+export async function getLiveFixtures(): Promise<FixtureDTO[]> {
+  const { rows } = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     WHERE f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
+     ORDER BY f.kickoff_at`,
+  )
+  return rows.map(mapFixture)
+}
+
+// Soonest upcoming matches across ACTIVE leagues (for the home page and the
+// prediction center) — bounded so we never ship hundreds of rows.
+export async function getUpcomingFixtures(limit = 12): Promise<FixtureDTO[]> {
+  const { rows } = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     JOIN leagues lg ON lg.id = f.league_id
+     WHERE lg.is_active = true AND f.status = 'NS' AND f.kickoff_at > now()
+     ORDER BY f.kickoff_at ASC
+     LIMIT $1`,
+    [limit],
+  )
+  return rows.map(mapFixture)
+}
+
+// Most recent finished matches across ACTIVE leagues (home results strip).
+export async function getRecentFixtures(limit = 12): Promise<FixtureDTO[]> {
+  const { rows } = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     JOIN leagues lg ON lg.id = f.league_id
+     WHERE lg.is_active = true AND f.status IN ('FT','AET','PEN')
+     ORDER BY f.kickoff_at DESC
+     LIMIT $1`,
+    [limit],
+  )
+  return rows.map(mapFixture)
+}

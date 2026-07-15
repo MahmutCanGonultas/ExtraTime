@@ -6,6 +6,7 @@ import {
   backfillAllSeasons,
   seedLeaguesJob,
   syncFixtures,
+  syncLiveScores,
   syncStandings,
   syncTopAssists,
   syncTopScorers,
@@ -34,6 +35,11 @@ adminRouter.post(
 adminRouter.post(
   '/sync/results',
   asyncHandler(async (_req, res) => res.json(await syncResultsAndSettle())),
+)
+
+adminRouter.post(
+  '/sync/live',
+  asyncHandler(async (_req, res) => res.json(await syncLiveScores())),
 )
 adminRouter.post(
   '/sync/standings',

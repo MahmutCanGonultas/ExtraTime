@@ -193,6 +193,43 @@ export async function syncTopAssists(includeInactive = false): Promise<SyncResul
 }
 
 /**
+ * Live scores. One request (`fixtures?live=all`) returns every in-progress match;
+ * we update the ones we already track. Skips the API entirely when nothing could
+ * be live, so it costs zero requests off match days.
+ */
+export async function syncLiveScores(): Promise<SyncResult> {
+  return runJob('live', async () => {
+    const maybe = await query(
+      `SELECT 1 FROM fixtures
+       WHERE kickoff_at BETWEEN now() - interval '3 hours' AND now()
+         AND status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO')
+       LIMIT 1`,
+    )
+    if ((maybe.rowCount ?? 0) === 0) return 0
+
+    const fixtures = await apiFootballGet<RawFixture[]>('fixtures', { live: 'all' })
+    let updated = 0
+    for (const raw of fixtures) {
+      const res = await query(
+        `UPDATE fixtures SET status = $2, home_score = $3, away_score = $4,
+           halftime_home = $5, halftime_away = $6, updated_at = now()
+         WHERE api_football_id = $1`,
+        [
+          raw.fixture.id,
+          raw.fixture.status.short,
+          raw.goals.home,
+          raw.goals.away,
+          raw.score.halftime.home,
+          raw.score.halftime.away,
+        ],
+      )
+      updated += res.rowCount ?? 0
+    }
+    return updated
+  })
+}
+
+/**
  * One-time historical load: seed the leagues, then sync fixtures, standings and
  * scorers for ALL seasons (including inactive past ones). Heavier than the daily
  * jobs, so it is triggered manually. Ongoing sync stays on active leagues.
