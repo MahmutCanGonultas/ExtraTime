@@ -5,6 +5,7 @@ import { pinoHttp } from 'pino-http'
 import { env } from './config/env'
 import { logger } from './lib/logger'
 import { healthRouter } from './features/health/health.routes'
+import v1Router from './api/v1'
 import { errorHandler, notFoundHandler } from './lib/middleware/error'
 
 export function createApp() {
@@ -24,7 +25,7 @@ export function createApp() {
   // Health lives outside /api/v1 so pingers and the platform hit a stable path.
   app.use('/health', healthRouter)
 
-  // Feature routers mount under /api/v1 as they land (auth, football, groups, predictions).
+  app.use('/api/v1', v1Router)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

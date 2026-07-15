@@ -1,11 +1,17 @@
 import { createApp } from './app'
-import { env } from './config/env'
+import { env, isTest } from './config/env'
 import { logger } from './lib/logger'
+import { pool } from './db/pool'
+import { startScheduler } from './features/football/sync/scheduler'
 
 const app = createApp()
 
 const server = app.listen(env.PORT, () => {
   logger.info(`Server listening on http://localhost:${env.PORT} (env: ${env.NODE_ENV})`)
+  // Internal cron runs only with a database and never during tests.
+  if (!isTest && pool) {
+    startScheduler()
+  }
 })
 
 function shutdown(signal: NodeJS.Signals) {
