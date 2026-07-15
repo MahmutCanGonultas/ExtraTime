@@ -1,6 +1,12 @@
-import { Pool, type QueryResult, type QueryResultRow } from 'pg'
+import { Pool, types, type QueryResult, type QueryResultRow } from 'pg'
 import { env } from '../config/env'
 import { logger } from '../lib/logger'
+
+// node-pg returns int8/bigint (OID 20) as strings to avoid precision loss. All
+// our ids are BIGSERIAL well within JS's safe integer range, so parse them as
+// numbers — otherwise ids arrive as strings and break JWT userId checks, id
+// comparisons, and any `=== number` logic on the client.
+types.setTypeParser(20, (value) => parseInt(value, 10))
 
 const isLocal = (url: string) => url.includes('localhost') || url.includes('127.0.0.1')
 
