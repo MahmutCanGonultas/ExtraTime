@@ -44,7 +44,13 @@ const envSchema = z
     }
   })
 
-const parsed = envSchema.safeParse(process.env)
+// Treat empty-string env vars (common in .env files, e.g. DATABASE_URL=) as
+// unset, so optional fields fall back to their defaults instead of failing.
+const cleanedEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, value]) => value !== ''),
+)
+
+const parsed = envSchema.safeParse(cleanedEnv)
 if (!parsed.success) {
   // eslint-disable-next-line no-console
   console.error('Invalid environment variables:', parsed.error.flatten().fieldErrors)
