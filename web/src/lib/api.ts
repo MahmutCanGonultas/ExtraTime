@@ -2,7 +2,7 @@
 // backend's consistent { error: { code, message } } shape, and never talks to
 // API-Football directly (everything goes through our own API).
 
-const TOKEN_KEY = 'tahmin_ligi_token'
+const TOKEN_KEY = 'extratime_token'
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),

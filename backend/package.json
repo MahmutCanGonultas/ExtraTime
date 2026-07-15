@@ -1,8 +1,8 @@
 {
-  "name": "tahmin-ligi-backend",
+  "name": "extratime-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Tahmin Ligi backend API — Node + TypeScript + Express + PostgreSQL (raw SQL)",
+  "description": "ExtraTime backend API — Node + TypeScript + Express + PostgreSQL (raw SQL)",
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch src/server.ts",

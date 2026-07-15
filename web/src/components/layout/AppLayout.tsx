@@ -21,7 +21,7 @@ export function AppLayout() {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
           <NavLink to="/" className="flex items-center gap-2 font-bold text-brand-400">
             <img src="/favicon.svg" width={22} height={22} alt="" />
-            <span className="hidden sm:inline">Tahmin Ligi</span>
+            <span className="hidden sm:inline">ExtraTime</span>
           </NavLink>
 
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
