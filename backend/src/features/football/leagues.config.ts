@@ -11,9 +11,9 @@ export interface LeagueSeed extends Competition {
   isActive: boolean
 }
 
-// The competitions we track. Adding one here (or a row in the DB) is all it
-// takes — sync picks up every active league automatically.
-export const COMPETITIONS: Competition[] = [
+// Yearly club/continental competitions. API-Football season = the starting year
+// (2025 = the 2025/26 season).
+export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 203, name: 'Süper Lig', country: 'Türkiye' },
   { apiFootballId: 39, name: 'Premier League', country: 'İngiltere' },
   { apiFootballId: 140, name: 'La Liga', country: 'İspanya' },
@@ -22,17 +22,22 @@ export const COMPETITIONS: Competition[] = [
   { apiFootballId: 2, name: 'Şampiyonlar Ligi', country: 'Avrupa' },
 ]
 
-// API-Football season = the starting year (2024 = the 2024/25 season). The
-// current season is synced live; past seasons are seeded inactive and filled
-// once via the backfill endpoint. Adjust to the seasons your API-Football plan
-// actually grants access to (the free plan is limited — see docs/setup notes).
-export const CURRENT_SEASON = 2024
-export const HISTORY_SEASONS = [2023, 2022]
+// The most recent COMPLETE season (full standings/scorers) shown in browse.
+export const CURRENT_SEASON = 2025
+// The next season — fixtures are scheduled, used by the prediction game.
+export const UPCOMING_SEASON = 2026
+export const HISTORY_SEASONS = [2024, 2023]
 
-export const LEAGUE_SEEDS: LeagueSeed[] = COMPETITIONS.flatMap((c) => [
-  { ...c, season: CURRENT_SEASON, isActive: true },
-  ...HISTORY_SEASONS.map((season) => ({ ...c, season, isActive: false })),
-])
+export const LEAGUE_SEEDS: LeagueSeed[] = [
+  ...CLUB_COMPETITIONS.flatMap((c) => [
+    { ...c, season: CURRENT_SEASON, isActive: true },
+    { ...c, season: UPCOMING_SEASON, isActive: true },
+    ...HISTORY_SEASONS.map((season) => ({ ...c, season, isActive: false })),
+  ]),
+  // World Cup (a national-team tournament). 2026 is live now; 2022 is history.
+  { apiFootballId: 1, name: 'Dünya Kupası', country: 'Dünya', season: 2026, isActive: true },
+  { apiFootballId: 1, name: 'Dünya Kupası', country: 'Dünya', season: 2022, isActive: false },
+]
 
 // Upserts the configured league-seasons into the DB. Safe to run repeatedly.
 export async function seedLeagues(db: PoolClient): Promise<number> {

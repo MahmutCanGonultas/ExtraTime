@@ -21,6 +21,9 @@ const envSchema = z
 
     API_FOOTBALL_KEY: z.string().min(1).optional(),
     API_FOOTBALL_BASE_URL: z.string().url().default('https://v3.football.api-sports.io'),
+    // Requests/minute the API plan allows (free ~10, paid much higher). The
+    // client spaces requests to stay under this and avoid HTTP 429.
+    API_FOOTBALL_RPM: z.coerce.number().int().positive().default(10),
 
     SYNC_SECRET: z.string().min(1).optional(),
 
