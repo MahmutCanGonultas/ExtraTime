@@ -10,6 +10,7 @@ import {
 } from '@/features/groups/hooks'
 import type { GroupSummary } from '@/features/groups/types'
 import { Leaderboard } from '@/features/groups/Leaderboard'
+import { GameManager } from '@/features/groups/GameManager'
 import { useAuth } from '@/features/auth/AuthContext'
 import { ApiError } from '@/lib/api'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -146,8 +147,15 @@ function GroupView({ group }: { group: GroupSummary }) {
         </Card>
       )}
 
+      <GameManager
+        groupId={group.id}
+        isAdmin={g?.isAdmin ?? false}
+        activeSeason={g?.activeSeason ?? null}
+        currentUserId={user?.id}
+      />
+
       <Card>
-        <CardHeader title="Lider Tablosu" />
+        <CardHeader title="Güncel Puan Durumu" />
         {leaderboard.isLoading ? (
           <Skeleton className="m-4 h-40" />
         ) : leaderboard.isError ? (

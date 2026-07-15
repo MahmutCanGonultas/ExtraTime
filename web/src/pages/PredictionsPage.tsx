@@ -1,28 +1,30 @@
 import { Link } from 'react-router-dom'
-import { useUpcomingFixtures } from '@/features/football/hooks'
+import {
+  useGroup,
+  useGroupFixtures,
+  useRemoveGroupFixture,
+} from '@/features/groups/hooks'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
-import { useMyPredictions } from '@/features/groups/hooks'
-import type { MyPrediction } from '@/features/groups/types'
-import { MatchPredictCard } from '@/features/predictions/MatchPredictCard'
-import { isFinished } from '@/features/football/matchStatus'
-import { TeamLogo } from '@/components/TeamLogo'
-import { Badge } from '@/components/ui/Badge'
+import { GamePredictCard } from '@/features/predictions/GamePredictCard'
+import { HowToPlay } from '@/features/predictions/HowToPlay'
+import { AddMatchesPanel } from '@/features/predictions/AddMatchesPanel'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton, EmptyState } from '@/components/ui/feedback'
-import { formatDate } from '@/lib/format'
 
 export function PredictionsPage() {
   const { active, isLoading: groupLoading } = useActiveGroup()
-  const upcomingQ = useUpcomingFixtures(30)
-  const myPreds = useMyPredictions(active?.id ?? 0)
+  const groupId = active?.id ?? 0
+  const detail = useGroup(groupId)
+  const fixturesQ = useGroupFixtures(groupId)
+  const removeFixture = useRemoveGroupFixture(groupId)
 
   if (groupLoading) return <Skeleton className="h-64" />
   if (!active) {
     return (
       <EmptyState
         title="Önce bir gruba katıl"
-        description="Tahmin girebilmek için bir grup gerekiyor."
+        description="Tahmin oynamak için bir grup gerekiyor."
         action={
           <Link to="/group">
             <Button>Gruba git</Button>
@@ -32,101 +34,98 @@ export function PredictionsPage() {
     )
   }
 
-  const upcoming = upcomingQ.data ?? []
-  const loadingUpcoming = upcomingQ.isLoading
-  const predByFixture = new Map(myPreds.data?.map((p) => [p.fixtureId, p]))
+  const isAdmin = detail.data?.isAdmin ?? false
+  const activeSeason = detail.data?.activeSeason ?? null
+  const games = fixturesQ.data ?? []
+  const openGames = games.filter((g) => g.open)
+  const closedGames = games.filter((g) => !g.open)
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-100">Tahminler</h1>
         <p className="text-sm text-ink-400">
-          {active.name} · {upcoming.length} yaklaşan maç
+          {active.name}
+          {activeSeason ? ` · ${activeSeason.title}` : ''}
         </p>
       </div>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">
-          Yaklaşan Maçlar
-        </h2>
-        {loadingUpcoming ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Skeleton className="h-36" />
-            <Skeleton className="h-36" />
-          </div>
-        ) : upcoming.length === 0 ? (
-          <EmptyState
-            title="Yaklaşan maç yok"
-            description="Şu an tahmin girilecek yaklaşan maç bulunmuyor."
-          />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {upcoming.map((f) => {
-              const p = predByFixture.get(f.id)
-              return (
-                <MatchPredictCard
-                  key={f.id}
-                  fixture={f}
-                  groupId={active.id}
-                  existingHome={p?.predictedHome}
-                  existingAway={p?.predictedAway}
+      {!activeSeason ? (
+        <EmptyState
+          title="Şu an açık oyun yok"
+          description={
+            isAdmin
+              ? 'Grup sayfasından yeni bir oyun başlatabilirsin.'
+              : 'Başkan yeni oyunu başlatınca burada maçlar görünecek.'
+          }
+          action={
+            <Link to="/group">
+              <Button>Grup sayfası</Button>
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <HowToPlay />
+
+          {isAdmin && <AddMatchesPanel groupId={groupId} />}
+
+          {fixturesQ.isLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-56" />
+              <Skeleton className="h-56" />
+            </div>
+          ) : games.length === 0 ? (
+            <Card>
+              <CardBody>
+                <EmptyState
+                  title="Henüz maç yok"
+                  description={
+                    isAdmin
+                      ? 'Yukarıdaki “Oyuna maç ekle” ile maçları oyununa ekle.'
+                      : 'Başkan maçları ekleyince burada tahmin girebilirsin.'
+                  }
                 />
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">
-          Geçmiş Tahminlerim
-        </h2>
-        <Card>
-          {myPreds.isLoading ? (
-            <Skeleton className="m-4 h-32" />
-          ) : !myPreds.data?.length ? (
-            <EmptyState title="Henüz tahmin yok" description="Girdiğin tahminler burada listelenir." />
+              </CardBody>
+            </Card>
           ) : (
-            <ul className="divide-y divide-ink-850">
-              {myPreds.data.map((p) => (
-                <MyPredictionRow key={p.fixtureId} prediction={p} />
-              ))}
-            </ul>
+            <>
+              {openGames.length > 0 && (
+                <section>
+                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">
+                    Tahmin bekleyenler · {openGames.length}
+                  </h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {openGames.map((f) => (
+                      <GamePredictCard
+                        key={f.fixtureId}
+                        fixture={f}
+                        groupId={groupId}
+                        onRemove={
+                          isAdmin ? () => removeFixture.mutate(f.fixtureId) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {closedGames.length > 0 && (
+                <section>
+                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">
+                    Kilitli & sonuçlanan · {closedGames.length}
+                  </h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {closedGames.map((f) => (
+                      <GamePredictCard key={f.fixtureId} fixture={f} groupId={groupId} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
-        </Card>
-      </section>
+        </>
+      )}
     </div>
-  )
-}
-
-function pointsBadge(points: number | null) {
-  if (points === null) return <Badge tone="neutral">—</Badge>
-  if (points === 3) return <Badge tone="win">3 puan</Badge>
-  if (points === 1) return <Badge tone="warning">1 puan</Badge>
-  return <Badge tone="loss">0 puan</Badge>
-}
-
-function MyPredictionRow({ prediction: p }: { prediction: MyPrediction }) {
-  const finished = isFinished(p.status)
-  return (
-    <li className="flex items-center gap-3 px-4 py-2 text-sm">
-      <div className="w-16 shrink-0 text-xs text-ink-500">{formatDate(p.kickoffAt)}</div>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <TeamLogo apiId={p.homeApiId} size={16} />
-        <span className="truncate text-ink-200">{p.homeName}</span>
-        <span className="mx-1 text-ink-500">-</span>
-        <span className="truncate text-ink-200">{p.awayName}</span>
-        <TeamLogo apiId={p.awayApiId} size={16} />
-      </div>
-      <div className="shrink-0 font-mono text-ink-100">
-        {p.predictedHome}-{p.predictedAway}
-        {finished && (
-          <span className="ml-2 text-xs text-ink-500">
-            (maç {p.homeScore}-{p.awayScore})
-          </span>
-        )}
-      </div>
-      <div className="w-16 shrink-0 text-right">{pointsBadge(p.pointsAwarded)}</div>
-    </li>
   )
 }

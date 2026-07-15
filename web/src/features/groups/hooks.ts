@@ -1,11 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
+  Champion,
   FixturePredictions,
+  GameFixture,
   GroupDetail,
   GroupSummary,
   LeaderboardEntry,
   MyPrediction,
+  Outcome,
+  SeasonDetail,
+  SeasonRef,
+  SeasonSummary,
   SettledPoint,
 } from './types'
 
@@ -74,15 +80,107 @@ export function useJoinGroup() {
 export function useUpsertPrediction(groupId: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: { fixtureId: number; predictedHome: number; predictedAway: number }) =>
+    mutationFn: (input: {
+      fixtureId: number
+      outcome: Outcome
+      predictedHome?: number | null
+      predictedAway?: number | null
+    }) =>
       api.put(`/groups/${groupId}/predictions/${input.fixtureId}`, {
-        predictedHome: input.predictedHome,
-        predictedAway: input.predictedAway,
+        outcome: input.outcome,
+        predictedHome: input.predictedHome ?? null,
+        predictedAway: input.predictedAway ?? null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-predictions', groupId] })
+      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
       qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
     },
+  })
+}
+
+// ---- The group's current game: curated matches, ending, history ----
+
+export function useGroupFixtures(groupId: number) {
+  return useQuery({
+    queryKey: ['group-fixtures', groupId],
+    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/fixtures`),
+    select: (d) => d.fixtures,
+    enabled: groupId > 0,
+  })
+}
+
+export function useCandidateFixtures(groupId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['candidate-fixtures', groupId],
+    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/candidate-fixtures`),
+    select: (d) => d.fixtures,
+    enabled: enabled && groupId > 0,
+  })
+}
+
+export function useAddGroupFixture(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) => api.post(`/groups/${groupId}/fixtures`, { fixtureId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
+      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId] })
+    },
+  })
+}
+
+export function useRemoveGroupFixture(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) => api.del(`/groups/${groupId}/fixtures/${fixtureId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
+      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId] })
+      qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
+    },
+  })
+}
+
+export function useFinishGame(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<{ champion: Champion | null }>(`/groups/${groupId}/finish`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group', groupId] })
+      qc.invalidateQueries({ queryKey: ['group-seasons', groupId] })
+    },
+  })
+}
+
+export function useNewGame(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (title?: string) =>
+      api.post<{ season: SeasonRef }>(`/groups/${groupId}/new-game`, { title }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group', groupId] })
+      qc.invalidateQueries({ queryKey: ['group-seasons', groupId] })
+      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
+      qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
+    },
+  })
+}
+
+export function useSeasons(groupId: number) {
+  return useQuery({
+    queryKey: ['group-seasons', groupId],
+    queryFn: () => api.get<{ seasons: SeasonSummary[] }>(`/groups/${groupId}/seasons`),
+    select: (d) => d.seasons,
+    enabled: groupId > 0,
+  })
+}
+
+export function useSeasonDetail(groupId: number, seasonId: number | null) {
+  return useQuery({
+    queryKey: ['group-season', groupId, seasonId],
+    queryFn: () => api.get<SeasonDetail>(`/groups/${groupId}/seasons/${seasonId}`),
+    enabled: groupId > 0 && seasonId != null,
   })
 }
 

@@ -11,6 +11,12 @@ export interface GroupMember {
   joinedAt: string
 }
 
+export interface SeasonRef {
+  id: number
+  title: string
+  status: 'active' | 'finished'
+}
+
 export interface GroupDetail {
   id: number
   name: string
@@ -18,6 +24,59 @@ export interface GroupDetail {
   isAdmin: boolean
   inviteCode?: string
   members: GroupMember[]
+  activeSeason: SeasonRef | null
+}
+
+export type Outcome = 'HOME' | 'DRAW' | 'AWAY'
+
+// A match in the group's current game, with the caller's own prediction.
+export interface GameFixture {
+  fixtureId: number
+  fixtureApiId: number
+  kickoffAt: string
+  status: string
+  round: string | null
+  elapsed: number | null
+  leagueName: string
+  leagueApiId: number
+  homeId: number
+  homeApiId: number
+  homeName: string
+  awayId: number
+  awayApiId: number
+  awayName: string
+  homeScore: number | null
+  awayScore: number | null
+  myOutcome: Outcome | null
+  myHome: number | null
+  myAway: number | null
+  myPoints: number | null
+  predictionCount: number
+  open: boolean
+}
+
+export interface Champion {
+  userId: number
+  displayName: string
+  points: number
+}
+
+export interface SeasonSummary {
+  id: number
+  title: string
+  status: 'active' | 'finished'
+  startedAt: string
+  finishedAt: string | null
+  championPoints: number | null
+  championUserId: number | null
+  championName: string | null
+  matchCount: number
+}
+
+export interface SeasonDetail {
+  season: SeasonSummary
+  standings: LeaderboardEntry[]
+  fixtures: GameFixture[]
 }
 
 export interface LeaderboardEntry {
@@ -33,8 +92,9 @@ export interface LeaderboardEntry {
 
 export interface MyPrediction {
   fixtureId: number
-  predictedHome: number
-  predictedAway: number
+  predictedOutcome: Outcome
+  predictedHome: number | null
+  predictedAway: number | null
   pointsAwarded: number | null
   settledAt: string | null
   kickoffAt: string
@@ -50,8 +110,9 @@ export interface MyPrediction {
 export interface MemberPrediction {
   userId: number
   displayName: string
-  predictedHome: number
-  predictedAway: number
+  predictedOutcome: Outcome
+  predictedHome: number | null
+  predictedAway: number | null
   pointsAwarded: number | null
 }
 
