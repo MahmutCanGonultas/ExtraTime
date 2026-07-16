@@ -464,15 +464,17 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
   const players = (
     await query<SearchPlayer>(
       `SELECT "playerApiId", name, "photoUrl", "teamName", "teamApiId" FROM (
-         SELECT DISTINCT ON (player_api_id)
-           player_api_id AS "playerApiId", name, firstname, lastname, photo_url AS "photoUrl",
-           team_name AS "teamName", team_api_id AS "teamApiId", goals, appearances
-         FROM players
-         WHERE unaccent(name) ILIKE unaccent($1)
-            OR unaccent(firstname) ILIKE unaccent($1)
-            OR unaccent(lastname) ILIKE unaccent($1)
-            OR unaccent(COALESCE(firstname, '') || ' ' || COALESCE(lastname, '')) ILIKE unaccent($1)
-         ORDER BY player_api_id, season DESC, appearances DESC NULLS LAST
+         SELECT DISTINCT ON (p.player_api_id)
+           p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.photo_url AS "photoUrl",
+           p.team_name AS "teamName", p.team_api_id AS "teamApiId", p.goals, p.appearances
+         FROM players p JOIN leagues l ON l.id = p.league_id
+         WHERE unaccent(p.name) ILIKE unaccent($1)
+            OR unaccent(p.firstname) ILIKE unaccent($1)
+            OR unaccent(p.lastname) ILIKE unaccent($1)
+            OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($1)
+         -- Prefer a player's CLUB over their national team (World Cup, api id 1),
+         -- then newest season, then most appearances.
+         ORDER BY p.player_api_id, (l.api_football_id = 1) ASC, p.season DESC, p.appearances DESC NULLS LAST
        ) s
        ORDER BY (unaccent(s.name) ILIKE unaccent($2) OR unaccent(s.firstname) ILIKE unaccent($2)
                  OR unaccent(s.lastname) ILIKE unaccent($2)) DESC,
