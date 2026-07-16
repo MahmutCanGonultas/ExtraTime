@@ -15,6 +15,8 @@ import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
 import { Leaderboard } from '@/features/groups/Leaderboard'
 import { Podium } from '@/features/groups/Podium'
+import { LiveStandings } from '@/features/groups/LiveStandings'
+import { RivalryBook } from '@/features/groups/RivalryBook'
 import { GameManager } from '@/features/groups/GameManager'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { BallMark } from '@/components/Brand'
@@ -151,6 +153,8 @@ function GroupView({ group }: { group: GroupSummary }) {
         </div>
       </section>
 
+      <LiveStandings groupId={group.id} currentUserId={user?.id} />
+
       {/* Standings — podium + list */}
       <Card className="overflow-hidden">
         <CardHeader title="Puan Durumu" />
@@ -173,6 +177,8 @@ function GroupView({ group }: { group: GroupSummary }) {
           <EmptyState title="Henüz puan yok" description="Maçlar sonuçlandıkça tablo dolacak." />
         )}
       </Card>
+
+      <RivalryBook groupId={group.id} />
 
       <GameManager
         groupId={group.id}

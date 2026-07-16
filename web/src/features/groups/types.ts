@@ -82,6 +82,33 @@ export interface SeasonDetail {
   fixtures: GameFixture[]
 }
 
+export interface Rivalry {
+  userId: number
+  displayName: string
+  wins: number
+  draws: number
+  losses: number
+  games: number
+}
+
+export interface Championship {
+  title: string
+  points: number | null
+  finishedAt: string | null
+}
+
+export interface Trophies {
+  displayName: string
+  championships: Championship[]
+  winningJokers: number
+  exactScores: number
+}
+
+export interface ProvisionalEntry extends LeaderboardEntry {
+  livePoints: number
+  direction: number
+}
+
 export interface LeaderboardEntry {
   userId: number
   displayName: string

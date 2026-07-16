@@ -10,10 +10,13 @@ import type {
   LeaderboardEntry,
   MyPrediction,
   Outcome,
+  ProvisionalEntry,
+  Rivalry,
   SeasonDetail,
   SeasonRef,
   SeasonSummary,
   SettledPoint,
+  Trophies,
 } from './types'
 
 export function useMyGroups() {
@@ -190,6 +193,32 @@ export function useSeasonDetail(groupId: number, seasonId: number | null) {
     queryKey: ['group-season', groupId, seasonId],
     queryFn: () => api.get<SeasonDetail>(`/groups/${groupId}/seasons/${seasonId}`),
     enabled: groupId > 0 && seasonId != null,
+  })
+}
+
+export function useRivalries(groupId: number) {
+  return useQuery({
+    queryKey: ['rivalries', groupId],
+    queryFn: () => api.get<{ rivalries: Rivalry[] }>(`/groups/${groupId}/rivalries`),
+    select: (d) => d.rivalries,
+    enabled: groupId > 0,
+  })
+}
+
+export function useTrophies(groupId: number, userId: number) {
+  return useQuery({
+    queryKey: ['trophies', groupId, userId],
+    queryFn: () => api.get<Trophies>(`/groups/${groupId}/members/${userId}/trophies`),
+    enabled: groupId > 0 && userId > 0,
+  })
+}
+
+export function useProvisionalLeaderboard(groupId: number) {
+  return useQuery({
+    queryKey: ['leaderboard-live', groupId],
+    queryFn: () => api.get<{ entries: ProvisionalEntry[]; live: boolean }>(`/groups/${groupId}/leaderboard/live`),
+    enabled: groupId > 0,
+    refetchInterval: 20_000,
   })
 }
 

@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Check } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
+import { useActiveGroup } from '@/features/groups/useActiveGroup'
+import { TrophyCabinet } from '@/features/groups/TrophyCabinet'
 import { api, ApiError } from '@/lib/api'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Input, Field } from '@/components/ui/Input'
@@ -8,9 +10,11 @@ import { Button } from '@/components/ui/Button'
 
 export function SettingsPage() {
   const { user, refresh } = useAuth()
+  const { active } = useActiveGroup()
   return (
     <div className="mx-auto max-w-lg space-y-5">
       <h1 className="text-2xl font-bold text-ink-100">Ayarlar</h1>
+      {active && user && <TrophyCabinet groupId={active.id} userId={user.id} />}
       <NameForm current={user?.displayName ?? ''} onSaved={refresh} />
       <PasswordForm />
       <Card>

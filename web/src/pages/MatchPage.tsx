@@ -5,6 +5,7 @@ import { useFixturePredictions } from '@/features/groups/hooks'
 import type { Outcome } from '@/features/groups/types'
 import { isCancelled, isFinished, isLive, isPostponed } from '@/features/football/matchStatus'
 import { GoalList } from '@/features/football/GoalList'
+import { PredictionPulse } from '@/features/predictions/PredictionPulse'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -124,7 +125,13 @@ export function MatchPage() {
         ) : preds.data.predictions.length === 0 ? (
           <EmptyState title="Bu maça kimse tahmin girmemiş" />
         ) : (
-          <Table>
+          <>
+            <PredictionPulse
+              predictions={preds.data.predictions}
+              homeName={f.home.name}
+              awayName={f.away.name}
+            />
+            <Table>
             <thead>
               <tr>
                 <Th>Üye</Th>
@@ -152,6 +159,7 @@ export function MatchPage() {
               ))}
             </tbody>
           </Table>
+          </>
         )}
       </Card>
     </div>
