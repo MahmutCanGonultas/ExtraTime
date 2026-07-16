@@ -74,6 +74,13 @@ footballRouter.get(
 )
 
 footballRouter.get(
+  '/players/game/pool',
+  asyncHandler(async (_req, res) => {
+    res.json({ players: await repo.getPlayerGamePool() })
+  }),
+)
+
+footballRouter.get(
   '/players/:apiId',
   asyncHandler(async (req, res) => {
     const player = await repo.getPlayerProfile(parseId(req.params.apiId))

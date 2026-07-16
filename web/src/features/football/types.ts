@@ -175,3 +175,13 @@ export interface PlayerProfile {
   photoUrl: string | null
   seasons: PlayerSeason[]
 }
+
+export interface GamePoolPlayer {
+  playerApiId: number
+  name: string
+  teamApiId: number | null
+  teamName: string | null
+  leagueApiId: number
+  goals: number
+  photoUrl: string | null
+}

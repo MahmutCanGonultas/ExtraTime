@@ -283,6 +283,32 @@ export async function getLeaguePlayers(leagueId: number): Promise<PlayerRow[]> {
   return rows
 }
 
+export interface GamePoolPlayer {
+  playerApiId: number
+  name: string
+  teamApiId: number | null
+  teamName: string | null
+  leagueApiId: number
+  goals: number
+  photoUrl: string | null
+}
+
+// A shuffled pool of goal-scoring players for the standalone "Gol Düellosu"
+// mini-game. Only players with a few goals, so match-ups are rarely a tie.
+export async function getPlayerGamePool(limit = 240): Promise<GamePoolPlayer[]> {
+  const { rows } = await query<GamePoolPlayer>(
+    `SELECT p.player_api_id AS "playerApiId", p.name, p.team_api_id AS "teamApiId",
+            p.team_name AS "teamName", l.api_football_id AS "leagueApiId", p.goals,
+            p.photo_url AS "photoUrl"
+     FROM players p JOIN leagues l ON l.id = p.league_id
+     WHERE p.goals >= 2 AND p.photo_url IS NOT NULL
+     ORDER BY random()
+     LIMIT $1`,
+    [limit],
+  )
+  return rows
+}
+
 export interface PlayerProfile {
   playerApiId: number
   name: string

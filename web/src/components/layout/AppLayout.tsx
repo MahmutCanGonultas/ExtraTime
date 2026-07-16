@@ -10,6 +10,7 @@ const baseNav = [
   { to: '/leagues', label: 'Ligler' },
   { to: '/predictions', label: 'Tahminler' },
   { to: '/group', label: 'Grup' },
+  { to: '/oyun', label: 'Oyun' },
   { to: '/stats', label: 'İstatistik' },
 ]
 

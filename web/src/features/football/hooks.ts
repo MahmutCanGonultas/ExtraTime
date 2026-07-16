@@ -4,6 +4,7 @@ import type {
   Bracket,
   Fixture,
   FixtureGoal,
+  GamePoolPlayer,
   League,
   PlayerProfile,
   PlayerRow,
@@ -69,6 +70,15 @@ export function useLeaguePlayers(leagueId: number) {
     queryKey: ['players', 'league', leagueId],
     queryFn: () => api.get<{ players: PlayerRow[] }>(`/leagues/${leagueId}/players`),
     select: (d) => d.players,
+  })
+}
+
+export function useGamePool() {
+  return useQuery({
+    queryKey: ['game-pool'],
+    queryFn: () => api.get<{ players: GamePoolPlayer[] }>('/players/game/pool'),
+    select: (d) => d.players,
+    staleTime: 60_000,
   })
 }
 
