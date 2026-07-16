@@ -3,7 +3,14 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { AppError } from '../../lib/errors'
-import { getUserById, isPlatformAdmin, loginUser, registerUser } from './auth.service'
+import {
+  changePassword,
+  getUserById,
+  isPlatformAdmin,
+  loginUser,
+  registerUser,
+  updateDisplayName,
+} from './auth.service'
 import { requireAuth } from './requireAuth'
 
 export const authRouter = Router()
@@ -53,5 +60,34 @@ authRouter.get(
     const user = await getUserById(req.userId!)
     if (!user) throw AppError.unauthorized('User no longer exists')
     res.json({ user, isPlatformAdmin: isPlatformAdmin(user.email) })
+  }),
+)
+
+const updateNameSchema = z.object({ displayName: z.string().min(2).max(50) })
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100),
+})
+
+// Change display name.
+authRouter.patch(
+  '/me',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { displayName } = updateNameSchema.parse(req.body)
+    const user = await updateDisplayName(req.userId!, displayName)
+    res.json({ user, isPlatformAdmin: isPlatformAdmin(user.email) })
+  }),
+)
+
+// Change password (verifies the current one).
+authRouter.post(
+  '/change-password',
+  requireAuth,
+  authLimiter,
+  asyncHandler(async (req, res) => {
+    const body = changePasswordSchema.parse(req.body)
+    await changePassword(req.userId!, body.currentPassword, body.newPassword)
+    res.status(204).send()
   }),
 )

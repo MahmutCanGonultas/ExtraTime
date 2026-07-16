@@ -18,6 +18,7 @@ interface AuthContextValue {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, displayName: string) => Promise<void>
+  refresh: () => Promise<void>
   logout: () => void
 }
 
@@ -68,7 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isPlatformAdmin, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isPlatformAdmin, loading, login, register, refresh: loadMe, logout }}
+    >
       {children}
     </AuthContext.Provider>
   )

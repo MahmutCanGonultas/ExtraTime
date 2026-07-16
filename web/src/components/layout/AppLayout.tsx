@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
 import { Brand } from '@/components/Brand'
@@ -47,7 +47,14 @@ export function AppLayout() {
 
           <div className="flex items-center gap-3">
             <GroupSwitcher />
-            <span className="hidden text-sm text-ink-300 md:inline">{user?.displayName}</span>
+            <NavLink
+              to="/settings"
+              className="flex items-center gap-1.5 text-ink-300 transition hover:text-ink-100"
+              title="Ayarlar"
+            >
+              <Settings className="h-5 w-5" />
+              <span className="hidden text-sm md:inline">{user?.displayName}</span>
+            </NavLink>
             <button
               onClick={logout}
               className="text-ink-400 transition hover:text-loss"

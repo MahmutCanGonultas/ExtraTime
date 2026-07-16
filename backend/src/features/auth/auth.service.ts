@@ -65,6 +65,35 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
   return { user, token: signToken({ userId: user.id }) }
 }
 
+export async function updateDisplayName(userId: number, displayName: string): Promise<PublicUser> {
+  const name = displayName.trim()
+  const { rows } = await query<{ id: number; email: string; display_name: string }>(
+    `UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, email, display_name`,
+    [name, userId],
+  )
+  const row = rows[0]
+  if (!row) throw AppError.notFound('User not found')
+  return { id: row.id, email: row.email, displayName: row.display_name }
+}
+
+export async function changePassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const { rows } = await query<{ password_hash: string }>(
+    `SELECT password_hash FROM users WHERE id = $1`,
+    [userId],
+  )
+  const row = rows[0]
+  if (!row) throw AppError.notFound('User not found')
+  if (!(await bcrypt.compare(currentPassword, row.password_hash))) {
+    throw AppError.badRequest('Mevcut şifre yanlış')
+  }
+  const hash = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  await query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, userId])
+}
+
 export async function getUserById(id: number): Promise<PublicUser | null> {
   const { rows } = await query<{ id: number; email: string; display_name: string }>(
     `SELECT id, email, display_name FROM users WHERE id = $1`,

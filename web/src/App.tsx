@@ -15,6 +15,7 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/predictions/, 'Tahminler'],
   [/^\/stats/, 'İstatistik'],
   [/^\/admin/, 'Admin'],
+  [/^\/settings/, 'Ayarlar'],
   [/^\/login/, 'Giriş'],
   [/^\/register/, 'Kayıt'],
 ]
@@ -40,6 +41,7 @@ import { GroupPage } from '@/pages/GroupPage'
 import { PredictionsPage } from '@/pages/PredictionsPage'
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 // Charts (Recharts) are heavy, so the stats page is code-split into its own chunk.
 const StatsPage = lazy(() => import('@/pages/StatsPage').then((m) => ({ default: m.StatsPage })))
@@ -78,6 +80,7 @@ export function App() {
                   }
                 />
                 <Route path="/admin" element={<AdminPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
 
