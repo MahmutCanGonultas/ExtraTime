@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, RefreshCw, Users } from 'lucide-react'
+import { Copy, Crown, RefreshCw, Users } from 'lucide-react'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import {
   useCreateGroup,
@@ -14,7 +14,10 @@ import {
 import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
 import { Leaderboard } from '@/features/groups/Leaderboard'
+import { Podium } from '@/features/groups/Podium'
 import { GameManager } from '@/features/groups/GameManager'
+import { PitchBackdrop } from '@/components/PitchBackdrop'
+import { BallMark } from '@/components/Brand'
 import { useAuth } from '@/features/auth/AuthContext'
 import { ApiError } from '@/lib/api'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -116,14 +119,67 @@ function GroupView({ group }: { group: GroupSummary }) {
     })
   }
 
+  const board = leaderboard.data ?? []
+  const leader = board[0]?.points ? board[0] : null
+  const memberCount = g?.members.length ?? group.memberCount
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink-100">{g?.name ?? group.name}</h1>
-        <span className="flex items-center gap-1 text-sm text-ink-400">
-          <Users className="h-4 w-4" /> {g?.members.length ?? group.memberCount}
-        </span>
-      </div>
+    <div className="space-y-5">
+      {/* Hero */}
+      <section
+        className="relative overflow-hidden rounded-card border border-ink-800"
+        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
+      >
+        <div className="absolute inset-0 mow-stripes" />
+        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
+        <BallMark size={190} className="pointer-events-none absolute -bottom-12 -left-8 text-brand-400/[0.04]" />
+        <div className="relative px-6 py-7 sm:px-8">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
+            <Users className="h-3.5 w-3.5" /> Grup
+          </div>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink-100">
+            {g?.name ?? group.name}
+          </h1>
+          <p className="mt-1 text-sm text-ink-300">
+            {memberCount} oyuncu{g?.activeSeason ? ` · ${g.activeSeason.title}` : ''}
+          </p>
+          {leader && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-200">
+              <Crown className="h-3.5 w-3.5" /> Lider: {leader.displayName} · {leader.points} puan
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Standings — podium + list */}
+      <Card className="overflow-hidden">
+        <CardHeader title="Puan Durumu" />
+        {leaderboard.isLoading ? (
+          <Skeleton className="m-4 h-40" />
+        ) : leaderboard.isError ? (
+          <ErrorState onRetry={() => leaderboard.refetch()} />
+        ) : board.length ? (
+          <>
+            {leader && <Podium entries={board} currentUserId={user?.id} />}
+            <div className={leader ? 'mt-3 border-t border-ink-800' : ''}>
+              <Leaderboard
+                entries={leader ? board.slice(3) : board}
+                currentUserId={user?.id}
+                offset={leader ? 3 : 0}
+              />
+            </div>
+          </>
+        ) : (
+          <EmptyState title="Henüz puan yok" description="Maçlar sonuçlandıkça tablo dolacak." />
+        )}
+      </Card>
+
+      <GameManager
+        groupId={group.id}
+        isAdmin={g?.isAdmin ?? false}
+        activeSeason={g?.activeSeason ?? null}
+        currentUserId={user?.id}
+      />
 
       {g?.isAdmin && g.inviteCode && (
         <Card>
@@ -150,26 +206,6 @@ function GroupView({ group }: { group: GroupSummary }) {
           </CardBody>
         </Card>
       )}
-
-      <GameManager
-        groupId={group.id}
-        isAdmin={g?.isAdmin ?? false}
-        activeSeason={g?.activeSeason ?? null}
-        currentUserId={user?.id}
-      />
-
-      <Card>
-        <CardHeader title="Güncel Puan Durumu" />
-        {leaderboard.isLoading ? (
-          <Skeleton className="m-4 h-40" />
-        ) : leaderboard.isError ? (
-          <ErrorState onRetry={() => leaderboard.refetch()} />
-        ) : leaderboard.data?.length ? (
-          <Leaderboard entries={leaderboard.data} currentUserId={user?.id} />
-        ) : (
-          <EmptyState title="Henüz puan yok" description="Maçlar sonuçlandıkça tablo dolacak." />
-        )}
-      </Card>
 
       <Card>
         <CardHeader title="Üyeler" />
