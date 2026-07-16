@@ -10,8 +10,9 @@ import type {
   MatchStat,
   PlayerProfile,
   PlayerRow,
+  SearchResults,
   StandingRow,
-  Team,
+  TeamDetail,
   TopAssist,
   TopScorer,
 } from './types'
@@ -96,7 +97,17 @@ export function usePlayer(playerApiId: number) {
 export function useTeam(teamId: number) {
   return useQuery({
     queryKey: ['team', teamId],
-    queryFn: () => api.get<{ team: Team; fixtures: Fixture[] }>(`/teams/${teamId}`),
+    queryFn: () => api.get<TeamDetail>(`/teams/${teamId}`),
+  })
+}
+
+export function useSearch(term: string) {
+  const q = term.trim()
+  return useQuery({
+    queryKey: ['search', q],
+    queryFn: () => api.get<SearchResults>(`/search?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 2,
+    staleTime: 30_000,
   })
 }
 

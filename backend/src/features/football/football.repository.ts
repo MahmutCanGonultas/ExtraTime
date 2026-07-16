@@ -335,6 +335,7 @@ export interface PlayerProfile {
     leagueName: string
     leagueApiId: number
     season: number
+    teamId: number | null
     teamApiId: number | null
     teamName: string | null
     appearances: number | null
@@ -364,6 +365,7 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     leagueName: string
     leagueApiId: number
     season: number
+    teamId: number | null
     teamApiId: number | null
     teamName: string | null
     appearances: number | null
@@ -377,10 +379,12 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     `SELECT p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.age, p.nationality,
             p.position, p.height, p.weight, p.photo_url AS "photoUrl",
             l.id AS "leagueId", l.name AS "leagueName", l.api_football_id AS "leagueApiId", p.season,
-            p.team_api_id AS "teamApiId", p.team_name AS "teamName", p.appearances, p.minutes,
-            p.goals, p.assists, p.yellow_cards AS "yellowCards", p.red_cards AS "redCards",
-            p.rating::float8 AS rating
-     FROM players p JOIN leagues l ON l.id = p.league_id
+            t.id AS "teamId", p.team_api_id AS "teamApiId", p.team_name AS "teamName",
+            p.appearances, p.minutes, p.goals, p.assists,
+            p.yellow_cards AS "yellowCards", p.red_cards AS "redCards", p.rating::float8 AS rating
+     FROM players p
+     JOIN leagues l ON l.id = p.league_id
+     LEFT JOIN teams t ON t.api_football_id = p.team_api_id
      WHERE p.player_api_id = $1
      ORDER BY p.season DESC, p.goals DESC NULLS LAST`,
     [playerApiId],
@@ -403,6 +407,7 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
       leagueName: r.leagueName,
       leagueApiId: r.leagueApiId,
       season: r.season,
+      teamId: r.teamId,
       teamApiId: r.teamApiId,
       teamName: r.teamName,
       appearances: r.appearances,
@@ -414,6 +419,106 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
       rating: r.rating,
     })),
   }
+}
+
+export interface SearchTeam {
+  id: number
+  apiFootballId: number
+  name: string
+}
+export interface SearchPlayer {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  teamName: string | null
+  teamApiId: number | null
+}
+
+// Global search over team + player names for the header search bar.
+export async function search(q: string): Promise<{ teams: SearchTeam[]; players: SearchPlayer[] }> {
+  const like = `%${q}%`
+  const teams = (
+    await query<SearchTeam>(
+      `SELECT id, api_football_id AS "apiFootballId", name
+       FROM teams WHERE name ILIKE $1 ORDER BY (name ILIKE $2) DESC, name LIMIT 8`,
+      [like, `${q}%`],
+    )
+  ).rows
+  const players = (
+    await query<SearchPlayer>(
+      `SELECT "playerApiId", name, "photoUrl", "teamName", "teamApiId" FROM (
+         SELECT DISTINCT ON (player_api_id)
+           player_api_id AS "playerApiId", name, photo_url AS "photoUrl",
+           team_name AS "teamName", team_api_id AS "teamApiId", goals
+         FROM players WHERE name ILIKE $1
+         ORDER BY player_api_id, season DESC, goals DESC NULLS LAST
+       ) s ORDER BY (s.name ILIKE $2) DESC, s.goals DESC NULLS LAST, s.name LIMIT 8`,
+      [like, `${q}%`],
+    )
+  ).rows
+  return { teams, players }
+}
+
+export interface TeamStanding {
+  leagueId: number
+  leagueName: string
+  leagueApiId: number
+  season: number
+  position: number
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  points: number
+  form: string | null
+}
+
+// The team's standing rows across active competitions (domestic league, and a
+// group/league-phase table for cups), newest season first.
+export async function getTeamStandings(teamId: number): Promise<TeamStanding[]> {
+  const { rows } = await query<TeamStanding>(
+    `SELECT l.id AS "leagueId", l.name AS "leagueName", l.api_football_id AS "leagueApiId", l.season,
+            s.position, s.played, s.won, s.drawn, s.lost, s.goals_for AS "goalsFor",
+            s.goals_against AS "goalsAgainst", s.points, s.form
+     FROM standings s JOIN leagues l ON l.id = s.league_id
+     WHERE s.team_id = $1 AND l.is_active = true
+     ORDER BY l.season DESC, s.position`,
+    [teamId],
+  )
+  return rows
+}
+
+export interface SquadPlayer {
+  playerApiId: number
+  name: string
+  position: string | null
+  nationality: string | null
+  age: number | null
+  goals: number | null
+  assists: number | null
+  appearances: number | null
+  minutes: number | null
+  rating: number | null
+  photoUrl: string | null
+  season: number
+}
+
+// The team's most-recent-season squad we hold, best scorers first.
+export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
+  const { rows } = await query<SquadPlayer>(
+    `SELECT DISTINCT ON (player_api_id)
+       player_api_id AS "playerApiId", name, position, nationality, age,
+       goals, assists, appearances, minutes, rating::float8 AS rating,
+       photo_url AS "photoUrl", season
+     FROM players WHERE team_api_id = $1
+     ORDER BY player_api_id, season DESC`,
+    [teamApiId],
+  )
+  return rows.sort(
+    (a, b) => (b.goals ?? 0) - (a.goals ?? 0) || (b.appearances ?? 0) - (a.appearances ?? 0),
+  )
 }
 
 export async function getTeam(teamId: number) {

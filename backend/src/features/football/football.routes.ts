@@ -89,13 +89,32 @@ footballRouter.get(
   }),
 )
 
+const searchQuerySchema = z.object({ q: z.string().trim().max(60).optional() })
+
+footballRouter.get(
+  '/search',
+  asyncHandler(async (req, res) => {
+    const { q } = searchQuerySchema.parse(req.query)
+    if (!q || q.length < 2) {
+      res.json({ teams: [], players: [] })
+      return
+    }
+    res.json(await repo.search(q))
+  }),
+)
+
 footballRouter.get(
   '/teams/:id',
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id)
     const team = await repo.getTeam(id)
     if (!team) throw AppError.notFound('Team not found')
-    res.json({ team, fixtures: await repo.getTeamFixtures(id) })
+    const [fixtures, standings, squad] = await Promise.all([
+      repo.getTeamFixtures(id),
+      repo.getTeamStandings(id),
+      repo.getTeamSquad(team.apiFootballId),
+    ])
+    res.json({ team, fixtures, standings, squad })
   }),
 )
 

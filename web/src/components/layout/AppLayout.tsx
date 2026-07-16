@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Settings } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
+import { SearchBar } from '@/features/football/SearchBar'
 import { Brand, BallMark } from '@/components/Brand'
 import { cn } from '@/lib/cn'
 
@@ -27,7 +28,7 @@ export function AppLayout() {
             <Brand markSize={24} />
           </NavLink>
 
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
             {navLinks.map((link) => (
               <NavLink
                 key={link.to}
@@ -47,7 +48,11 @@ export function AppLayout() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="ml-auto w-40 shrink-0 sm:w-52 lg:w-72">
+            <SearchBar />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3">
             <GroupSwitcher />
             <NavLink
               to="/settings"

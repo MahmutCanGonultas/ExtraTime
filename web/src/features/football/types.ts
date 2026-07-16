@@ -107,6 +107,63 @@ export interface Team {
   city: string | null
 }
 
+export interface SearchTeam {
+  id: number
+  apiFootballId: number
+  name: string
+}
+
+export interface SearchPlayer {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  teamName: string | null
+  teamApiId: number | null
+}
+
+export interface SearchResults {
+  teams: SearchTeam[]
+  players: SearchPlayer[]
+}
+
+export interface TeamStanding {
+  leagueId: number
+  leagueName: string
+  leagueApiId: number
+  season: number
+  position: number
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  points: number
+  form: string | null
+}
+
+export interface SquadPlayer {
+  playerApiId: number
+  name: string
+  position: string | null
+  nationality: string | null
+  age: number | null
+  goals: number | null
+  assists: number | null
+  appearances: number | null
+  minutes: number | null
+  rating: number | null
+  photoUrl: string | null
+  season: number
+}
+
+export interface TeamDetail {
+  team: Team
+  fixtures: Fixture[]
+  standings: TeamStanding[]
+  squad: SquadPlayer[]
+}
+
 export interface BracketTeam {
   teamId: number
   apiId: number
@@ -167,6 +224,7 @@ export interface PlayerSeason {
   leagueName: string
   leagueApiId: number
   season: number
+  teamId: number | null
   teamApiId: number | null
   teamName: string | null
   appearances: number | null
