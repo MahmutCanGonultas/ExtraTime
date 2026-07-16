@@ -1,6 +1,13 @@
 import cron from 'node-cron'
 import { logger } from '../../../lib/logger'
-import { syncFixtures, syncLiveScores, syncStandings, syncTopAssists, syncTopScorers } from './jobs'
+import {
+  syncFixtures,
+  syncLiveScores,
+  syncRecentMatchDetails,
+  syncStandings,
+  syncTopAssists,
+  syncTopScorers,
+} from './jobs'
 import { syncResultsAndSettle } from '../../predictions/settle'
 
 // Internal cron. On free hosting the process may sleep, so the same jobs are
@@ -17,6 +24,10 @@ export function startScheduler(): void {
 
   // Results: hourly through the evening match window (sync then settle).
   cron.schedule('5 18-23 * * *', () => void syncResultsAndSettle())
+
+  // Detailed summaries: enrich newly-finished matches shortly after results, a
+  // bounded batch each run so it stays within budget.
+  cron.schedule('20 18-23 * * *', () => void syncRecentMatchDetails())
 
   // Live scores: every 2 minutes. syncLiveScores itself no-ops (zero API cost)
   // when nothing is in progress, so this is cheap off match days.

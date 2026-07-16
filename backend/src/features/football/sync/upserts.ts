@@ -1,5 +1,12 @@
 import type { PoolClient } from 'pg'
-import type { RawFixture, RawFixtureEvent, RawPlayer, RawStandingRow, RawTopScorer } from '../types'
+import type {
+  RawFixture,
+  RawFixtureEvent,
+  RawFixtureStatistic,
+  RawPlayer,
+  RawStandingRow,
+  RawTopScorer,
+} from '../types'
 
 // All writes go through a PoolClient so a sync can wrap a whole league in one
 // transaction. Every statement is parameterized — never string-concatenated.
@@ -162,6 +169,59 @@ export async function replaceFixtureGoals(
       [fixtureId, g.team.id, g.player.name, g.assist?.name ?? null, g.time.elapsed, g.detail],
     )
     n += 1
+  }
+  return n
+}
+
+// Full event feed for a fixture (goals, cards, substitutions), replacing any
+// prior feed so VAR reversals simply drop off on the next sync.
+export async function replaceFixtureEvents(
+  db: PoolClient,
+  fixtureId: number,
+  events: RawFixtureEvent[],
+): Promise<number> {
+  await db.query('DELETE FROM fixture_events WHERE fixture_id = $1', [fixtureId])
+  let order = 0
+  for (const e of events) {
+    await db.query(
+      `INSERT INTO fixture_events
+         (fixture_id, team_api_id, minute, extra_minute, type, detail, player_name, assist_name, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        fixtureId,
+        e.team?.id ?? null,
+        e.time?.elapsed ?? null,
+        e.time?.extra ?? null,
+        e.type,
+        e.detail,
+        e.player?.name ?? null,
+        e.assist?.name ?? null,
+        order,
+      ],
+    )
+    order += 1
+  }
+  return order
+}
+
+// Per-team match statistics (possession, shots, ...), stored as key/value.
+export async function replaceFixtureStats(
+  db: PoolClient,
+  fixtureId: number,
+  stats: RawFixtureStatistic[],
+): Promise<number> {
+  await db.query('DELETE FROM fixture_stats WHERE fixture_id = $1', [fixtureId])
+  let n = 0
+  for (const team of stats) {
+    for (const s of team.statistics) {
+      await db.query(
+        `INSERT INTO fixture_stats (fixture_id, team_api_id, type, value)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (fixture_id, team_api_id, type) DO UPDATE SET value = EXCLUDED.value`,
+        [fixtureId, team.team.id, s.type, s.value == null ? null : String(s.value)],
+      )
+      n += 1
+    }
   }
   return n
 }

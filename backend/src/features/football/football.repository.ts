@@ -498,6 +498,43 @@ export interface FixtureGoal {
   detail: string | null
 }
 
+export interface FixtureEvent {
+  teamApiId: number | null
+  minute: number | null
+  extraMinute: number | null
+  type: string
+  detail: string | null
+  playerName: string | null
+  assistName: string | null
+}
+
+// Full event feed for one fixture (goals, cards, subs) in match order.
+export async function getFixtureEvents(fixtureId: number): Promise<FixtureEvent[]> {
+  const { rows } = await query<FixtureEvent>(
+    `SELECT team_api_id AS "teamApiId", minute, extra_minute AS "extraMinute", type, detail,
+            player_name AS "playerName", assist_name AS "assistName"
+     FROM fixture_events WHERE fixture_id = $1 ORDER BY sort_order`,
+    [fixtureId],
+  )
+  return rows
+}
+
+export interface FixtureStat {
+  teamApiId: number
+  type: string
+  value: string | null
+}
+
+// Per-team statistics rows for one fixture (the UI pivots them home vs away).
+export async function getFixtureStats(fixtureId: number): Promise<FixtureStat[]> {
+  const { rows } = await query<FixtureStat>(
+    `SELECT team_api_id AS "teamApiId", type, value
+     FROM fixture_stats WHERE fixture_id = $1`,
+    [fixtureId],
+  )
+  return rows
+}
+
 // Goal timeline for one fixture (who scored, when), ordered chronologically.
 export async function getFixtureGoals(fixtureId: number): Promise<FixtureGoal[]> {
   const { rows } = await query<FixtureGoal>(

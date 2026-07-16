@@ -10,14 +10,17 @@ import {
 import type {
   RawFixture,
   RawFixtureEvent,
+  RawFixtureStatistic,
   RawPlayer,
   RawStandingsLeague,
   RawTopScorer,
 } from '../types'
-import { seedLeagues, TOURNAMENT_API_IDS } from '../leagues.config'
+import { CONFIGURED_LEAGUE_API_IDS, seedLeagues, TOURNAMENT_API_IDS } from '../leagues.config'
 import {
   collectTeams,
+  replaceFixtureEvents,
   replaceFixtureGoals,
+  replaceFixtureStats,
   replaceTopAssists,
   replaceTopScorers,
   upsertFixturesBatch,
@@ -289,6 +292,45 @@ export async function syncLiveScores(): Promise<SyncResult> {
       }
     }
     return updated
+  })
+}
+
+// Detailed summary (events + statistics) for one finished fixture. Two requests.
+export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number): Promise<number> {
+  const client = await getPool()!.connect()
+  try {
+    const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', { fixture: apiFixtureId })
+    const stats = await apiFootballGet<RawFixtureStatistic[]>('fixtures/statistics', {
+      fixture: apiFixtureId,
+    })
+    const ne = await replaceFixtureEvents(client, fixtureId, events)
+    const ns = await replaceFixtureStats(client, fixtureId, stats)
+    await client.query('UPDATE fixtures SET detail_synced_at = now() WHERE id = $1', [fixtureId])
+    return ne + ns
+  } finally {
+    client.release()
+  }
+}
+
+// Enrich recently-finished matches that have no detailed summary yet. Bounded per
+// run so it stays cheap on the cron; catches up newest-first.
+export async function syncRecentMatchDetails(limit = 30): Promise<SyncResult> {
+  return runJob('match-details', async () => {
+    const { rows } = await query<{ id: number; api_football_id: number }>(
+      `SELECT f.id, f.api_football_id
+       FROM fixtures f JOIN leagues lg ON lg.id = f.league_id
+       WHERE lg.api_football_id = ANY($1)
+         AND f.status IN ('FT','AET','PEN')
+         AND f.detail_synced_at IS NULL
+       ORDER BY f.kickoff_at DESC
+       LIMIT $2`,
+      [CONFIGURED_LEAGUE_API_IDS, limit],
+    )
+    let total = 0
+    for (const r of rows) {
+      total += await syncFixtureDetail(r.id, r.api_football_id)
+    }
+    return total
   })
 }
 

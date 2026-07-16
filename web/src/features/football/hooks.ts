@@ -6,6 +6,8 @@ import type {
   FixtureGoal,
   GamePoolPlayer,
   League,
+  MatchEvent,
+  MatchStat,
   PlayerProfile,
   PlayerRow,
   StandingRow,
@@ -101,7 +103,10 @@ export function useTeam(teamId: number) {
 export function useFixture(fixtureId: number) {
   return useQuery({
     queryKey: ['fixture', fixtureId],
-    queryFn: () => api.get<{ fixture: Fixture; goals: FixtureGoal[] }>(`/fixtures/${fixtureId}`),
+    queryFn: () =>
+      api.get<{ fixture: Fixture; goals: FixtureGoal[]; events: MatchEvent[]; stats: MatchStat[] }>(
+        `/fixtures/${fixtureId}`,
+      ),
     // Refresh the detail while the match is live so the score/goals stay current.
     refetchInterval: (q) => {
       const s = q.state.data?.fixture.status

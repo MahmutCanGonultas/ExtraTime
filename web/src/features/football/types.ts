@@ -42,6 +42,22 @@ export interface FixtureGoal {
   detail: string | null
 }
 
+export interface MatchEvent {
+  teamApiId: number | null
+  minute: number | null
+  extraMinute: number | null
+  type: string
+  detail: string | null
+  playerName: string | null
+  assistName: string | null
+}
+
+export interface MatchStat {
+  teamApiId: number
+  type: string
+  value: string | null
+}
+
 export interface StandingRow {
   position: number
   played: number

@@ -90,7 +90,7 @@ export interface RawPlayer {
   }>
 }
 
-// A single in-match event (goal, card, substitution). We only store goals.
+// A single in-match event (goal, card, substitution).
 export interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null }
   team: { id: number; name: string }
@@ -98,4 +98,10 @@ export interface RawFixtureEvent {
   assist: { id: number | null; name: string | null }
   type: string // 'Goal' | 'Card' | 'subst' | 'Var'
   detail: string // 'Normal Goal' | 'Penalty' | 'Own Goal' | 'Missed Penalty' ...
+}
+
+// One team's statistics line for a fixture (possession, shots, ...).
+export interface RawFixtureStatistic {
+  team: { id: number; name: string | null }
+  statistics: Array<{ type: string; value: number | string | null }>
 }

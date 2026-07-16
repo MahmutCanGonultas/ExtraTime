@@ -132,6 +132,11 @@ footballRouter.get(
     const id = parseId(req.params.id)
     const fixture = await repo.getFixtureById(id)
     if (!fixture) throw AppError.notFound('Fixture not found')
-    res.json({ fixture, goals: await repo.getFixtureGoals(id) })
+    const [goals, events, stats] = await Promise.all([
+      repo.getFixtureGoals(id),
+      repo.getFixtureEvents(id),
+      repo.getFixtureStats(id),
+    ])
+    res.json({ fixture, goals, events, stats })
   }),
 )

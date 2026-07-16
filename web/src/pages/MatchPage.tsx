@@ -5,6 +5,7 @@ import { useFixturePredictions } from '@/features/groups/hooks'
 import type { Outcome } from '@/features/groups/types'
 import { isCancelled, isFinished, isLive, isPostponed } from '@/features/football/matchStatus'
 import { GoalList } from '@/features/football/GoalList'
+import { MatchSummary } from '@/features/football/MatchSummary'
 import { PredictionPulse } from '@/features/predictions/PredictionPulse'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -41,6 +42,8 @@ export function MatchPage() {
 
   const f = fixture.data.fixture
   const goals = fixture.data.goals
+  const events = fixture.data.events ?? []
+  const stats = fixture.data.stats ?? []
   const finished = isFinished(f.status)
   const live = isLive(f.status)
   const showScore = finished || live
@@ -108,6 +111,8 @@ export function MatchPage() {
           )}
         </CardBody>
       </Card>
+
+      {(finished || live) && <MatchSummary events={events} stats={stats} home={f.home} away={f.away} />}
 
       <Card>
         <CardHeader title="Grup Tahminleri" />
