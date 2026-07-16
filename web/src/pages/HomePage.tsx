@@ -7,7 +7,7 @@ import {
   useUpcomingFixtures,
 } from '@/features/football/hooks'
 import type { League } from '@/features/football/types'
-import { LiveMatchCard } from '@/features/football/LiveMatchCard'
+import { LiveMatches } from '@/features/football/LiveMatches'
 import { FixtureList } from '@/features/football/FixtureList'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import { useLeaderboard } from '@/features/groups/hooks'
@@ -106,10 +106,8 @@ export function HomePage() {
           {liveCount > 0 && (
             <section id="canli" className="scroll-mt-20">
               <SectionTitle live>Canlı</SectionTitle>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {live.data!.map((f) => (
-                  <LiveMatchCard key={f.id} fixture={f} />
-                ))}
+              <div className="mt-3">
+                <LiveMatches fixtures={live.data!} />
               </div>
             </section>
           )}
