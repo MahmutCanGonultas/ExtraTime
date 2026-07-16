@@ -255,14 +255,14 @@ export function GamePredictCard({
                 <ScoreBox value={home} onChange={(v) => editScore({ h: v })} />
                 <span className="text-ink-500">-</span>
                 <ScoreBox value={away} onChange={(v) => editScore({ a: v })} />
-                <span className="ml-1 text-xs text-ink-500">tam skor = 5 puan</span>
+                <span className="ml-1 text-xs text-ink-500">tam skor 5 · kaçarsa −1</span>
               </div>
             ) : (
               <button
                 onClick={() => setShowScore(true)}
                 className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-ink-700 py-1.5 text-xs text-ink-400 transition hover:border-ink-600 hover:text-ink-200"
               >
-                <Plus className="h-3.5 w-3.5" /> Skor tahmini ekle (bonus puan)
+                <Plus className="h-3.5 w-3.5" /> Skor tahmini ekle (riskli: 5 puan / −1)
               </button>
             )}
 

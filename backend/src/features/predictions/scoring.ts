@@ -1,11 +1,14 @@
 // The scoring rule, isolated as a pure function so it is trivial to unit test.
 //
-// The primary pick is the match OUTCOME (1X2). The exact score is optional and,
-// when given and correct, scores the most:
-//   exact score            -> 5
-//   correct decisive winner -> 3
-//   correct draw            -> 1
-//   wrong outcome           -> 0
+// The primary pick is the match OUTCOME (1X2). Adding an exact score is a gamble:
+// nail it and you score the most, miss it and you are docked a point versus just
+// picking the winner — so a score prediction has to be worth the risk.
+//   exact score                              -> 5
+//   correct winner, no score predicted       -> 3
+//   correct winner, score predicted & wrong  -> 2   (3 - 1 penalty)
+//   correct draw,   no score predicted       -> 1
+//   correct draw,   score predicted & wrong  -> 0   (1 - 1 penalty)
+//   wrong outcome                            -> 0
 
 export interface ScoreLine {
   home: number
@@ -31,20 +34,21 @@ export const POINTS_EXACT = 5
 export const POINTS_WINNER = 3
 export const POINTS_DRAW = 1
 export const POINTS_WRONG = 0
+// Predicting an exact score but missing it costs a point versus a bare outcome pick.
+export const SCORE_MISS_PENALTY = 1
 
 export function calculatePoints(prediction: Prediction, actual: ScoreLine): number {
+  const gaveScore = prediction.home !== null && prediction.away !== null
+
   // Exact scoreline (only reachable when a score was actually predicted).
-  if (
-    prediction.home !== null &&
-    prediction.away !== null &&
-    prediction.home === actual.home &&
-    prediction.away === actual.away
-  ) {
+  if (gaveScore && prediction.home === actual.home && prediction.away === actual.away) {
     return POINTS_EXACT
   }
-  // Correct outcome — a decisive result is worth more than a shared draw.
+  // Correct outcome — a decisive result is worth more than a shared draw. Having
+  // committed to a score and missed it, though, costs a point (floored at 0).
   if (prediction.outcome === outcomeOf(actual)) {
-    return outcomeOf(actual) === 'DRAW' ? POINTS_DRAW : POINTS_WINNER
+    const base = outcomeOf(actual) === 'DRAW' ? POINTS_DRAW : POINTS_WINNER
+    return gaveScore ? Math.max(POINTS_WRONG, base - SCORE_MISS_PENALTY) : base
   }
   return POINTS_WRONG
 }

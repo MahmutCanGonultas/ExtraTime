@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { ListChecks, Target, Trophy, Star, ChevronDown, HelpCircle } from 'lucide-react'
+import { ListChecks, Target, Trophy, Star, ChevronDown, HelpCircle, AlertTriangle } from 'lucide-react'
 import { Card, CardBody } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
 
 const scoring = [
-  { label: 'Tam skoru bilirsen', points: 5, tone: 'text-brand-300' },
-  { label: 'Kazananı bilirsen', points: 3, tone: 'text-ink-100' },
-  { label: 'Beraberliği bilirsen', points: 1, tone: 'text-ink-100' },
-  { label: 'Yanlış tahmin', points: 0, tone: 'text-ink-500' },
+  { label: 'Tam skor', points: 5, tone: 'text-brand-300' },
+  { label: 'Kazanan (skorsuz)', points: 3, tone: 'text-ink-100' },
+  { label: 'Beraberlik (skorsuz)', points: 1, tone: 'text-ink-100' },
+  { label: 'Yanlış', points: 0, tone: 'text-ink-500' },
 ]
 
 const steps = [
@@ -28,7 +28,7 @@ export function HowToPlay() {
         <HelpCircle className="h-4 w-4 text-brand-400" />
         <span className="text-sm font-semibold text-ink-100">Nasıl oynanır?</span>
         <span className="ml-1 truncate text-xs text-ink-500">
-          Kazanan 3 · Beraberlik 1 · Tam skor 5 · Joker 2×
+          Tam skor 5 · Kazanan 3 · Skor kaçarsa −1 · Joker 2×
         </span>
         <ChevronDown className={cn('ml-auto h-4 w-4 shrink-0 text-ink-400 transition', open && 'rotate-180')} />
       </button>
@@ -54,6 +54,16 @@ export function HowToPlay() {
               </div>
             ))}
           </div>
+
+          <p className="flex items-start gap-2 rounded-lg bg-ink-850 px-3 py-2 text-xs text-ink-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <span>
+              <span className="font-semibold text-ink-100">Skor girmek risklidir.</span> Tutturursan 5
+              puan; ama kazananı bilip skoru kaçırırsan <span className="font-semibold text-loss">1 puan
+              düşer</span> (kazananda 3 yerine 2, beraberlikte 0). Sadece “kim kazanır”ı seçersen bu risk
+              yok. Örn: 5-3 dedin, maç 2-1 bitti → 2 puan.
+            </span>
+          </p>
 
           <p className="flex items-center gap-2 text-xs text-ink-400">
             <Star className="h-4 w-4 shrink-0 fill-amber-300 text-amber-300" />
