@@ -39,6 +39,8 @@ export function PredictionsPage() {
   const games = fixturesQ.data ?? []
   const openGames = games.filter((g) => g.open)
   const closedGames = games.filter((g) => !g.open)
+  const predicted = openGames.filter((g) => g.myOutcome != null).length
+  const pct = openGames.length ? Math.round((predicted / openGames.length) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -48,6 +50,26 @@ export function PredictionsPage() {
           {active.name}
           {activeSeason ? ` · ${activeSeason.title}` : ''}
         </p>
+        {openGames.length > 0 && (
+          <div className="mt-3 max-w-sm">
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-ink-400">
+                {predicted}/{openGames.length} maç tahmin edildi
+              </span>
+              {predicted < openGames.length ? (
+                <span className="font-medium text-brand-300">{openGames.length - predicted} kaldı</span>
+              ) : (
+                <span className="font-medium text-brand-300">Hepsi tamam ✓</span>
+              )}
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-ink-800">
+              <div
+                className="h-full rounded-full bg-brand-500 transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {!activeSeason ? (
