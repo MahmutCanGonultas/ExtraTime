@@ -21,6 +21,8 @@ export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 78, name: 'Bundesliga', country: 'Almanya' },
   { apiFootballId: 61, name: 'Ligue 1', country: 'Fransa' },
   { apiFootballId: 2, name: 'Şampiyonlar Ligi', country: 'Avrupa' },
+  { apiFootballId: 3, name: 'UEFA Avrupa Ligi', country: 'Avrupa' },
+  { apiFootballId: 848, name: 'UEFA Konferans Ligi', country: 'Avrupa' },
 ]
 
 // The most recent COMPLETE season (full standings/scorers) shown in browse.
