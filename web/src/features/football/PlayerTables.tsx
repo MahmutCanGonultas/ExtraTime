@@ -1,29 +1,33 @@
 import { Link } from 'react-router-dom'
 import { Table, Th, Td, Tr } from '@/components/ui/Table'
 import { TeamLogo } from '@/components/TeamLogo'
+import { PlayerAvatar } from '@/components/PlayerAvatar'
 import type { TopAssist, TopScorer } from './types'
 
 function PlayerName({
   name,
+  playerApiId,
   teamId,
   teamApiId,
   teamName,
 }: {
   name: string
+  playerApiId: number | null
   teamId: number | null
   teamApiId: number | null
   teamName: string | null
 }) {
   return (
-    <div className="flex items-center gap-2">
-      {teamApiId !== null && <TeamLogo apiId={teamApiId} size={18} />}
+    <div className="flex items-center gap-2.5">
+      <PlayerAvatar playerApiId={playerApiId} name={name} size={30} />
       <div className="min-w-0">
         <div className="truncate text-ink-100">{name}</div>
         {teamName && (
           <Link
             to={teamId ? `/teams/${teamId}` : '#'}
-            className="truncate text-xs text-ink-400 hover:text-brand-300"
+            className="flex items-center gap-1 truncate text-xs text-ink-400 hover:text-brand-300"
           >
+            {teamApiId !== null && <TeamLogo apiId={teamApiId} size={13} />}
             {teamName}
           </Link>
         )}
@@ -49,7 +53,13 @@ export function ScorersTable({ rows }: { rows: TopScorer[] }) {
           <Tr key={r.rank}>
             <Td className="text-ink-400">{r.rank}</Td>
             <Td>
-              <PlayerName name={r.playerName} teamId={r.teamId} teamApiId={r.teamApiId} teamName={r.teamName} />
+              <PlayerName
+                name={r.playerName}
+                playerApiId={r.playerApiId}
+                teamId={r.teamId}
+                teamApiId={r.teamApiId}
+                teamName={r.teamName}
+              />
             </Td>
             <Td className="hidden text-center text-ink-400 sm:table-cell">{r.appearances ?? '—'}</Td>
             <Td className="hidden text-center text-ink-400 sm:table-cell">{r.penalties ?? '—'}</Td>
@@ -77,7 +87,13 @@ export function AssistsTable({ rows }: { rows: TopAssist[] }) {
           <Tr key={r.rank}>
             <Td className="text-ink-400">{r.rank}</Td>
             <Td>
-              <PlayerName name={r.playerName} teamId={r.teamId} teamApiId={r.teamApiId} teamName={r.teamName} />
+              <PlayerName
+                name={r.playerName}
+                playerApiId={r.playerApiId}
+                teamId={r.teamId}
+                teamApiId={r.teamApiId}
+                teamName={r.teamName}
+              />
             </Td>
             <Td className="hidden text-center text-ink-400 sm:table-cell">{r.appearances ?? '—'}</Td>
             <Td className="text-center font-bold text-ink-100">{r.assists}</Td>

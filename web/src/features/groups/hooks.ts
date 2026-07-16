@@ -142,6 +142,14 @@ export function useRemoveGroupFixture(groupId: number) {
   })
 }
 
+export function useSetJoker(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) => api.put(`/groups/${groupId}/joker/${fixtureId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] }),
+  })
+}
+
 export function useFinishGame(groupId: number) {
   const qc = useQueryClient()
   return useMutation({

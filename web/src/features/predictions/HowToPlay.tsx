@@ -1,4 +1,4 @@
-import { ListChecks, Target, Trophy } from 'lucide-react'
+import { ListChecks, Target, Trophy, Star } from 'lucide-react'
 import { Card, CardBody } from '@/components/ui/Card'
 
 const scoring = [
@@ -39,6 +39,12 @@ export function HowToPlay() {
             </div>
           ))}
         </div>
+
+        <p className="flex items-center gap-2 text-xs text-ink-400">
+          <Star className="h-4 w-4 shrink-0 fill-amber-300 text-amber-300" />
+          Her oyunda <span className="font-semibold text-amber-300">1 maça joker</span> koyabilirsin —
+          o maçtan kazandığın puan 2 katına çıkar.
+        </p>
       </CardBody>
     </Card>
   )

@@ -47,10 +47,13 @@ export interface GameFixture {
   awayName: string
   homeScore: number | null
   awayScore: number | null
+  homeForm: string | null
+  awayForm: string | null
   myOutcome: Outcome | null
   myHome: number | null
   myAway: number | null
   myPoints: number | null
+  myJoker: boolean
   predictionCount: number
   open: boolean
 }
@@ -83,6 +86,7 @@ export interface LeaderboardEntry {
   userId: number
   displayName: string
   points: number
+  adjustment: number
   exactCount: number
   settledCount: number
   totalPredictions: number
