@@ -18,7 +18,7 @@ export function AppLayout() {
   const navLinks = isPlatformAdmin ? [...baseNav, { to: '/admin', label: 'Admin' }] : baseNav
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <div className="h-1 bg-brand-500" />
       <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
@@ -68,8 +68,10 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6">
-        <Outlet />
+      <main className="flex-1">
+        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6">
+          <Outlet />
+        </div>
       </main>
 
       <SiteFooter />
