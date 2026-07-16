@@ -5,6 +5,33 @@ import { FormBadges } from './FormBadges'
 import type { StandingRow } from './types'
 
 export function StandingsTable({ rows, compact = false }: { rows: StandingRow[]; compact?: boolean }) {
+  // Tournament standings (World Cup, etc.) arrive split into groups. When there
+  // is more than one distinct group, render a labelled mini-table per group.
+  const groups = new Map<string, StandingRow[]>()
+  for (const r of rows) {
+    const key = r.groupLabel ?? ''
+    const list = groups.get(key) ?? []
+    list.push(r)
+    groups.set(key, list)
+  }
+  if (groups.size > 1) {
+    return (
+      <div className="space-y-4 p-1">
+        {[...groups.entries()].map(([label, groupRows]) => (
+          <div key={label}>
+            <div className="px-2 py-1 text-xs font-bold uppercase tracking-wide text-brand-300">
+              {label || 'Grup'}
+            </div>
+            <StandingsTableInner rows={groupRows} compact={compact} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  return <StandingsTableInner rows={rows} compact={compact} />
+}
+
+function StandingsTableInner({ rows, compact }: { rows: StandingRow[]; compact: boolean }) {
   return (
     <Table>
       <thead>

@@ -43,15 +43,27 @@
     margin: 0;
     min-height: 100vh;
     background-color: var(--color-ink-950);
-    /* Two soft floodlight glows over the pitch-dark base — depth without noise. */
+    /* Three soft floodlight glows over the pitch-dark base — depth, not flat black. */
     background-image:
-      radial-gradient(1100px 560px at 50% -12%, rgba(16, 185, 129, 0.1), transparent 62%),
-      radial-gradient(760px 760px at 108% 8%, rgba(52, 211, 153, 0.05), transparent 55%);
+      radial-gradient(1200px 640px at 50% -10%, rgba(16, 185, 129, 0.16), transparent 60%),
+      radial-gradient(900px 700px at 100% 3%, rgba(52, 211, 153, 0.08), transparent 55%),
+      radial-gradient(1000px 820px at 0% 100%, rgba(16, 185, 129, 0.06), transparent 55%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     color: var(--color-ink-100);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+  /* Faint dot-grid texture across the whole page so empty areas read as premium,
+     not dead black. Sits behind the app content. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1.4px);
+    background-size: 24px 24px;
   }
   a {
     color: inherit;

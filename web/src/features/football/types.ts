@@ -50,6 +50,7 @@ export interface StandingRow {
   goalsAgainst: number
   points: number
   form: string | null
+  groupLabel: string | null
   teamId: number
   teamApiId: number
   teamName: string
