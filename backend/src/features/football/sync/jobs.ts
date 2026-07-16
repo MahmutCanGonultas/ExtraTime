@@ -198,37 +198,64 @@ export async function syncTopAssists(includeInactive = false): Promise<SyncResul
  * we update the ones we already track. Skips the API entirely when nothing could
  * be live, so it costs zero requests off match days.
  */
+const LIVE_STATUSES = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT']
+
+async function updateFixtureFromRaw(raw: RawFixture): Promise<{ id: number } | null> {
+  const res = await query<{ id: number }>(
+    `UPDATE fixtures SET status = $2, home_score = $3, away_score = $4,
+       halftime_home = $5, halftime_away = $6, elapsed = $7, updated_at = now()
+     WHERE api_football_id = $1 RETURNING id`,
+    [
+      raw.fixture.id,
+      raw.fixture.status.short,
+      raw.goals.home,
+      raw.goals.away,
+      raw.score.halftime.home,
+      raw.score.halftime.away,
+      raw.fixture.status.elapsed,
+    ],
+  )
+  return res.rowCount ? res.rows[0] : null
+}
+
 export async function syncLiveScores(): Promise<SyncResult> {
   return runJob('live', async () => {
+    // Run when something could be live now, OR when we still have a fixture marked
+    // live (which may actually have ended and needs reconciling to FT).
     const maybe = await query(
       `SELECT 1 FROM fixtures
-       WHERE kickoff_at BETWEEN now() - interval '3 hours' AND now()
-         AND status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO')
+       WHERE (kickoff_at BETWEEN now() - interval '4 hours' AND now()
+              AND status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO'))
+          OR status = ANY($1)
        LIMIT 1`,
+      [LIVE_STATUSES],
     )
     if ((maybe.rowCount ?? 0) === 0) return 0
 
-    const fixtures = await apiFootballGet<RawFixture[]>('fixtures', { live: 'all' })
+    const live = await apiFootballGet<RawFixture[]>('fixtures', { live: 'all' })
+    const liveIds = new Set(live.map((f) => f.fixture.id))
     let updated = 0
     const tracked: Array<{ apiId: number; fixtureId: number }> = []
-    for (const raw of fixtures) {
-      const res = await query<{ id: number }>(
-        `UPDATE fixtures SET status = $2, home_score = $3, away_score = $4,
-           halftime_home = $5, halftime_away = $6, elapsed = $7, updated_at = now()
-         WHERE api_football_id = $1 RETURNING id`,
-        [
-          raw.fixture.id,
-          raw.fixture.status.short,
-          raw.goals.home,
-          raw.goals.away,
-          raw.score.halftime.home,
-          raw.score.halftime.away,
-          raw.fixture.status.elapsed,
-        ],
-      )
-      if (res.rowCount) {
+    for (const raw of live) {
+      const row = await updateFixtureFromRaw(raw)
+      if (row) {
         updated += 1
-        tracked.push({ apiId: raw.fixture.id, fixtureId: res.rows[0].id })
+        tracked.push({ apiId: raw.fixture.id, fixtureId: row.id })
+      }
+    }
+
+    // Reconcile: fixtures we still mark live but that are NO LONGER in live=all
+    // have ended — fetch their final status/score so they stop showing as live.
+    const stale = await query<{ api_football_id: number }>(
+      `SELECT api_football_id FROM fixtures WHERE status = ANY($1)`,
+      [LIVE_STATUSES],
+    )
+    const staleIds = stale.rows.map((r) => r.api_football_id).filter((id) => !liveIds.has(id))
+    for (let i = 0; i < staleIds.length; i += 20) {
+      const batch = staleIds.slice(i, i + 20)
+      const finals = await apiFootballGet<RawFixture[]>('fixtures', { ids: batch.join('-') })
+      for (const raw of finals) {
+        if (await updateFixtureFromRaw(raw)) updated += 1
       }
     }
 
