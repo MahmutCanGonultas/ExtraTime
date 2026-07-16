@@ -6,6 +6,8 @@ export interface League {
   season: number
   logoUrl: string | null
   isActive: boolean
+  // The one season per competition to feature now (live/soonest/newest).
+  isCurrent: boolean
 }
 
 export interface TeamRef {
@@ -87,4 +89,41 @@ export interface Team {
   shortName: string | null
   stadiumName: string | null
   city: string | null
+}
+
+export interface BracketTeam {
+  teamId: number
+  apiId: number
+  name: string
+}
+
+export interface BracketMatch {
+  key: string
+  fixtureIds: number[]
+  legs: number
+  state: 'finished' | 'live' | 'scheduled'
+  kickoffAt: string
+  home: BracketTeam | null
+  away: BracketTeam | null
+  homeScore: number | null
+  awayScore: number | null
+  penaltyHome: number | null
+  penaltyAway: number | null
+  winner: 'home' | 'away' | null
+  sourceKeys: string[]
+}
+
+export interface BracketRound {
+  key: string
+  label: string
+  order: number
+  matches: BracketMatch[]
+}
+
+export interface Bracket {
+  hasKnockout: boolean
+  twoLegged: boolean
+  rounds: BracketRound[]
+  thirdPlace: BracketMatch | null
+  champion: BracketTeam | null
 }

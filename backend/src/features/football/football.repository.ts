@@ -1,5 +1,6 @@
 import { query } from '../../db/pool'
 import { CONFIGURED_LEAGUE_API_IDS } from './leagues.config'
+import { buildBracket, type Bracket, type BracketFixture } from './bracket'
 
 // Read side of the football cache. Every one of these serves from Postgres and
 // never touches API-Football.
@@ -79,16 +80,70 @@ const FIXTURE_SELECT = `
   JOIN teams at ON at.id = f.away_team_id`
 
 // Returns every league-season by default so the UI can browse history; pass
-// activeOnly for just the current season (e.g. the home page).
+// activeOnly for just the active seasons (e.g. the home page).
+//
+// Each row also gets `isCurrent`: the ONE season per competition to feature right
+// now. Two seasons are flagged active during the season change-over, but only one
+// is truly current — the one with a live match, else the one whose next match is
+// soonest, else the newest. This is derived from the fixtures, not a hard-coded
+// year, so it stays right as time passes.
 export async function listLeagues(activeOnly = false) {
-  const { rows } = await query(
-    `SELECT id, api_football_id AS "apiFootballId", name, country, season,
-            logo_url AS "logoUrl", is_active AS "isActive"
-     FROM leagues
-     ${activeOnly ? 'WHERE is_active = true' : ''}
-     ORDER BY name ASC, season DESC`,
+  const { rows } = await query<{
+    id: number
+    apiFootballId: number
+    name: string
+    country: string | null
+    season: number
+    logoUrl: string | null
+    isActive: boolean
+    hasLive: number | null
+    nextKick: Date | null
+  }>(
+    `SELECT l.id, l.api_football_id AS "apiFootballId", l.name, l.country, l.season,
+            l.logo_url AS "logoUrl", l.is_active AS "isActive",
+            agg.has_live AS "hasLive", agg.next_kick AS "nextKick"
+     FROM leagues l
+     LEFT JOIN (
+       SELECT league_id,
+              max(CASE WHEN status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
+                       THEN 1 ELSE 0 END) AS has_live,
+              min(CASE WHEN status = 'NS' AND kickoff_at > now() THEN kickoff_at END) AS next_kick
+       FROM fixtures GROUP BY league_id
+     ) agg ON agg.league_id = l.id
+     ${activeOnly ? 'WHERE l.is_active = true' : ''}
+     ORDER BY l.name ASC, l.season DESC`,
   )
-  return rows
+
+  // Pick the single current season per competition.
+  const byComp = new Map<number, typeof rows>()
+  for (const r of rows) {
+    const list = byComp.get(r.apiFootballId) ?? []
+    list.push(r)
+    byComp.set(r.apiFootballId, list)
+  }
+  const currentIds = new Set<number>()
+  for (const list of byComp.values()) {
+    const best = [...list]
+      .map((r) => ({
+        id: r.id,
+        season: r.season,
+        score: Number(r.hasLive) > 0 ? 2 : r.nextKick ? 1 : 0,
+        nextKick: r.nextKick ? new Date(r.nextKick).getTime() : Number.POSITIVE_INFINITY,
+      }))
+      .sort((a, b) => b.score - a.score || (a.score === 1 ? a.nextKick - b.nextKick : b.season - a.season))[0]
+    if (best) currentIds.add(best.id)
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    apiFootballId: r.apiFootballId,
+    name: r.name,
+    country: r.country,
+    season: r.season,
+    logoUrl: r.logoUrl,
+    isActive: r.isActive,
+    isCurrent: currentIds.has(r.id),
+  }))
 }
 
 export async function getStandings(leagueId: number) {
@@ -123,6 +178,52 @@ export async function getLeagueFixtures(
   const order = filter === 'finished' ? 'ORDER BY f.kickoff_at DESC' : 'ORDER BY f.kickoff_at ASC'
   const { rows } = await query<FixtureRow>(`${FIXTURE_SELECT} ${where} ${order}`, params)
   return rows.map(mapFixture)
+}
+
+// Knockout bracket for a tournament (World Cup, Champions League). Reads the
+// competition's fixtures and lets the pure builder assemble the tree.
+export async function getBracket(leagueId: number): Promise<Bracket> {
+  const { rows } = await query<{
+    fixtureId: number
+    round: string | null
+    status: string
+    kickoffAt: Date
+    homeScore: number | null
+    awayScore: number | null
+    penaltyHome: number | null
+    penaltyAway: number | null
+    homeTeamId: number
+    homeApiId: number
+    homeName: string
+    awayTeamId: number
+    awayApiId: number
+    awayName: string
+  }>(
+    `SELECT f.id AS "fixtureId", f.round, f.status, f.kickoff_at AS "kickoffAt",
+            f.home_score AS "homeScore", f.away_score AS "awayScore",
+            f.penalty_home AS "penaltyHome", f.penalty_away AS "penaltyAway",
+            ht.id AS "homeTeamId", ht.api_football_id AS "homeApiId", ht.name AS "homeName",
+            at.id AS "awayTeamId", at.api_football_id AS "awayApiId", at.name AS "awayName"
+     FROM fixtures f
+     JOIN teams ht ON ht.id = f.home_team_id
+     JOIN teams at ON at.id = f.away_team_id
+     WHERE f.league_id = $1
+     ORDER BY f.kickoff_at`,
+    [leagueId],
+  )
+  const fixtures: BracketFixture[] = rows.map((r) => ({
+    fixtureId: r.fixtureId,
+    round: r.round,
+    status: r.status,
+    kickoffAt: r.kickoffAt.toISOString(),
+    home: { teamId: r.homeTeamId, apiId: r.homeApiId, name: r.homeName },
+    away: { teamId: r.awayTeamId, apiId: r.awayApiId, name: r.awayName },
+    homeScore: r.homeScore,
+    awayScore: r.awayScore,
+    penaltyHome: r.penaltyHome,
+    penaltyAway: r.penaltyAway,
+  }))
+  return buildBracket(fixtures)
 }
 
 export async function getTopScorers(leagueId: number) {

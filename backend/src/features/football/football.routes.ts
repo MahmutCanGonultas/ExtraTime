@@ -46,6 +46,13 @@ footballRouter.get(
 )
 
 footballRouter.get(
+  '/leagues/:id/bracket',
+  asyncHandler(async (req, res) => {
+    res.json({ bracket: await repo.getBracket(parseId(req.params.id)) })
+  }),
+)
+
+footballRouter.get(
   '/leagues/:id/topscorers',
   asyncHandler(async (req, res) => {
     res.json({ topscorers: await repo.getTopScorers(parseId(req.params.id)) })

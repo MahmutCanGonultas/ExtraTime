@@ -37,9 +37,12 @@ export function LeaguesPage() {
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold text-ink-100">Ligler</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {[...byCompetition.values()].map((seasons) => {
           const head = seasons[0]
+          // Current season first, then the rest newest → oldest.
+          const current = seasons.find((s) => s.isCurrent) ?? seasons[0]
+          const past = seasons.filter((s) => s.id !== current.id).sort((a, b) => b.season - a.season)
           return (
             <Card key={head.apiFootballId}>
               <CardBody>
@@ -50,18 +53,30 @@ export function LeaguesPage() {
                     <div className="text-xs text-ink-400">{head.country}</div>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {seasons.map((s) => (
-                    <Link
-                      key={s.id}
-                      to={`/leagues/${s.id}`}
-                      className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-200 transition hover:border-brand-500 hover:text-brand-300"
-                    >
-                      {seasonLabel(s.season)}
-                      {s.isActive && <span className="ml-1 text-brand-400">●</span>}
-                    </Link>
-                  ))}
-                </div>
+
+                <Link
+                  to={`/leagues/${current.id}`}
+                  className="mt-3 flex items-center justify-between rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 transition hover:bg-brand-500/15"
+                >
+                  <span className="text-sm font-semibold text-ink-100">{seasonLabel(current.season)}</span>
+                  <span className="rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-950">
+                    Güncel
+                  </span>
+                </Link>
+
+                {past.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {past.map((s) => (
+                      <Link
+                        key={s.id}
+                        to={`/leagues/${s.id}`}
+                        className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 transition hover:border-brand-500 hover:text-brand-300"
+                      >
+                        {seasonLabel(s.season)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </CardBody>
             </Card>
           )

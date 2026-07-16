@@ -1,6 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Fixture, FixtureGoal, League, StandingRow, Team, TopAssist, TopScorer } from './types'
+import type {
+  Bracket,
+  Fixture,
+  FixtureGoal,
+  League,
+  StandingRow,
+  Team,
+  TopAssist,
+  TopScorer,
+} from './types'
 
 type FixtureFilter = 'upcoming' | 'finished' | 'all'
 
@@ -26,6 +35,14 @@ export function useLeagueFixtures(leagueId: number, filter: FixtureFilter = 'all
     queryFn: () =>
       api.get<{ fixtures: Fixture[] }>(`/leagues/${leagueId}/fixtures?status=${filter}`),
     select: (d) => d.fixtures,
+  })
+}
+
+export function useBracket(leagueId: number) {
+  return useQuery({
+    queryKey: ['bracket', leagueId],
+    queryFn: () => api.get<{ bracket: Bracket }>(`/leagues/${leagueId}/bracket`),
+    select: (d) => d.bracket,
   })
 }
 
