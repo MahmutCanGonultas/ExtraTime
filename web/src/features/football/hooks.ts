@@ -5,6 +5,8 @@ import type {
   Fixture,
   FixtureGoal,
   League,
+  PlayerProfile,
+  PlayerRow,
   StandingRow,
   Team,
   TopAssist,
@@ -59,6 +61,23 @@ export function useTopAssists(leagueId: number) {
     queryKey: ['topassists', leagueId],
     queryFn: () => api.get<{ topassists: TopAssist[] }>(`/leagues/${leagueId}/topassists`),
     select: (d) => d.topassists,
+  })
+}
+
+export function useLeaguePlayers(leagueId: number) {
+  return useQuery({
+    queryKey: ['players', 'league', leagueId],
+    queryFn: () => api.get<{ players: PlayerRow[] }>(`/leagues/${leagueId}/players`),
+    select: (d) => d.players,
+  })
+}
+
+export function usePlayer(playerApiId: number) {
+  return useQuery({
+    queryKey: ['player', playerApiId],
+    queryFn: () => api.get<{ player: PlayerProfile }>(`/players/${playerApiId}`),
+    select: (d) => d.player,
+    enabled: Number.isFinite(playerApiId) && playerApiId > 0,
   })
 }
 

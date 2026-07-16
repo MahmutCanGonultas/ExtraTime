@@ -21,7 +21,13 @@ function PlayerName({
     <div className="flex items-center gap-2.5">
       <PlayerAvatar playerApiId={playerApiId} name={name} size={30} />
       <div className="min-w-0">
-        <div className="truncate text-ink-100">{name}</div>
+        {playerApiId != null ? (
+          <Link to={`/players/${playerApiId}`} className="truncate text-ink-100 hover:text-brand-300">
+            {name}
+          </Link>
+        ) : (
+          <div className="truncate text-ink-100">{name}</div>
+        )}
         {teamName && (
           <Link
             to={teamId ? `/teams/${teamId}` : '#'}

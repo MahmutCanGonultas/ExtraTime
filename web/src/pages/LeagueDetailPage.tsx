@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   useBracket,
   useLeagueFixtures,
+  useLeaguePlayers,
   useLeagues,
   useStandings,
   useTopAssists,
@@ -13,8 +14,11 @@ import { Bracket } from '@/features/football/Bracket'
 import { FixtureList } from '@/features/football/FixtureList'
 import { isFinished } from '@/features/football/matchStatus'
 import { AssistsTable, ScorersTable } from '@/features/football/PlayerTables'
+import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
+import { Table, Th, Td, Tr } from '@/components/ui/Table'
+import { Input } from '@/components/ui/Input'
 import { Tabs } from '@/components/ui/Tabs'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
@@ -28,6 +32,9 @@ export function LeagueDetailPage() {
   // The "Eleme" (knockout) tab only exists for tournaments that have a bracket.
   const bracket = useBracket(leagueId)
   const hasBracket = bracket.data?.hasKnockout ?? false
+  // "Oyuncular" only where we hold player data for that season.
+  const players = useLeaguePlayers(leagueId)
+  const hasPlayers = (players.data?.length ?? 0) > 0
 
   const tabs = [
     ...(hasBracket ? [{ key: 'bracket', label: 'Eleme' }] : []),
@@ -35,6 +42,7 @@ export function LeagueDetailPage() {
     { key: 'fixtures', label: 'Fikstür' },
     { key: 'scorers', label: 'Gol Krallığı' },
     { key: 'assists', label: 'Asist Krallığı' },
+    ...(hasPlayers ? [{ key: 'players', label: 'Oyuncular' }] : []),
   ]
   // Until the visitor picks a tab, tournaments open on the bracket.
   const active = tab ?? (hasBracket ? 'bracket' : 'standings')
@@ -71,6 +79,7 @@ export function LeagueDetailPage() {
           {active === 'fixtures' && <FixturesTab leagueId={leagueId} />}
           {active === 'scorers' && <ScorersTab leagueId={leagueId} />}
           {active === 'assists' && <AssistsTab leagueId={leagueId} />}
+          {active === 'players' && <PlayersTab leagueId={leagueId} />}
         </Card>
       )}
     </div>
@@ -156,6 +165,91 @@ function FixturesTab({ leagueId }: { leagueId: number }) {
         <EmptyState title="Maç bulunamadı" />
       ) : (
         <FixtureList fixtures={ordered} />
+      )}
+    </div>
+  )
+}
+
+function PlayersTab({ leagueId }: { leagueId: number }) {
+  const { data, isLoading, isError, refetch } = useLeaguePlayers(leagueId)
+  const [q, setQ] = useState('')
+
+  const shown = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase('tr')
+    const list = data ?? []
+    return term
+      ? list.filter(
+          (p) =>
+            p.name.toLocaleLowerCase('tr').includes(term) ||
+            (p.teamName ?? '').toLocaleLowerCase('tr').includes(term),
+        )
+      : list
+  }, [data, q])
+
+  if (isLoading) return <Loading />
+  if (isError) return <ErrorState onRetry={() => refetch()} />
+  if (!data?.length) return <EmptyState title="Oyuncu verisi yok" />
+
+  return (
+    <div>
+      <div className="p-3">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Oyuncu veya takım ara..."
+          className="max-w-xs"
+        />
+      </div>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Oyuncu</Th>
+            <Th className="hidden text-center sm:table-cell">Mevki</Th>
+            <Th className="text-center">Maç</Th>
+            <Th className="text-center">Gol</Th>
+            <Th className="text-center">Asist</Th>
+            <Th className="hidden text-center md:table-cell">Reyting</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.slice(0, 250).map((p) => (
+            <Tr key={p.playerApiId}>
+              <Td>
+                <Link
+                  to={`/players/${p.playerApiId}`}
+                  className="flex items-center gap-2.5 hover:text-brand-300"
+                >
+                  <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={28} />
+                  <div className="min-w-0">
+                    <div className="truncate text-ink-100">{p.name}</div>
+                    {p.teamName && (
+                      <div className="flex items-center gap-1 truncate text-xs text-ink-400">
+                        {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={12} />}
+                        {p.teamName}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              </Td>
+              <Td className="hidden text-center text-ink-400 sm:table-cell">{p.position ?? '—'}</Td>
+              <Td className="text-center text-ink-300">{p.appearances ?? '—'}</Td>
+              <Td className="text-center font-bold text-ink-100">{p.goals ?? 0}</Td>
+              <Td className="text-center font-semibold text-ink-100">{p.assists ?? 0}</Td>
+              <Td className="hidden text-center md:table-cell">
+                {p.rating != null ? (
+                  <span className="font-medium text-brand-300">{p.rating.toFixed(2)}</span>
+                ) : (
+                  '—'
+                )}
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
+      {shown.length > 250 && (
+        <div className="p-3 text-center text-xs text-ink-500">
+          İlk 250 oyuncu gösteriliyor — aramayı daraltın.
+        </div>
       )}
     </div>
   )

@@ -67,6 +67,22 @@ footballRouter.get(
 )
 
 footballRouter.get(
+  '/leagues/:id/players',
+  asyncHandler(async (req, res) => {
+    res.json({ players: await repo.getLeaguePlayers(parseId(req.params.id)) })
+  }),
+)
+
+footballRouter.get(
+  '/players/:apiId',
+  asyncHandler(async (req, res) => {
+    const player = await repo.getPlayerProfile(parseId(req.params.apiId))
+    if (!player) throw AppError.notFound('Player not found')
+    res.json({ player })
+  }),
+)
+
+footballRouter.get(
   '/teams/:id',
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id)

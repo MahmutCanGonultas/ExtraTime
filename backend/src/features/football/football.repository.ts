@@ -250,6 +250,136 @@ export async function getTopAssists(leagueId: number) {
   return rows
 }
 
+export interface PlayerRow {
+  playerApiId: number
+  name: string
+  teamApiId: number | null
+  teamName: string | null
+  position: string | null
+  nationality: string | null
+  age: number | null
+  appearances: number | null
+  minutes: number | null
+  goals: number | null
+  assists: number | null
+  yellowCards: number | null
+  redCards: number | null
+  rating: number | null
+  photoUrl: string | null
+}
+
+// The full player list for a league-season, best scorers first — the roster the
+// "Oyuncular" tab renders and filters client-side.
+export async function getLeaguePlayers(leagueId: number): Promise<PlayerRow[]> {
+  const { rows } = await query<PlayerRow>(
+    `SELECT player_api_id AS "playerApiId", name, team_api_id AS "teamApiId", team_name AS "teamName",
+            position, nationality, age, appearances, minutes, goals, assists,
+            yellow_cards AS "yellowCards", red_cards AS "redCards", rating::float8 AS rating,
+            photo_url AS "photoUrl"
+     FROM players WHERE league_id = $1
+     ORDER BY goals DESC NULLS LAST, assists DESC NULLS LAST, appearances DESC NULLS LAST, name`,
+    [leagueId],
+  )
+  return rows
+}
+
+export interface PlayerProfile {
+  playerApiId: number
+  name: string
+  firstname: string | null
+  lastname: string | null
+  age: number | null
+  nationality: string | null
+  position: string | null
+  height: string | null
+  weight: string | null
+  photoUrl: string | null
+  seasons: Array<{
+    leagueId: number
+    leagueName: string
+    leagueApiId: number
+    season: number
+    teamApiId: number | null
+    teamName: string | null
+    appearances: number | null
+    minutes: number | null
+    goals: number | null
+    assists: number | null
+    yellowCards: number | null
+    redCards: number | null
+    rating: number | null
+  }>
+}
+
+// One player's profile plus every league-season of theirs we hold, newest first.
+export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfile | null> {
+  const { rows } = await query<{
+    playerApiId: number
+    name: string
+    firstname: string | null
+    lastname: string | null
+    age: number | null
+    nationality: string | null
+    position: string | null
+    height: string | null
+    weight: string | null
+    photoUrl: string | null
+    leagueId: number
+    leagueName: string
+    leagueApiId: number
+    season: number
+    teamApiId: number | null
+    teamName: string | null
+    appearances: number | null
+    minutes: number | null
+    goals: number | null
+    assists: number | null
+    yellowCards: number | null
+    redCards: number | null
+    rating: number | null
+  }>(
+    `SELECT p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.age, p.nationality,
+            p.position, p.height, p.weight, p.photo_url AS "photoUrl",
+            l.id AS "leagueId", l.name AS "leagueName", l.api_football_id AS "leagueApiId", p.season,
+            p.team_api_id AS "teamApiId", p.team_name AS "teamName", p.appearances, p.minutes,
+            p.goals, p.assists, p.yellow_cards AS "yellowCards", p.red_cards AS "redCards",
+            p.rating::float8 AS rating
+     FROM players p JOIN leagues l ON l.id = p.league_id
+     WHERE p.player_api_id = $1
+     ORDER BY p.season DESC, p.goals DESC NULLS LAST`,
+    [playerApiId],
+  )
+  if (rows.length === 0) return null
+  const head = rows[0]
+  return {
+    playerApiId: head.playerApiId,
+    name: head.name,
+    firstname: head.firstname,
+    lastname: head.lastname,
+    age: head.age,
+    nationality: head.nationality,
+    position: head.position,
+    height: head.height,
+    weight: head.weight,
+    photoUrl: head.photoUrl,
+    seasons: rows.map((r) => ({
+      leagueId: r.leagueId,
+      leagueName: r.leagueName,
+      leagueApiId: r.leagueApiId,
+      season: r.season,
+      teamApiId: r.teamApiId,
+      teamName: r.teamName,
+      appearances: r.appearances,
+      minutes: r.minutes,
+      goals: r.goals,
+      assists: r.assists,
+      yellowCards: r.yellowCards,
+      redCards: r.redCards,
+      rating: r.rating,
+    })),
+  }
+}
+
 export async function getTeam(teamId: number) {
   const { rows } = await query(
     `SELECT id, api_football_id AS "apiFootballId", name, short_name AS "shortName",

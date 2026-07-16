@@ -10,6 +10,7 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/leagues\/\d+/, 'Lig'],
   [/^\/leagues/, 'Ligler'],
   [/^\/teams\//, 'Takım'],
+  [/^\/players\//, 'Oyuncu'],
   [/^\/matches\//, 'Maç'],
   [/^\/group/, 'Grup'],
   [/^\/predictions/, 'Tahminler'],
@@ -37,6 +38,7 @@ import { HomePage } from '@/pages/HomePage'
 import { LeaguesPage } from '@/pages/LeaguesPage'
 import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { PlayerDetailPage } from '@/pages/PlayerDetailPage'
 import { GroupPage } from '@/pages/GroupPage'
 import { PredictionsPage } from '@/pages/PredictionsPage'
 import { MatchPage } from '@/pages/MatchPage'
@@ -62,6 +64,7 @@ export function App() {
                 <Route path="/leagues" element={<LeaguesPage />} />
                 <Route path="/leagues/:id" element={<LeagueDetailPage />} />
                 <Route path="/teams/:id" element={<TeamPage />} />
+                <Route path="/players/:apiId" element={<PlayerDetailPage />} />
                 <Route path="/matches/:id" element={<MatchPage />} />
                 <Route path="/group" element={<GroupPage />} />
                 <Route path="/predictions" element={<PredictionsPage />} />

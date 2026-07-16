@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg'
-import type { RawFixture, RawFixtureEvent, RawStandingRow, RawTopScorer } from '../types'
+import type { RawFixture, RawFixtureEvent, RawPlayer, RawStandingRow, RawTopScorer } from '../types'
 
 // All writes go through a PoolClient so a sync can wrap a whole league in one
 // transaction. Every statement is parameterized — never string-concatenated.
@@ -252,4 +252,42 @@ export async function replaceTopAssists(
     )
   }
   return rank
+}
+
+// One player's profile + stats for a league-season. `leagueApiId` disambiguates
+// when a player has stats in several competitions in the same response.
+export async function upsertPlayer(
+  db: PoolClient,
+  leagueId: number,
+  leagueApiId: number,
+  season: number,
+  raw: RawPlayer,
+): Promise<number> {
+  const stat = raw.statistics.find((s) => s.league.id === leagueApiId) ?? raw.statistics[0]
+  if (!stat) return 0
+  const p = raw.player
+  const rating = stat.games.rating != null && stat.games.rating !== '' ? Number(stat.games.rating) : null
+  await db.query(
+    `INSERT INTO players (
+       player_api_id, league_id, season, team_api_id, team_name, name, firstname, lastname,
+       age, nationality, position, height, weight, photo_url,
+       appearances, minutes, goals, assists, yellow_cards, red_cards, rating
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+     ON CONFLICT (player_api_id, league_id, season) DO UPDATE SET
+       team_api_id = EXCLUDED.team_api_id, team_name = EXCLUDED.team_name, name = EXCLUDED.name,
+       firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, age = EXCLUDED.age,
+       nationality = EXCLUDED.nationality, position = EXCLUDED.position, height = EXCLUDED.height,
+       weight = EXCLUDED.weight, photo_url = EXCLUDED.photo_url, appearances = EXCLUDED.appearances,
+       minutes = EXCLUDED.minutes, goals = EXCLUDED.goals, assists = EXCLUDED.assists,
+       yellow_cards = EXCLUDED.yellow_cards, red_cards = EXCLUDED.red_cards, rating = EXCLUDED.rating,
+       updated_at = now()`,
+    [
+      p.id, leagueId, season, stat.team.id, stat.team.name, p.name, p.firstname, p.lastname,
+      p.age, p.nationality, stat.games.position, p.height, p.weight, p.photo,
+      stat.games.appearences, stat.games.minutes, stat.goals.total ?? 0, stat.goals.assists ?? 0,
+      stat.cards.yellow ?? 0, stat.cards.red ?? 0, rating,
+    ],
+  )
+  return 1
 }

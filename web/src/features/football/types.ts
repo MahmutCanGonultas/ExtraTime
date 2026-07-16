@@ -127,3 +127,51 @@ export interface Bracket {
   thirdPlace: BracketMatch | null
   champion: BracketTeam | null
 }
+
+export interface PlayerRow {
+  playerApiId: number
+  name: string
+  teamApiId: number | null
+  teamName: string | null
+  position: string | null
+  nationality: string | null
+  age: number | null
+  appearances: number | null
+  minutes: number | null
+  goals: number | null
+  assists: number | null
+  yellowCards: number | null
+  redCards: number | null
+  rating: number | null
+  photoUrl: string | null
+}
+
+export interface PlayerSeason {
+  leagueId: number
+  leagueName: string
+  leagueApiId: number
+  season: number
+  teamApiId: number | null
+  teamName: string | null
+  appearances: number | null
+  minutes: number | null
+  goals: number | null
+  assists: number | null
+  yellowCards: number | null
+  redCards: number | null
+  rating: number | null
+}
+
+export interface PlayerProfile {
+  playerApiId: number
+  name: string
+  firstname: string | null
+  lastname: string | null
+  age: number | null
+  nationality: string | null
+  position: string | null
+  height: string | null
+  weight: string | null
+  photoUrl: string | null
+  seasons: PlayerSeason[]
+}

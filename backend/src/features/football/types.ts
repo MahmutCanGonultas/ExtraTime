@@ -64,6 +64,32 @@ export interface RawLeague {
   seasons: Array<{ year: number; current: boolean }>
 }
 
+export interface RawPlayer {
+  player: {
+    id: number
+    name: string
+    firstname: string | null
+    lastname: string | null
+    age: number | null
+    nationality: string | null
+    height: string | null
+    weight: string | null
+    photo: string | null
+  }
+  statistics: Array<{
+    team: { id: number; name: string | null }
+    league: { id: number; season: number | null }
+    games: {
+      appearences: number | null
+      minutes: number | null
+      position: string | null
+      rating: string | null
+    }
+    goals: { total: number | null; assists: number | null }
+    cards: { yellow: number | null; red: number | null }
+  }>
+}
+
 // A single in-match event (goal, card, substitution). We only store goals.
 export interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null }

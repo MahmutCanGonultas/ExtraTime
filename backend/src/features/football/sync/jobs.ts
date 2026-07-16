@@ -1,8 +1,19 @@
 import type { PoolClient } from 'pg'
 import { getPool, query } from '../../../db/pool'
 import { logger } from '../../../lib/logger'
-import { apiFootballGet, getRequestCount, resetRequestCount } from '../../../lib/api-football/client'
-import type { RawFixture, RawFixtureEvent, RawStandingsLeague, RawTopScorer } from '../types'
+import {
+  apiFootballGet,
+  apiFootballGetEnvelope,
+  getRequestCount,
+  resetRequestCount,
+} from '../../../lib/api-football/client'
+import type {
+  RawFixture,
+  RawFixtureEvent,
+  RawPlayer,
+  RawStandingsLeague,
+  RawTopScorer,
+} from '../types'
 import { seedLeagues, TOURNAMENT_API_IDS } from '../leagues.config'
 import {
   collectTeams,
@@ -10,6 +21,7 @@ import {
   replaceTopAssists,
   replaceTopScorers,
   upsertFixturesBatch,
+  upsertPlayer,
   upsertStanding,
   upsertTeamsBatch,
 } from './upserts'
@@ -278,6 +290,37 @@ export async function syncLiveScores(): Promise<SyncResult> {
     }
     return updated
   })
+}
+
+// Full player roster + stats for one league-season, walking every page of the
+// paginated players endpoint. Kept out of the recurring cron (it is request-heavy)
+// and driven by the backfill / an admin trigger instead.
+export async function syncPlayersFor(
+  leagueId: number,
+  leagueApiId: number,
+  season: number,
+): Promise<number> {
+  const client = await getPool()!.connect()
+  let n = 0
+  try {
+    let page = 1
+    let total = 1
+    do {
+      const body = await apiFootballGetEnvelope<RawPlayer[]>('players', {
+        league: leagueApiId,
+        season,
+        page,
+      })
+      total = body.paging?.total ?? 1
+      for (const raw of body.response) {
+        n += await upsertPlayer(client, leagueId, leagueApiId, season, raw)
+      }
+      page += 1
+    } while (page <= total)
+  } finally {
+    client.release()
+  }
+  return n
 }
 
 /**

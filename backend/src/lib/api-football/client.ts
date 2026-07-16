@@ -43,10 +43,10 @@ function hasErrors(errors: unknown): boolean {
  * Single choke point for talking to API-Football. Nothing else in the codebase
  * calls fetch against the external API — this is where the daily budget is spent.
  */
-export async function apiFootballGet<T>(
+export async function apiFootballGetEnvelope<T>(
   path: string,
   params: Record<string, string | number> = {},
-): Promise<T> {
+): Promise<ApiFootballEnvelope<T>> {
   if (!env.API_FOOTBALL_KEY) {
     throw new Error('API_FOOTBALL_KEY is not configured')
   }
@@ -80,8 +80,16 @@ export async function apiFootballGet<T>(
       logger.warn({ path, errors: body.errors }, 'API-Football returned errors')
     }
 
-    return body.response
+    return body
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function apiFootballGet<T>(
+  path: string,
+  params: Record<string, string | number> = {},
+): Promise<T> {
+  const body = await apiFootballGetEnvelope<T>(path, params)
+  return body.response
 }
