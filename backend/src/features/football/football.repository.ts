@@ -426,12 +426,27 @@ export async function getTeam(teamId: number) {
   return rows[0] ?? null
 }
 
+// A chronological window around now: the last few results plus the upcoming
+// matches. Ordering purely by kickoff DESC would, for a not-yet-started season,
+// return the season's FINAL matches and hide the fixtures about to be played.
 export async function getTeamFixtures(teamId: number): Promise<FixtureDTO[]> {
-  const { rows } = await query<FixtureRow>(
-    `${FIXTURE_SELECT} WHERE f.home_team_id = $1 OR f.away_team_id = $1 ORDER BY f.kickoff_at DESC LIMIT 20`,
+  const recent = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     WHERE (f.home_team_id = $1 OR f.away_team_id = $1) AND f.status IN ('FT','AET','PEN')
+     ORDER BY f.kickoff_at DESC LIMIT 6`,
     [teamId],
   )
-  return rows.map(mapFixture)
+  const upcoming = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     WHERE (f.home_team_id = $1 OR f.away_team_id = $1)
+       AND f.status NOT IN ('FT','AET','PEN','CANC','ABD','AWD','WO','PST')
+       AND f.kickoff_at >= now() - interval '3 hours'
+     ORDER BY f.kickoff_at ASC LIMIT 18`,
+    [teamId],
+  )
+  return [...recent.rows, ...upcoming.rows]
+    .map(mapFixture)
+    .sort((a, b) => a.kickoffAt.localeCompare(b.kickoffAt))
 }
 
 export async function getFixtureById(fixtureId: number): Promise<FixtureDTO | null> {
