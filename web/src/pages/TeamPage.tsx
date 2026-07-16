@@ -30,7 +30,7 @@ export function TeamPage() {
       <Card>
         <CardHeader title="Maçlar" />
         {fixtures.length ? (
-          <FixtureList fixtures={fixtures} />
+          <FixtureList fixtures={fixtures} showLeague />
         ) : (
           <EmptyState title="Maç bulunamadı" />
         )}

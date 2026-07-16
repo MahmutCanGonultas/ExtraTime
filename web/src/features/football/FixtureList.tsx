@@ -17,7 +17,7 @@ function TeamLine({ team, score, dim }: { team: Fixture['home']; score: number |
   )
 }
 
-export function FixtureRow({ fixture }: { fixture: Fixture }) {
+export function FixtureRow({ fixture, showLeague }: { fixture: Fixture; showLeague?: boolean }) {
   const finished = isFinished(fixture.status)
   const live = isLive(fixture.status)
   const showScore = finished || live
@@ -30,6 +30,12 @@ export function FixtureRow({ fixture }: { fixture: Fixture }) {
       className="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-ink-850"
     >
       <div className="min-w-0 flex-1 space-y-1">
+        {showLeague && (
+          <div className="flex items-center gap-1.5 text-[11px] text-ink-500">
+            <TeamLogo apiId={fixture.leagueApiId} kind="league" size={12} />
+            <span className="truncate">{fixture.leagueName}</span>
+          </div>
+        )}
         <TeamLine team={fixture.home} score={showScore ? fixture.homeScore : null} dim={awayWon} />
         <TeamLine team={fixture.away} score={showScore ? fixture.awayScore : null} dim={homeWon} />
       </div>
@@ -50,11 +56,11 @@ export function FixtureRow({ fixture }: { fixture: Fixture }) {
   )
 }
 
-export function FixtureList({ fixtures }: { fixtures: Fixture[] }) {
+export function FixtureList({ fixtures, showLeague }: { fixtures: Fixture[]; showLeague?: boolean }) {
   return (
     <div className="divide-y divide-ink-850">
       {fixtures.map((f) => (
-        <FixtureRow key={f.id} fixture={f} />
+        <FixtureRow key={f.id} fixture={f} showLeague={showLeague} />
       ))}
     </div>
   )

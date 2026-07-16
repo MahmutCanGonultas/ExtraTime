@@ -120,7 +120,7 @@ export function HomePage() {
               {upcoming.isLoading ? (
                 <Skeleton className="m-4 h-40" />
               ) : upcoming.data?.length ? (
-                <FixtureList fixtures={upcoming.data} />
+                <FixtureList fixtures={upcoming.data} showLeague />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Yaklaşan maç yok.</CardBody>
               )}
@@ -133,7 +133,7 @@ export function HomePage() {
               {recent.isLoading ? (
                 <Skeleton className="m-4 h-40" />
               ) : recent.data?.length ? (
-                <FixtureList fixtures={recent.data} />
+                <FixtureList fixtures={recent.data} showLeague />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Sonuç yok.</CardBody>
               )}
