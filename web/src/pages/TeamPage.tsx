@@ -27,16 +27,23 @@ export function TeamPage() {
 
   const { team, fixtures, standings, squad } = data
   const location = [team.stadiumName, team.city].filter(Boolean).join(' · ')
-  const primary = standings.find((s) => s.played > 0) ?? standings[0]
+  // Anchor to the CURRENT season (newest we hold); it fills in as matches are
+  // played. Older seasons live in the players' career tables.
+  const primary = standings[0]
+  const squadSeason = squad[0]?.season
   const recent = fixtures.filter((f) => isFinished(f.status)).reverse()
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
 
   return (
     <div className="space-y-5">
       {/* Hero — the stadium photo as a big backdrop */}
-      <section className="relative min-h-[220px] overflow-hidden rounded-card border border-ink-800">
+      <section className="relative min-h-[240px] overflow-hidden rounded-card border border-ink-800">
         {team.venueImage ? (
-          <img src={team.venueImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={team.venueImage}
+            alt=""
+            className="absolute inset-0 h-full w-full scale-105 object-cover object-center"
+          />
         ) : (
           <>
             <div
@@ -47,8 +54,10 @@ export function TeamPage() {
             <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
           </>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/80 to-ink-950/25" />
-        <div className="relative flex min-h-[220px] flex-wrap items-end gap-4 p-6 sm:p-8">
+        {/* Bottom-weighted scrim: readable text, but the stadium stays clear */}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/35 to-ink-950/5" />
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink-950/85 to-transparent" />
+        <div className="relative flex min-h-[240px] flex-wrap items-end gap-4 p-6 sm:p-8">
           <TeamLogo apiId={team.apiFootballId} size={76} className="drop-shadow-2xl" />
           <div className="min-w-0">
             <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
@@ -63,7 +72,8 @@ export function TeamPage() {
               {team.founded && <span>Kuruluş {team.founded}</span>}
               {primary && (
                 <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-bold text-ink-950">
-                  {primary.leagueName} · {primary.position}. sıra
+                  {primary.leagueName}
+                  {primary.played > 0 ? ` · ${primary.position}. sıra` : ` · ${seasonLabel(primary.season)}`}
                 </span>
               )}
             </div>
@@ -76,7 +86,7 @@ export function TeamPage() {
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {squad.filter((p) => (p.goals ?? 0) > 0).length > 0 && (
-            <TeamStars squad={squad.filter((p) => (p.goals ?? 0) > 0).slice(0, 3)} />
+            <TeamStars squad={squad.filter((p) => (p.goals ?? 0) > 0).slice(0, 3)} season={squadSeason} />
           )}
           {upcoming.length > 0 && (
             <Card className="overflow-hidden">
@@ -113,7 +123,9 @@ export function TeamPage() {
           <TeamInfoCard team={team} />
 
           <Card className="overflow-hidden">
-            <CardHeader title={`Kadro${squad.length ? ` · ${squad.length}` : ''}`} />
+            <CardHeader
+              title={`Kadro${squadSeason ? ` · ${seasonLabel(squadSeason)}` : ''}${squad.length ? ` · ${squad.length}` : ''}`}
+            />
             {squad.length === 0 ? (
               <CardBody className="py-6 text-center text-sm text-ink-500">Kadro verisi yok.</CardBody>
             ) : (
@@ -130,10 +142,10 @@ export function TeamPage() {
   )
 }
 
-function TeamStars({ squad }: { squad: SquadPlayer[] }) {
+function TeamStars({ squad, season }: { squad: SquadPlayer[]; season?: number }) {
   return (
     <Card>
-      <CardHeader title="Takımın golcüleri" />
+      <CardHeader title={`Takımın golcüleri${season ? ` · ${seasonLabel(season)}` : ''}`} />
       <CardBody>
         <div className="grid grid-cols-3 gap-3">
           {squad.map((p) => (
@@ -179,6 +191,20 @@ function TeamInfoCard({ team }: { team: Team }) {
 }
 
 function StandingCard({ s }: { s: TeamStanding }) {
+  if (s.played === 0) {
+    return (
+      <Card>
+        <CardBody className="flex flex-wrap items-center gap-2">
+          <TeamLogo apiId={s.leagueApiId} kind="league" size={18} />
+          <span className="text-sm font-semibold text-ink-100">{s.leagueName}</span>
+          <span className="text-xs text-ink-500">{seasonLabel(s.season)}</span>
+          <span className="ml-auto text-xs text-ink-400">
+            Sezon başlamadı — maçlar oynandıkça güncellenecek
+          </span>
+        </CardBody>
+      </Card>
+    )
+  }
   const diff = s.goalsFor - s.goalsAgainst
   const cols: Array<{ label: string; value: string; tone?: string }> = [
     { label: 'Sıra', value: `${s.position}.`, tone: 'text-brand-300' },
