@@ -36,13 +36,15 @@ export function TeamPage() {
 
   return (
     <div className="space-y-5">
-      {/* Hero — the stadium photo as a big backdrop */}
-      <section className="relative min-h-[240px] overflow-hidden rounded-card border border-ink-800">
+      {/* Hero — the stadium photo as a blurred, darkened backdrop that fills the
+          whole banner, with the team crest big and framed in front. */}
+      <section className="relative h-52 overflow-hidden rounded-card border border-ink-800 bg-ink-950 sm:h-60">
         {team.venueImage ? (
           <img
             src={team.venueImage}
             alt=""
-            className="absolute inset-0 h-full w-full scale-105 object-cover object-center"
+            aria-hidden
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-md brightness-[0.5]"
           />
         ) : (
           <>
@@ -54,16 +56,16 @@ export function TeamPage() {
             <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
           </>
         )}
-        {/* Bottom-weighted scrim: readable text, but the stadium stays clear */}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/35 to-ink-950/5" />
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink-950/85 to-transparent" />
-        <div className="relative flex min-h-[240px] flex-wrap items-end gap-4 p-6 sm:p-8">
-          <TeamLogo apiId={team.apiFootballId} size={76} className="drop-shadow-2xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-950/55 to-ink-950/25" />
+        <div className="absolute inset-0 flex items-center gap-5 p-6 sm:gap-7 sm:px-10">
+          <div className="shrink-0 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
+            <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
+          </div>
           <div className="min-w-0">
             <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
               {team.name}
             </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
               {location && (
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-brand-300" /> {location}
