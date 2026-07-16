@@ -9,6 +9,7 @@ export interface LeaderboardEntry {
   userId: number
   displayName: string
   points: number
+  adjustment: number
   exactCount: number
   settledCount: number
   totalPredictions: number
@@ -31,13 +32,15 @@ export async function seasonLeaderboard(
     points: number
     exactCount: number
     scoringCount: number
+    wrongCount: number
     settledCount: number
     totalPredictions: number
   }>(
     `SELECT u.id AS "userId", u.display_name AS "displayName",
             COALESCE(SUM(p.points_awarded), 0)::int AS points,
-            COALESCE(SUM(CASE WHEN p.points_awarded = 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount",
+            COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount",
             COALESCE(SUM(CASE WHEN p.points_awarded > 0 THEN 1 ELSE 0 END), 0)::int AS "scoringCount",
+            COALESCE(SUM(CASE WHEN p.settled_at IS NOT NULL AND p.points_awarded = 0 THEN 1 ELSE 0 END), 0)::int AS "wrongCount",
             COALESCE(SUM(CASE WHEN p.settled_at IS NOT NULL THEN 1 ELSE 0 END), 0)::int AS "settledCount",
             COUNT(p.id)::int AS "totalPredictions"
      FROM group_members gm
@@ -50,10 +53,23 @@ export async function seasonLeaderboard(
     [groupId, seasonId],
   )
 
-  return rows.map((r) => ({
+  // Manual admin point adjustments for this season, summed per member.
+  const adjustments = new Map<number, number>()
+  if (seasonId !== null) {
+    const adj = await query<{ userId: number; delta: number }>(
+      `SELECT user_id AS "userId", COALESCE(SUM(delta), 0)::int AS delta
+       FROM point_adjustments WHERE season_id = $1 GROUP BY user_id`,
+      [seasonId],
+    )
+    for (const a of adj.rows) adjustments.set(a.userId, a.delta)
+  }
+
+  const wrong = new Map(rows.map((r) => [r.userId, r.wrongCount]))
+  const entries = rows.map((r) => ({
     userId: r.userId,
     displayName: r.displayName,
-    points: r.points,
+    points: r.points + (adjustments.get(r.userId) ?? 0),
+    adjustment: adjustments.get(r.userId) ?? 0,
     exactCount: r.exactCount,
     settledCount: r.settledCount,
     totalPredictions: r.totalPredictions,
@@ -62,4 +78,15 @@ export async function seasonLeaderboard(
     // Share of settled predictions that nailed the exact score.
     exactAccuracy: r.settledCount > 0 ? r.exactCount / r.settledCount : null,
   }))
+
+  // Re-rank in JS: points, then exact-score count, then fewest wrong, then name.
+  // (Manual adjustments can change the order, so we sort here not in SQL.)
+  entries.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.exactCount - a.exactCount ||
+      (wrong.get(a.userId) ?? 0) - (wrong.get(b.userId) ?? 0) ||
+      a.displayName.localeCompare(b.displayName, 'tr'),
+  )
+  return entries
 }

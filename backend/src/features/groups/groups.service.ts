@@ -241,17 +241,15 @@ export async function removeGroupFixture(groupId: number, fixtureId: number): Pr
   }
 }
 
-/** The curated matches of a season, each with the requester's own prediction. */
-export async function listGroupFixtures(groupId: number, userId: number, seasonId?: number) {
-  if (!(await isMember(groupId, userId))) {
-    throw AppError.forbidden('You are not a member of this group')
-  }
-  const targetSeason = seasonId ?? (await getActiveSeason(groupId))?.id ?? null
-  if (targetSeason === null) return []
+/** The curated matches of a season, each with the given viewer's own prediction.
+ *  No auth — callers gate access. */
+async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: number) {
   const { rows } = await query(
     `SELECT gf.fixture_id AS "fixtureId", ${FIXTURE_FIELDS},
             mp.predicted_outcome AS "myOutcome", mp.predicted_home AS "myHome",
             mp.predicted_away AS "myAway", mp.points_awarded AS "myPoints",
+            (mj.id IS NOT NULL) AS "myJoker",
+            sh.form AS "homeForm", sa.form AS "awayForm",
             (SELECT COUNT(*)::int FROM predictions p2
              WHERE p2.group_id = $1 AND p2.fixture_id = gf.fixture_id) AS "predictionCount",
             (f.status = 'NS' AND f.kickoff_at > now()) AS "open"
@@ -261,11 +259,59 @@ export async function listGroupFixtures(groupId: number, userId: number, seasonI
      JOIN teams ht ON ht.id = f.home_team_id
      JOIN teams at ON at.id = f.away_team_id
      LEFT JOIN predictions mp ON mp.group_id = $1 AND mp.fixture_id = gf.fixture_id AND mp.user_id = $3
+     LEFT JOIN season_jokers mj ON mj.season_id = $2 AND mj.user_id = $3 AND mj.fixture_id = gf.fixture_id
+     LEFT JOIN standings sh ON sh.league_id = f.league_id AND sh.team_id = f.home_team_id
+     LEFT JOIN standings sa ON sa.league_id = f.league_id AND sa.team_id = f.away_team_id
      WHERE gf.season_id = $2
      ORDER BY f.kickoff_at ASC`,
-    [groupId, targetSeason, userId],
+    [groupId, seasonId, viewerId],
   )
   return rows
+}
+
+/** Set (or move) the caller's joker to a match in the current game. The chosen
+ *  match must still be open; you cannot move the joker once the match it sits on
+ *  has locked. */
+export async function setJoker(groupId: number, userId: number, fixtureId: number): Promise<void> {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const seasonId = await requireActiveSeasonId(groupId)
+  const gate = await query<{ in_game: boolean; open: boolean }>(
+    `SELECT
+       EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.season_id = $2 AND gf.fixture_id = $1) AS in_game,
+       (f.status = 'NS' AND f.kickoff_at > now()) AS open
+     FROM fixtures f WHERE f.id = $1`,
+    [fixtureId, seasonId],
+  )
+  const g = gate.rows[0]
+  if (!g || !g.in_game) throw AppError.badRequest('Bu maç oyunda değil')
+  if (!g.open) throw AppError.badRequest('Başlamış maça joker konamaz')
+
+  // Guard against moving the joker off an already-locked match.
+  const existing = await query<{ locked: boolean }>(
+    `SELECT (f.status <> 'NS' OR f.kickoff_at <= now()) AS locked
+     FROM season_jokers sj JOIN fixtures f ON f.id = sj.fixture_id
+     WHERE sj.season_id = $1 AND sj.user_id = $2`,
+    [seasonId, userId],
+  )
+  if (existing.rows[0]?.locked) throw AppError.badRequest('Joker kilitlendi, artık değiştirilemez')
+
+  await query(
+    `INSERT INTO season_jokers (season_id, user_id, fixture_id) VALUES ($1, $2, $3)
+     ON CONFLICT (season_id, user_id) DO UPDATE SET fixture_id = EXCLUDED.fixture_id, created_at = now()`,
+    [seasonId, userId, fixtureId],
+  )
+}
+
+/** The curated matches of a season, each with the requester's own prediction. */
+export async function listGroupFixtures(groupId: number, userId: number, seasonId?: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const targetSeason = seasonId ?? (await getActiveSeason(groupId))?.id ?? null
+  if (targetSeason === null) return []
+  return seasonFixturesFor(groupId, targetSeason, userId)
 }
 
 /** Upcoming, still-predictable matches the leader can add (excludes ones already in). */
@@ -368,6 +414,70 @@ export async function getSeasonDetail(groupId: number, userId: number, seasonId:
   const standings = await seasonLeaderboard(groupId, seasonId)
   const fixtures = await listGroupFixtures(groupId, userId, seasonId)
   return { season, standings, fixtures }
+}
+
+// ---------------------------------------------------------------------------
+// Platform-admin moderation — the app owner can step into ANY group: add/remove
+// matches and add/remove points. Access is gated by the route middleware.
+// ---------------------------------------------------------------------------
+
+/** Every group in the system, for the platform-admin moderation list. */
+export async function adminListGroups() {
+  const { rows } = await query(
+    `SELECT g.id, g.name, g.admin_user_id AS "adminUserId",
+            (SELECT COUNT(*)::int FROM group_members m WHERE m.group_id = g.id) AS "memberCount",
+            (SELECT gs.title FROM group_seasons gs
+             WHERE gs.group_id = g.id AND gs.status = 'active'
+             ORDER BY gs.started_at DESC LIMIT 1) AS "activeSeasonTitle"
+     FROM groups g ORDER BY g.created_at DESC`,
+  )
+  return rows
+}
+
+/** Full moderation view of one group: members with points + the current game's matches. */
+export async function adminGroupOverview(groupId: number) {
+  const { rows } = await query<{ id: number; name: string; adminUserId: number }>(
+    `SELECT id, name, admin_user_id AS "adminUserId" FROM groups WHERE id = $1`,
+    [groupId],
+  )
+  const group = rows[0]
+  if (!group) throw AppError.notFound('Group not found')
+  const activeSeason = await getActiveSeason(groupId)
+  const currentSeasonId = await getCurrentSeasonId(groupId)
+  const standings = await seasonLeaderboard(groupId, currentSeasonId)
+  const fixtures = currentSeasonId
+    ? await seasonFixturesFor(groupId, currentSeasonId, group.adminUserId)
+    : []
+  return { group: { ...group, activeSeason }, standings, fixtures }
+}
+
+/** Remove a member from any group (platform admin). The group's own leader is protected. */
+export async function adminRemoveMember(groupId: number, targetUserId: number): Promise<void> {
+  const { rows } = await query<{ admin_user_id: number }>(
+    `SELECT admin_user_id FROM groups WHERE id = $1`,
+    [groupId],
+  )
+  if (!rows[0]) throw AppError.notFound('Group not found')
+  if (rows[0].admin_user_id === targetUserId) throw AppError.badRequest('Grup başkanı çıkarılamaz')
+  await query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId])
+}
+
+/** Add (positive) or remove (negative) points for a member in the current game. */
+export async function addPointAdjustment(
+  groupId: number,
+  userId: number,
+  delta: number,
+  reason: string | null,
+  createdBy: number,
+): Promise<void> {
+  const seasonId = await getCurrentSeasonId(groupId)
+  if (seasonId === null) throw AppError.badRequest('Bu grupta oyun yok')
+  if (!(await isMember(groupId, userId))) throw AppError.badRequest('Bu kullanıcı grupta değil')
+  await query(
+    `INSERT INTO point_adjustments (group_id, season_id, user_id, delta, reason, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [groupId, seasonId, userId, delta, reason, createdBy],
+  )
 }
 
 /**
