@@ -1,20 +1,15 @@
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { useMyGroups } from './hooks'
-
-const KEY = 'extratime_active_group'
+import { getActiveGroupId, setActiveGroupId, subscribeActiveGroup } from './activeGroupStore'
 
 // Resolves the user's "current" group. With one group it's automatic; with
-// several, the choice is remembered in localStorage.
+// several, the choice is remembered and shared across the whole app so a switch
+// in the header updates every view at once.
 export function useActiveGroup() {
   const { data: groups, isLoading } = useMyGroups()
-  const [selectedId, setSelectedId] = useState<number>(() => Number(localStorage.getItem(KEY) || 0))
+  const selectedId = useSyncExternalStore(subscribeActiveGroup, getActiveGroupId)
 
   const active = groups?.find((g) => g.id === selectedId) ?? groups?.[0] ?? null
 
-  function select(id: number) {
-    setSelectedId(id)
-    localStorage.setItem(KEY, String(id))
-  }
-
-  return { groups: groups ?? [], active, isLoading, select }
+  return { groups: groups ?? [], active, isLoading, select: setActiveGroupId }
 }

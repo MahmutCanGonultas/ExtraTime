@@ -1,20 +1,21 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
+import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
 import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/cn'
 
-const navLinks = [
+const baseNav = [
   { to: '/', label: 'Ana Sayfa', end: true },
   { to: '/leagues', label: 'Ligler' },
   { to: '/predictions', label: 'Tahminler' },
   { to: '/group', label: 'Grup' },
   { to: '/stats', label: 'İstatistik' },
-  { to: '/admin', label: 'Admin' },
 ]
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout, isPlatformAdmin } = useAuth()
+  const navLinks = isPlatformAdmin ? [...baseNav, { to: '/admin', label: 'Admin' }] : baseNav
 
   return (
     <div className="min-h-screen">
@@ -45,7 +46,8 @@ export function AppLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-ink-300 sm:inline">{user?.displayName}</span>
+            <GroupSwitcher />
+            <span className="hidden text-sm text-ink-300 md:inline">{user?.displayName}</span>
             <button
               onClick={logout}
               className="text-ink-400 transition hover:text-loss"

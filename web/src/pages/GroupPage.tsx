@@ -7,7 +7,10 @@ import {
   useJoinGroup,
   useLeaderboard,
   useRegenerateInvite,
+  useRemoveMember,
+  useResetPassword,
 } from '@/features/groups/hooks'
+import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
 import { Leaderboard } from '@/features/groups/Leaderboard'
 import { GameManager } from '@/features/groups/GameManager'
@@ -172,14 +175,72 @@ function GroupView({ group }: { group: GroupSummary }) {
         <CardBody>
           <ul className="divide-y divide-ink-850">
             {g?.members.map((m) => (
-              <li key={m.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-ink-100">{m.displayName}</span>
-                {m.id === g.adminUserId && <span className="text-xs text-brand-300">admin</span>}
-              </li>
+              <MemberRow
+                key={m.id}
+                member={m}
+                groupId={group.id}
+                isAdminOfMember={m.id === g.adminUserId}
+                canManage={(g?.isAdmin ?? false) && m.id !== g?.adminUserId}
+              />
             ))}
           </ul>
         </CardBody>
       </Card>
     </div>
+  )
+}
+
+function MemberRow({
+  member,
+  groupId,
+  isAdminOfMember,
+  canManage,
+}: {
+  member: GroupMember
+  groupId: number
+  isAdminOfMember: boolean
+  canManage: boolean
+}) {
+  const remove = useRemoveMember(groupId)
+  const reset = useResetPassword(groupId)
+  const [tempPw, setTempPw] = useState<string | null>(null)
+
+  return (
+    <li className="py-2 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-ink-100">
+          {member.displayName}
+          {isAdminOfMember && <span className="ml-1 text-xs text-brand-300">başkan</span>}
+        </span>
+        {canManage && (
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                reset.mutate(member.id, { onSuccess: (r) => setTempPw(r.temporaryPassword) })
+              }
+            >
+              Şifre sıfırla
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-loss"
+              onClick={() => remove.mutate(member.id)}
+              disabled={remove.isPending}
+            >
+              Çıkar
+            </Button>
+          </div>
+        )}
+      </div>
+      {tempPw && (
+        <div className="mt-1 rounded-md bg-ink-850 px-2 py-1 text-xs">
+          <span className="text-ink-400">Geçici şifre: </span>
+          <span className="font-mono font-bold text-brand-300">{tempPw}</span>
+        </div>
+      )}
+    </li>
   )
 }
