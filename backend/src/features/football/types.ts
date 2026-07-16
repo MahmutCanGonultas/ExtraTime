@@ -25,6 +25,7 @@ export interface RawStandingRow {
   points: number
   goalsDiff: number
   group: string | null
+  description: string | null
   form: string | null
   all: {
     played: number

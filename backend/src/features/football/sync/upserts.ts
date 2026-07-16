@@ -170,9 +170,9 @@ export async function upsertStanding(
   await db.query(
     `INSERT INTO standings (
        league_id, team_id, position, played, won, drawn, lost,
-       goals_for, goals_against, points, form, group_label
+       goals_for, goals_against, points, form, group_label, description
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT (league_id, team_id) DO UPDATE SET
        position = EXCLUDED.position,
        played = EXCLUDED.played,
@@ -184,6 +184,7 @@ export async function upsertStanding(
        points = EXCLUDED.points,
        form = EXCLUDED.form,
        group_label = EXCLUDED.group_label,
+       description = EXCLUDED.description,
        updated_at = now()`,
     [
       leagueId,
@@ -198,6 +199,7 @@ export async function upsertStanding(
       row.points,
       row.form,
       row.group,
+      row.description,
     ],
   )
 }

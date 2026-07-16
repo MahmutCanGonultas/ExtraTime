@@ -19,6 +19,7 @@ export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 140, name: 'La Liga', country: 'İspanya' },
   { apiFootballId: 135, name: 'Serie A', country: 'İtalya' },
   { apiFootballId: 78, name: 'Bundesliga', country: 'Almanya' },
+  { apiFootballId: 61, name: 'Ligue 1', country: 'Fransa' },
   { apiFootballId: 2, name: 'Şampiyonlar Ligi', country: 'Avrupa' },
 ]
 
