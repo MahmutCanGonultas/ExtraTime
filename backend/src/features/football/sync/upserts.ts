@@ -113,15 +113,18 @@ export async function upsertFixturesBatch(
       f.score.halftime.away,
       f.league.round,
       f.fixture.status.elapsed,
+      f.score.penalty?.home ?? null,
+      f.score.penalty?.away ?? null,
     )
     const n = params.length
-    return `($${n - 11}, $${n - 10}, $${n - 9}, $${n - 8}, $${n - 7}, $${n - 6}, $${n - 5}, $${n - 4}, $${n - 3}, $${n - 2}, $${n - 1}, $${n})`
+    return `($${n - 13}, $${n - 12}, $${n - 11}, $${n - 10}, $${n - 9}, $${n - 8}, $${n - 7}, $${n - 6}, $${n - 5}, $${n - 4}, $${n - 3}, $${n - 2}, $${n - 1}, $${n})`
   })
 
   await db.query(
     `INSERT INTO fixtures (
        api_football_id, league_id, home_team_id, away_team_id, kickoff_at, status,
-       home_score, away_score, halftime_home, halftime_away, round, elapsed
+       home_score, away_score, halftime_home, halftime_away, round, elapsed,
+       penalty_home, penalty_away
      )
      VALUES ${tuples.join(', ')}
      ON CONFLICT (api_football_id) DO UPDATE SET
@@ -133,6 +136,8 @@ export async function upsertFixturesBatch(
        halftime_away = EXCLUDED.halftime_away,
        round = EXCLUDED.round,
        elapsed = EXCLUDED.elapsed,
+       penalty_home = EXCLUDED.penalty_home,
+       penalty_away = EXCLUDED.penalty_away,
        updated_at = now()`,
     params,
   )

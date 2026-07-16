@@ -203,7 +203,8 @@ const LIVE_STATUSES = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT']
 async function updateFixtureFromRaw(raw: RawFixture): Promise<{ id: number } | null> {
   const res = await query<{ id: number }>(
     `UPDATE fixtures SET status = $2, home_score = $3, away_score = $4,
-       halftime_home = $5, halftime_away = $6, elapsed = $7, updated_at = now()
+       halftime_home = $5, halftime_away = $6, elapsed = $7,
+       penalty_home = $8, penalty_away = $9, updated_at = now()
      WHERE api_football_id = $1 RETURNING id`,
     [
       raw.fixture.id,
@@ -213,6 +214,8 @@ async function updateFixtureFromRaw(raw: RawFixture): Promise<{ id: number } | n
       raw.score.halftime.home,
       raw.score.halftime.away,
       raw.fixture.status.elapsed,
+      raw.score.penalty?.home ?? null,
+      raw.score.penalty?.away ?? null,
     ],
   )
   return res.rowCount ? res.rows[0] : null

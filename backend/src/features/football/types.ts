@@ -16,6 +16,7 @@ export interface RawFixture {
   goals: { home: number | null; away: number | null }
   score: {
     halftime: { home: number | null; away: number | null }
+    penalty: { home: number | null; away: number | null }
   }
 }
 
