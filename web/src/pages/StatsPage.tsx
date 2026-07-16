@@ -27,8 +27,8 @@ const COLORS = [
 ]
 
 const tooltipStyle = {
-  backgroundColor: '#131b24',
-  border: '1px solid #26323f',
+  backgroundColor: '#222833',
+  border: '1px solid #454f5d',
   borderRadius: 8,
   color: '#e6ebf0',
   fontSize: 12,
@@ -94,9 +94,9 @@ export function StatsPage() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-                    <CartesianGrid stroke="#1e2833" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" stroke="#6b7a8c" fontSize={12} />
-                    <YAxis stroke="#6b7a8c" fontSize={12} allowDecimals={false} />
+                    <CartesianGrid stroke="#3b4451" strokeDasharray="3 3" />
+                    <XAxis dataKey="label" stroke="#8a95a3" fontSize={12} />
+                    <YAxis stroke="#8a95a3" fontSize={12} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     {members.map((m, i) => (
@@ -121,9 +121,9 @@ export function StatsPage() {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={accuracyData} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-                    <CartesianGrid stroke="#1e2833" strokeDasharray="3 3" />
-                    <XAxis dataKey="name" stroke="#6b7a8c" fontSize={12} />
-                    <YAxis stroke="#6b7a8c" fontSize={12} unit="%" domain={[0, 100]} />
+                    <CartesianGrid stroke="#3b4451" strokeDasharray="3 3" />
+                    <XAxis dataKey="name" stroke="#8a95a3" fontSize={12} />
+                    <YAxis stroke="#8a95a3" fontSize={12} unit="%" domain={[0, 100]} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`%${v}`, 'İsabet']} />
                     <Bar dataKey="isabet" fill="#34d399" radius={[4, 4, 0, 0]} />
                   </BarChart>

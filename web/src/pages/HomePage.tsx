@@ -57,7 +57,7 @@ export function HomePage() {
       {/* 1 — Matchday hero */}
       <section
         className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #0c2a20 0%, #0d1a17 46%, #0e141b 100%)' }}
+        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
       >
         <div className="absolute inset-0 mow-stripes" />
         <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-3/4 text-brand-200/10 sm:block" />
