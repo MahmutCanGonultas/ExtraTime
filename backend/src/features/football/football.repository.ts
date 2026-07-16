@@ -448,11 +448,16 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
     await query<SearchPlayer>(
       `SELECT "playerApiId", name, "photoUrl", "teamName", "teamApiId" FROM (
          SELECT DISTINCT ON (player_api_id)
-           player_api_id AS "playerApiId", name, photo_url AS "photoUrl",
-           team_name AS "teamName", team_api_id AS "teamApiId", goals
-         FROM players WHERE name ILIKE $1
-         ORDER BY player_api_id, season DESC, goals DESC NULLS LAST
-       ) s ORDER BY (s.name ILIKE $2) DESC, s.goals DESC NULLS LAST, s.name LIMIT 8`,
+           player_api_id AS "playerApiId", name, firstname, lastname, photo_url AS "photoUrl",
+           team_name AS "teamName", team_api_id AS "teamApiId", goals, appearances
+         FROM players
+         WHERE name ILIKE $1 OR firstname ILIKE $1 OR lastname ILIKE $1
+            OR (COALESCE(firstname, '') || ' ' || COALESCE(lastname, '')) ILIKE $1
+         ORDER BY player_api_id, season DESC, appearances DESC NULLS LAST
+       ) s
+       ORDER BY (s.name ILIKE $2 OR s.firstname ILIKE $2 OR s.lastname ILIKE $2) DESC,
+                s.appearances DESC NULLS LAST, s.name
+       LIMIT 8`,
       [like, `${q}%`],
     )
   ).rows
@@ -513,7 +518,7 @@ export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
        goals, assists, appearances, minutes, rating::float8 AS rating,
        photo_url AS "photoUrl", season
      FROM players WHERE team_api_id = $1
-     ORDER BY player_api_id, season DESC`,
+     ORDER BY player_api_id, season DESC, appearances DESC NULLS LAST`,
     [teamApiId],
   )
   return rows.sort(

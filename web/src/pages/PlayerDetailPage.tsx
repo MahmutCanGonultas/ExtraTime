@@ -22,7 +22,12 @@ export function PlayerDetailPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Oyuncu bulunamadı" />
 
-  const primary = data.seasons[0]
+  // Headline = the player's main competition (most appearances), not merely the
+  // newest — so a club season outranks a short cup/national-team run.
+  const primary = data.seasons.reduce(
+    (best, s) => ((s.appearances ?? 0) > (best?.appearances ?? -1) ? s : best),
+    data.seasons[0] as (typeof data.seasons)[number] | undefined,
+  )
   const facts = [
     data.position && { label: 'Mevki', value: data.position },
     data.nationality && { label: 'Uyruk', value: data.nationality },
