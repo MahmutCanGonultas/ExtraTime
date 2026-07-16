@@ -151,6 +151,16 @@ groupsRouter.post(
   }),
 )
 
+// Delete the whole group — leader only.
+groupsRouter.delete(
+  '/:id',
+  requireGroupAdmin,
+  asyncHandler(async (req, res) => {
+    await groups.deleteGroup(parseIdParam(req.params.id))
+    res.status(204).send()
+  }),
+)
+
 groupsRouter.delete(
   '/:id/members/:userId',
   requireGroupAdmin,

@@ -181,6 +181,12 @@ export async function removeMember(groupId: number, targetUserId: number, adminU
   await query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId])
 }
 
+/** Delete a whole group. ON DELETE CASCADE removes its members, seasons, curated
+ *  fixtures, predictions, jokers and point adjustments. Admin-only (route gated). */
+export async function deleteGroup(groupId: number): Promise<void> {
+  await query(`DELETE FROM groups WHERE id = $1`, [groupId])
+}
+
 // ---------------------------------------------------------------------------
 // The leader curates the season's matches; members predict only these.
 // ---------------------------------------------------------------------------

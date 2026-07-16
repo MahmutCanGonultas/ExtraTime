@@ -3,6 +3,7 @@ import { Copy, RefreshCw, Users } from 'lucide-react'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import {
   useCreateGroup,
+  useDeleteGroup,
   useGroup,
   useJoinGroup,
   useLeaderboard,
@@ -186,7 +187,42 @@ function GroupView({ group }: { group: GroupSummary }) {
           </ul>
         </CardBody>
       </Card>
+
+      {g?.isAdmin && <DeleteGroup groupId={group.id} name={g?.name ?? group.name} />}
     </div>
+  )
+}
+
+function DeleteGroup({ groupId, name }: { groupId: number; name: string }) {
+  const del = useDeleteGroup()
+  const [confirming, setConfirming] = useState(false)
+
+  return (
+    <Card className="border-loss/20">
+      <CardBody className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-ink-100">Grubu sil</div>
+          <div className="text-xs text-ink-400">
+            Grup, tüm oyunları, tahminleri ve geçmişi kalıcı olarak silinir.
+          </div>
+        </div>
+        {confirming ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-loss">“{name}” silinsin mi?</span>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+              Vazgeç
+            </Button>
+            <Button size="sm" variant="danger" disabled={del.isPending} onClick={() => del.mutate(groupId)}>
+              Evet, sil
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="danger" onClick={() => setConfirming(true)}>
+            Grubu Sil
+          </Button>
+        )}
+      </CardBody>
+    </Card>
   )
 }
 

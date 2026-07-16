@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { setActiveGroupId } from './activeGroupStore'
 import type {
   Champion,
   FixturePredictions,
@@ -197,6 +198,17 @@ export function useRegenerateInvite(groupId: number) {
   return useMutation({
     mutationFn: () => api.post<{ inviteCode: string }>(`/groups/${groupId}/regenerate-invite`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['group', groupId] }),
+  })
+}
+
+export function useDeleteGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: number) => api.del(`/groups/${groupId}`),
+    onSuccess: () => {
+      setActiveGroupId(0)
+      qc.invalidateQueries({ queryKey: ['my-groups'] })
+    },
   })
 }
 
