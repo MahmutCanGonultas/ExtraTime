@@ -3,6 +3,7 @@ import { AppError } from '../../lib/errors'
 import { getActiveSeason, getCurrentSeasonId, isMember } from '../groups/groups.service'
 import { seasonLeaderboard, type LeaderboardEntry } from './leaderboard'
 import { outcomeOf, type MatchOutcome } from './scoring'
+import { settleFixture } from './settle'
 import { isLocked } from './lock'
 
 export interface SavedPrediction {
@@ -55,19 +56,78 @@ export async function upsertPrediction(
     throw AppError.locked('This match is locked; predictions can no longer be entered or changed')
   }
 
+  // Predictions are FINAL: a member submits once and cannot change it afterwards.
+  // ON CONFLICT DO NOTHING returns no row when one already exists.
   const { rows } = await query<SavedPrediction>(
+    `INSERT INTO predictions (user_id, group_id, fixture_id, predicted_outcome, predicted_home, predicted_away)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id, group_id, fixture_id) DO NOTHING
+     RETURNING id, predicted_outcome AS "outcome",
+               predicted_home AS "predictedHome", predicted_away AS "predictedAway"`,
+    [userId, groupId, fixtureId, outcome, predictedHome, predictedAway],
+  )
+  if (!rows[0]) throw AppError.conflict('Tahminini zaten girdin; tahmin değiştirilemez')
+  return rows[0]
+}
+
+/** Admin view: every member of a group and their prediction for one fixture. */
+export async function adminFixturePredictions(groupId: number, fixtureId: number) {
+  const { rows } = await query(
+    `SELECT u.id AS "userId", u.display_name AS "displayName",
+            p.predicted_outcome AS "predictedOutcome", p.predicted_home AS "predictedHome",
+            p.predicted_away AS "predictedAway", p.points_awarded AS "pointsAwarded"
+     FROM group_members gm
+     JOIN users u ON u.id = gm.user_id
+     LEFT JOIN predictions p ON p.group_id = gm.group_id AND p.user_id = gm.user_id AND p.fixture_id = $2
+     WHERE gm.group_id = $1
+     ORDER BY u.display_name`,
+    [groupId, fixtureId],
+  )
+  return rows
+}
+
+/**
+ * Admin-only override: set (or change) ANY member's prediction for a match in the
+ * group's game. Bypasses the one-shot/lock rules — the admin can correct things —
+ * and re-settles the fixture if it has already finished so points stay right.
+ */
+export async function adminSetPrediction(
+  groupId: number,
+  targetUserId: number,
+  fixtureId: number,
+  outcome: MatchOutcome,
+  predictedHome: number | null,
+  predictedAway: number | null,
+): Promise<void> {
+  if (!(await isMember(groupId, targetUserId))) {
+    throw AppError.badRequest('Bu kullanıcı grupta değil')
+  }
+  const hasScore = predictedHome !== null && predictedAway !== null
+  if (hasScore && outcomeOf({ home: predictedHome!, away: predictedAway! }) !== outcome) {
+    throw AppError.badRequest('Girilen skor seçilen sonuçla uyuşmuyor')
+  }
+  const gate = await query<{ in_game: boolean; final: boolean }>(
+    `SELECT
+       EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.group_id = $1 AND gf.fixture_id = $2) AS in_game,
+       (f.status IN ('FT','AET','PEN')) AS final
+     FROM fixtures f WHERE f.id = $2`,
+    [groupId, fixtureId],
+  )
+  const g = gate.rows[0]
+  if (!g) throw AppError.notFound('Fixture not found')
+  if (!g.in_game) throw AppError.badRequest('Bu maç grubun oyununda değil')
+
+  await query(
     `INSERT INTO predictions (user_id, group_id, fixture_id, predicted_outcome, predicted_home, predicted_away)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (user_id, group_id, fixture_id) DO UPDATE
        SET predicted_outcome = EXCLUDED.predicted_outcome,
            predicted_home = EXCLUDED.predicted_home,
            predicted_away = EXCLUDED.predicted_away,
-           updated_at = now()
-     RETURNING id, predicted_outcome AS "outcome",
-               predicted_home AS "predictedHome", predicted_away AS "predictedAway"`,
-    [userId, groupId, fixtureId, outcome, predictedHome, predictedAway],
+           updated_at = now()`,
+    [targetUserId, groupId, fixtureId, outcome, predictedHome, predictedAway],
   )
-  return rows[0]
+  if (g.final) await settleFixture(fixtureId)
 }
 
 export async function getMyPredictions(groupId: number, userId: number) {

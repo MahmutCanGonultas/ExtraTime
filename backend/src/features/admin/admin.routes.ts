@@ -6,6 +6,7 @@ import { asyncHandler } from '../../lib/middleware/async'
 import { parseIdParam } from '../../lib/params'
 import { requireSyncAccess } from './sync.middleware'
 import * as groups from '../groups/groups.service'
+import * as predictions from '../predictions/predictions.service'
 import {
   backfillAllSeasons,
   seedLeaguesJob,
@@ -35,6 +36,17 @@ const adjustmentSchema = z.object({
   reason: z.string().max(200).optional(),
 })
 const addFixtureSchema = z.object({ fixtureId: z.number().int().positive() })
+const adminPredictionSchema = z
+  .object({
+    userId: z.number().int().positive(),
+    fixtureId: z.number().int().positive(),
+    outcome: z.enum(['HOME', 'DRAW', 'AWAY']),
+    predictedHome: z.number().int().min(0).max(99).nullable().optional(),
+    predictedAway: z.number().int().min(0).max(99).nullable().optional(),
+  })
+  .refine((b) => (b.predictedHome == null) === (b.predictedAway == null), {
+    message: 'Skor girecekseniz her iki takım için de girin',
+  })
 
 // --- Platform-admin group moderation: step into any group ---
 adminRouter.get(
@@ -99,6 +111,37 @@ adminRouter.post(
       parseIdParam(req.params.userId),
     )
     res.json({ temporaryPassword })
+  }),
+)
+
+// Every member's prediction for a match (bypasses the pre-lock privacy screen).
+adminRouter.get(
+  '/groups/:id/fixtures/:fixtureId/predictions',
+  asyncHandler(async (req, res) => {
+    res.json({
+      predictions: await predictions.adminFixturePredictions(
+        parseIdParam(req.params.id),
+        parseIdParam(req.params.fixtureId),
+      ),
+    })
+  }),
+)
+
+// Override any member's prediction (the only way a prediction can change).
+adminRouter.post(
+  '/groups/:id/predictions',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    const b = adminPredictionSchema.parse(req.body)
+    await predictions.adminSetPrediction(
+      parseIdParam(req.params.id),
+      b.userId,
+      b.fixtureId,
+      b.outcome,
+      b.predictedHome ?? null,
+      b.predictedAway ?? null,
+    )
+    res.status(201).json({ ok: true })
   }),
 )
 
