@@ -62,7 +62,7 @@ export function Leaderboard({
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <span className="text-lg font-extrabold tabular-nums text-ink-100">{e.points}</span>
+              <span className="score-num text-xl text-ink-100">{e.points}</span>
               <span className="ml-1 text-[11px] text-ink-500">puan</span>
             </div>
           </li>

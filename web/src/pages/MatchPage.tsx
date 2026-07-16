@@ -63,7 +63,7 @@ export function MatchPage() {
             <div className="text-center">
               {showScore ? (
                 <>
-                  <div className="text-4xl font-extrabold tabular-nums text-ink-100">
+                  <div className="score-num text-5xl text-ink-100">
                     {f.homeScore ?? 0}
                     <span className="mx-1 text-ink-600">:</span>
                     {f.awayScore ?? 0}

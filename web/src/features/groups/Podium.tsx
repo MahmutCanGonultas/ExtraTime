@@ -25,10 +25,10 @@ function Column({ slot, isMe }: { slot: Slot | undefined; isMe: boolean }) {
         {slot.entry.displayName}
         {isMe && <span className="ml-1 text-xs font-normal text-brand-300">(sen)</span>}
       </div>
-      <div className="text-lg font-extrabold tabular-nums text-ink-100">{slot.entry.points}</div>
+      <div className="score-num text-2xl text-ink-100">{slot.entry.points}</div>
       <div
         className={cn(
-          'mt-1 flex w-full items-start justify-center rounded-t-lg pt-1.5 text-lg font-black',
+          'score-num mt-1 flex w-full items-start justify-center rounded-t-lg pt-1.5 text-xl',
           m.bar,
           m.pedestal,
         )}

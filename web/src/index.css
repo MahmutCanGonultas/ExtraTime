@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
 /* Design tokens — a dark, floodlit-stadium palette. These become Tailwind
@@ -5,6 +6,9 @@
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
+  /* A condensed, sporty display face for titles, scores and big numbers — the
+     "broadcast scoreboard" character. */
+  --font-display: 'Oswald', 'Arial Narrow', 'Helvetica Neue', var(--font-sans);
 
   /* Surfaces and text, dark to light. A soft "dimmed" dark (charcoal, not black)
      so it's easy on the eyes; cards sit a shade lighter than the canvas. */
@@ -69,6 +73,31 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+  /* Titles wear the condensed display face for a sporty, broadcast feel. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer components {
+  /* Broadcast-style section label: condensed, uppercase, with an accent tick. */
+  .section-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  /* Big scores / points in the display face with lined figures. */
+  .score-num {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
   }
 }
 

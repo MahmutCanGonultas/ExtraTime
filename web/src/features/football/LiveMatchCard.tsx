@@ -29,7 +29,7 @@ export function LiveMatchCard({ fixture }: { fixture: Fixture }) {
             {fixture.home.name}
           </span>
         </div>
-        <div className="shrink-0 px-1 text-3xl font-extrabold tabular-nums text-ink-100">
+        <div className="score-num shrink-0 px-1 text-4xl text-ink-100">
           {fixture.homeScore ?? 0}
           <span className="mx-1 text-ink-600">:</span>
           {fixture.awayScore ?? 0}
