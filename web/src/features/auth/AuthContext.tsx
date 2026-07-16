@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, tokenStore } from '@/lib/api'
+import { queryClient } from '@/lib/queryClient'
+import { setActiveGroupId } from '@/features/groups/activeGroupStore'
 
 export interface User {
   id: number
@@ -46,13 +48,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
+  // Wipe any cached data + remembered group from a previous session so one user
+  // never briefly sees another's groups on a shared browser.
+  function resetSession() {
+    queryClient.clear()
+    setActiveGroupId(0)
+  }
+
   async function login(email: string, password: string) {
+    resetSession()
     const res = await api.post<{ token: string }>('/auth/login', { email, password })
     tokenStore.set(res.token)
     await loadMe()
   }
 
   async function register(email: string, password: string, displayName: string) {
+    resetSession()
     const res = await api.post<{ token: string }>('/auth/register', {
       email,
       password,
@@ -66,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.clear()
     setUser(null)
     setIsPlatformAdmin(false)
+    resetSession()
   }
 
   return (
