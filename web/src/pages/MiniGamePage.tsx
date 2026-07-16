@@ -28,7 +28,7 @@ const METRICS: Metric[] = [
 ]
 
 interface Question {
-  mode: 'duel' | 'quad'
+  mode: 'duel' | 'trio'
   metric: Metric
   players: GamePoolPlayer[]
   correct: number // index of the leader
@@ -42,8 +42,8 @@ function today(): string {
 // Build one question: 2 (duel) or 4 (quad) players with distinct, non-null values
 // for a random stat, so exactly one is the leader.
 function buildQuestion(pool: GamePoolPlayer[]): Question | null {
-  const mode: 'duel' | 'quad' = Math.random() < 0.5 ? 'duel' : 'quad'
-  const size = mode === 'duel' ? 2 : 4
+  const mode: 'duel' | 'trio' = Math.random() < 0.5 ? 'duel' : 'trio'
+  const size = mode === 'duel' ? 2 : 3
   const metric = METRICS[Math.floor(Math.random() * METRICS.length)]
   for (let attempt = 0; attempt < 120; attempt++) {
     const chosen: GamePoolPlayer[] = []
@@ -166,7 +166,7 @@ export function MiniGamePage() {
               <PlayerCard q={current} i={1} picked={picked} onPick={() => pick(1)} big />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {current.players.map((_, i) => (
                 <PlayerCard key={i} q={current} i={i} picked={picked} onPick={() => pick(i)} />
               ))}
