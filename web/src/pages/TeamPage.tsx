@@ -176,9 +176,24 @@ function TeamInfoCard({ team }: { team: Team }) {
     team.city && { label: 'Şehir', value: team.city },
     team.venueCapacity && { label: 'Kapasite', value: team.venueCapacity.toLocaleString('tr-TR') },
   ].filter(Boolean) as Array<{ label: string; value: string }>
-  if (rows.length === 0) return null
+  if (rows.length === 0 && !team.venueImage) return null
   return (
     <Card className="overflow-hidden">
+      {team.venueImage && (
+        <div className="relative h-40 w-full">
+          <img
+            src={team.venueImage}
+            alt={team.stadiumName ?? ''}
+            loading="lazy"
+            className="h-full w-full object-cover object-center"
+          />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900 via-ink-900/60 to-transparent px-3 pb-2 pt-8">
+            {team.stadiumName && (
+              <span className="text-sm font-semibold text-white drop-shadow">{team.stadiumName}</span>
+            )}
+          </div>
+        </div>
+      )}
       <CardHeader title="Künye" />
       <ul className="px-2 py-1">
         {rows.map((r) => (
