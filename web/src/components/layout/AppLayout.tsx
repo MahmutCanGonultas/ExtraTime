@@ -19,6 +19,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen">
+      <div className="h-1 bg-brand-500" />
       <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
           <NavLink to="/" className="shrink-0">
@@ -33,9 +34,9 @@ export function AppLayout() {
                 end={link.end}
                 className={({ isActive }) =>
                   cn(
-                    'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition',
+                    'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition',
                     isActive
-                      ? 'bg-ink-800 text-brand-300'
+                      ? 'bg-brand-500 text-ink-950'
                       : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
                   )
                 }

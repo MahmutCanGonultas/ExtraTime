@@ -25,12 +25,12 @@
   --color-ink-200: #ccd3dc;
   --color-ink-100: #e6ebf0;
 
-  /* Brand — pitch green */
-  --color-brand-300: #6ee7b7;
-  --color-brand-400: #34d399;
-  --color-brand-500: #10b981;
-  --color-brand-600: #059669;
-  --color-brand-700: #047857;
+  /* Brand — electric "volt" lime. Bold, sporty, unmistakable (not generic emerald). */
+  --color-brand-300: #d8ff5e;
+  --color-brand-400: #c2f542;
+  --color-brand-500: #a8e60a;
+  --color-brand-600: #8bc300;
+  --color-brand-700: #6c9600;
 
   /* Result semantics (win / draw / loss) */
   --color-win: #22c55e;
@@ -48,11 +48,11 @@
     margin: 0;
     min-height: 100vh;
     background-color: var(--color-ink-950);
-    /* Soft floodlight glows over the dimmed base — gentle depth, easy on the eyes. */
+    /* Soft floodlight glows over the dimmed base — a hint of volt, easy on the eyes. */
     background-image:
-      radial-gradient(1200px 640px at 50% -10%, rgba(16, 185, 129, 0.12), transparent 60%),
-      radial-gradient(900px 700px at 100% 3%, rgba(52, 211, 153, 0.06), transparent 55%),
-      radial-gradient(1000px 820px at 0% 100%, rgba(16, 185, 129, 0.05), transparent 55%);
+      radial-gradient(1200px 640px at 50% -10%, rgba(168, 230, 10, 0.1), transparent 60%),
+      radial-gradient(900px 700px at 100% 3%, rgba(194, 245, 66, 0.05), transparent 55%),
+      radial-gradient(1000px 820px at 0% 100%, rgba(168, 230, 10, 0.045), transparent 55%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     color: var(--color-ink-100);
