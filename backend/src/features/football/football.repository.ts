@@ -290,21 +290,31 @@ export interface GamePoolPlayer {
   teamName: string | null
   leagueApiId: number
   goals: number
+  assists: number
+  appearances: number
+  minutes: number
+  rating: number | null
   photoUrl: string | null
 }
 
-// A shuffled pool of goal-scoring players for the standalone "Gol Düellosu"
-// mini-game. Only players with a few goals, so match-ups are rarely a tie.
-export async function getPlayerGamePool(limit = 240): Promise<GamePoolPlayer[]> {
+// A shuffled pool of regular players for the standalone "Gol Düellosu" mini-game.
+// Weighted toward top-5 teams (recognisable names) but not exclusively them, and
+// carrying several stats so the game can compare more than just goals.
+export async function getPlayerGamePool(): Promise<GamePoolPlayer[]> {
+  const cols = `p.player_api_id AS "playerApiId", p.name, p.team_api_id AS "teamApiId",
+     p.team_name AS "teamName", l.api_football_id AS "leagueApiId", p.goals, p.assists,
+     p.appearances, p.minutes, p.rating::float8 AS rating, p.photo_url AS "photoUrl"`
+  const from = `players p JOIN leagues l ON l.id = p.league_id`
+  const base = `p.appearances >= 10 AND p.photo_url IS NOT NULL`
+  // Players whose team finished in the top 5 of its (flat, domestic) standings.
+  const isTop5 = `EXISTS (
+      SELECT 1 FROM standings s JOIN teams t ON t.id = s.team_id
+      WHERE s.league_id = p.league_id AND t.api_football_id = p.team_api_id AND s.position <= 5
+    )`
   const { rows } = await query<GamePoolPlayer>(
-    `SELECT p.player_api_id AS "playerApiId", p.name, p.team_api_id AS "teamApiId",
-            p.team_name AS "teamName", l.api_football_id AS "leagueApiId", p.goals,
-            p.photo_url AS "photoUrl"
-     FROM players p JOIN leagues l ON l.id = p.league_id
-     WHERE p.goals >= 2 AND p.photo_url IS NOT NULL
-     ORDER BY random()
-     LIMIT $1`,
-    [limit],
+    `(SELECT ${cols} FROM ${from} WHERE ${base} AND ${isTop5} ORDER BY random() LIMIT 200)
+     UNION ALL
+     (SELECT ${cols} FROM ${from} WHERE ${base} AND NOT ${isTop5} ORDER BY random() LIMIT 70)`,
   )
   return rows
 }

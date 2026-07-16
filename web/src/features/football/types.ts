@@ -199,5 +199,9 @@ export interface GamePoolPlayer {
   teamName: string | null
   leagueApiId: number
   goals: number
+  assists: number
+  appearances: number
+  minutes: number
+  rating: number | null
   photoUrl: string | null
 }

@@ -10,47 +10,78 @@ import { Skeleton, ErrorState } from '@/components/ui/feedback'
 import { cn } from '@/lib/cn'
 
 type Pair = [GamePoolPlayer, GamePoolPlayer]
+
+// Each round asks about a different stat, not only goals.
+interface Metric {
+  key: string
+  question: string
+  get: (p: GamePoolPlayer) => number | null
+  fmt: (v: number) => string
+}
+const METRICS: Metric[] = [
+  { key: 'goals', question: 'Hangisi bu sezon daha çok GOL attı?', get: (p) => p.goals, fmt: (v) => String(v) },
+  { key: 'assists', question: 'Hangisi bu sezon daha çok ASİST yaptı?', get: (p) => p.assists, fmt: (v) => String(v) },
+  { key: 'rating', question: 'Hangisinin sezon REYTİNGİ daha yüksek?', get: (p) => p.rating, fmt: (v) => v.toFixed(2) },
+  { key: 'apps', question: 'Hangisi bu sezon daha çok MAÇA çıktı?', get: (p) => p.appearances, fmt: (v) => String(v) },
+  { key: 'minutes', question: 'Hangisi daha çok DAKİKA oynadı?', get: (p) => p.minutes, fmt: (v) => `${v}′` },
+]
+const GOALS = METRICS[0]
+
 const BEST_KEY = 'goalduel_best'
 
+interface Round {
+  pair: Pair
+  metric: Metric
+}
+
 // Standalone mini-game, independent of the prediction game: given two players,
-// guess who scored more league goals this season. One wrong answer ends the run.
+// guess who leads on a randomly chosen stat this season. One wrong answer ends
+// the run. The player pool leans toward top-5 teams so names are recognisable.
 export function MiniGamePage() {
   const { data: pool, isLoading, isError, refetch } = useGamePool()
-  const [pair, setPair] = useState<Pair | null>(null)
+  const [round, setRound] = useState<Round | null>(null)
   const [picked, setPicked] = useState<number | null>(null)
   const [score, setScore] = useState(0)
   const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY) || 0))
   const [over, setOver] = useState(false)
 
-  const draw = useCallback((p: GamePoolPlayer[]): Pair | null => {
-    for (let i = 0; i < 60; i++) {
-      const a = p[Math.floor(Math.random() * p.length)]
-      const b = p[Math.floor(Math.random() * p.length)]
-      if (a.playerApiId !== b.playerApiId && a.goals !== b.goals) return [a, b]
+  const nextRound = useCallback((p: GamePoolPlayer[]): Round | null => {
+    const order = [METRICS[Math.floor(Math.random() * METRICS.length)], GOALS]
+    for (const metric of order) {
+      for (let i = 0; i < 80; i++) {
+        const a = p[Math.floor(Math.random() * p.length)]
+        const b = p[Math.floor(Math.random() * p.length)]
+        const av = metric.get(a)
+        const bv = metric.get(b)
+        if (a.playerApiId !== b.playerApiId && av != null && bv != null && av !== bv) {
+          return { pair: [a, b], metric }
+        }
+      }
     }
     return null
   }, [])
 
   useEffect(() => {
-    if (pool && pool.length > 1 && !pair && !over) setPair(draw(pool))
-  }, [pool, pair, over, draw])
+    if (pool && pool.length > 1 && !round && !over) setRound(nextRound(pool))
+  }, [pool, round, over, nextRound])
 
   function restart() {
     setScore(0)
     setOver(false)
     setPicked(null)
-    setPair(pool ? draw(pool) : null)
+    setRound(pool ? nextRound(pool) : null)
   }
 
   function pick(i: number) {
-    if (picked !== null || !pair) return
+    if (picked !== null || !round) return
     setPicked(i)
-    const correct = pair[i].goals > pair[1 - i].goals
+    const { pair, metric } = round
+    const correct = (metric.get(pair[i]) ?? 0) > (metric.get(pair[1 - i]) ?? 0)
     if (correct) {
       window.setTimeout(() => {
         setScore((s) => s + 1)
         setPicked(null)
-        setPair(pool ? draw(pool) : null)
+        setRound(pool ? nextRound(pool) : null)
       }, 1050)
     } else {
       const nb = Math.max(best, score)
@@ -68,9 +99,7 @@ export function MiniGamePage() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-ink-100">Gol Düellosu</h1>
-          <p className="text-sm text-ink-400">
-            Bu sezon hangisi daha çok gol attı? Üst üste kaç bilebilirsin?
-          </p>
+          <p className="text-sm text-ink-400">İki oyuncu, değişen bir istatistik. Üst üste kaç bilebilirsin?</p>
         </div>
         <div className="flex items-center gap-4">
           <Stat icon={<Flame className="h-4 w-4 text-brand-400" />} label="Seri" value={score} />
@@ -89,43 +118,47 @@ export function MiniGamePage() {
             </Button>
           </CardBody>
         </Card>
-      ) : !pair ? (
+      ) : !round ? (
         <Skeleton className="h-80" />
       ) : (
-        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3 sm:gap-4">
-          <PlayerCard
-            player={pair[0]}
-            revealed={picked !== null}
-            state={cardState(pair, 0, picked)}
-            onPick={() => pick(0)}
-          />
-          <div className="flex items-center justify-center">
-            <span className="score-num rounded-full border border-ink-700 bg-ink-900 px-3 py-2 text-sm font-bold text-ink-400">
-              VS
-            </span>
+        <>
+          <div className="mb-3 text-center text-lg font-semibold text-ink-100">{round.metric.question}</div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3 sm:gap-4">
+            <PlayerCard
+              player={round.pair[0]}
+              metric={round.metric}
+              revealed={picked !== null}
+              state={cardState(round, 0, picked)}
+              onPick={() => pick(0)}
+            />
+            <div className="flex items-center justify-center">
+              <span className="score-num rounded-full border border-ink-700 bg-ink-900 px-3 py-2 text-sm font-bold text-ink-400">
+                VS
+              </span>
+            </div>
+            <PlayerCard
+              player={round.pair[1]}
+              metric={round.metric}
+              revealed={picked !== null}
+              state={cardState(round, 1, picked)}
+              onPick={() => pick(1)}
+            />
           </div>
-          <PlayerCard
-            player={pair[1]}
-            revealed={picked !== null}
-            state={cardState(pair, 1, picked)}
-            onPick={() => pick(1)}
-          />
-        </div>
+        </>
       )}
 
       {!over && (
         <p className="mt-4 text-center text-xs text-ink-500">
-          Goller {new Date().getFullYear() - 1}/{String(new Date().getFullYear() % 100).padStart(2, '0')} sezonu
-          lig gollerini gösterir.
+          İstatistikler 2025/26 sezonu Avrupa'nın 6 büyük ligini kapsar.
         </p>
       )}
     </div>
   )
 }
 
-function cardState(pair: Pair, i: number, picked: number | null): 'idle' | 'win' | 'lose' {
+function cardState({ pair, metric }: Round, i: number, picked: number | null): 'idle' | 'win' | 'lose' {
   if (picked === null) return 'idle'
-  return pair[i].goals > pair[1 - i].goals ? 'win' : 'lose'
+  return (metric.get(pair[i]) ?? 0) > (metric.get(pair[1 - i]) ?? 0) ? 'win' : 'lose'
 }
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
@@ -142,15 +175,18 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
 
 function PlayerCard({
   player,
+  metric,
   revealed,
   state,
   onPick,
 }: {
   player: GamePoolPlayer
+  metric: Metric
   revealed: boolean
   state: 'idle' | 'win' | 'lose'
   onPick: () => void
 }) {
+  const raw = metric.get(player)
   return (
     <button
       onClick={onPick}
@@ -169,7 +205,9 @@ function PlayerCard({
       </div>
       <div className="font-semibold text-ink-100">{player.name}</div>
       {revealed ? (
-        <div className="score-num text-3xl font-extrabold text-brand-300">{player.goals}</div>
+        <div className="score-num text-3xl font-extrabold text-brand-300">
+          {raw != null ? metric.fmt(raw) : '—'}
+        </div>
       ) : (
         <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Seç</div>
       )}
