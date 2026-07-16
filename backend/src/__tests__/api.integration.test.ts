@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { newDb } from 'pg-mem'
+import { DataType, newDb } from 'pg-mem'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Server } from 'node:http'
@@ -44,6 +44,16 @@ beforeAll(async () => {
   const { createApp } = await import('../app')
 
   const db = newDb()
+  // Prod uses the unaccent extension (migration 020) for accent-insensitive
+  // search; register a no-op stub so pg-mem can run CREATE EXTENSION + unaccent().
+  db.registerExtension('unaccent', (schema) => {
+    schema.registerFunction({
+      name: 'unaccent',
+      args: [DataType.text],
+      returns: DataType.text,
+      implementation: (x: string) => x,
+    })
+  })
   const migDir = join(process.cwd(), 'src/db/migrations')
   for (const file of readdirSync(migDir).filter((n) => n.endsWith('.sql')).sort()) {
     db.public.none(readFileSync(join(migDir, file), 'utf8'))

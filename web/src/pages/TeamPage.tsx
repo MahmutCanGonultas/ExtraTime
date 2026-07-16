@@ -4,7 +4,7 @@ import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import type { SquadPlayer, TeamStanding } from '@/features/football/types'
+import type { SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
@@ -33,25 +33,36 @@ export function TeamPage() {
 
   return (
     <div className="space-y-5">
-      {/* Hero */}
-      <section
-        className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
-      >
-        <div className="absolute inset-0 mow-stripes" />
-        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
-        <div className="relative flex flex-wrap items-center gap-4 px-6 py-7 sm:px-8">
-          <TeamLogo apiId={team.apiFootballId} size={72} className="drop-shadow-lg" />
+      {/* Hero — the stadium photo as a big backdrop */}
+      <section className="relative min-h-[220px] overflow-hidden rounded-card border border-ink-800">
+        {team.venueImage ? (
+          <img src={team.venueImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <>
+            <div
+              className="absolute inset-0"
+              style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
+            />
+            <div className="absolute inset-0 mow-stripes" />
+            <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
+          </>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/80 to-ink-950/25" />
+        <div className="relative flex min-h-[220px] flex-wrap items-end gap-4 p-6 sm:p-8">
+          <TeamLogo apiId={team.apiFootballId} size={76} className="drop-shadow-2xl" />
           <div className="min-w-0">
-            <h1 className="text-3xl font-extrabold tracking-tight text-ink-100">{team.name}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-300">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
+              {team.name}
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
               {location && (
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-brand-300" /> {location}
                 </span>
               )}
+              {team.founded && <span>Kuruluş {team.founded}</span>}
               {primary && (
-                <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-300">
+                <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-bold text-ink-950">
                   {primary.leagueName} · {primary.position}. sıra
                 </span>
               )}
@@ -64,16 +75,31 @@ export function TeamPage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {squad.filter((p) => (p.goals ?? 0) > 0).length > 0 && (
+            <TeamStars squad={squad.filter((p) => (p.goals ?? 0) > 0).slice(0, 3)} />
+          )}
           {upcoming.length > 0 && (
             <Card className="overflow-hidden">
-              <CardHeader title="Yaklaşan maçlar" />
-              <FixtureList fixtures={upcoming} showLeague />
+              <CardHeader
+                title="Yaklaşan maçlar"
+                action={
+                  primary && (
+                    <Link
+                      to={`/leagues/${primary.leagueId}`}
+                      className="text-xs font-medium text-brand-300 hover:underline"
+                    >
+                      Tüm fikstür →
+                    </Link>
+                  )
+                }
+              />
+              <FixtureList fixtures={upcoming.slice(0, 5)} showLeague />
             </Card>
           )}
           {recent.length > 0 && (
             <Card className="overflow-hidden">
               <CardHeader title="Son sonuçlar" />
-              <FixtureList fixtures={recent} showLeague />
+              <FixtureList fixtures={recent.slice(0, 5)} showLeague />
             </Card>
           )}
           {fixtures.length === 0 && (
@@ -83,7 +109,9 @@ export function TeamPage() {
           )}
         </div>
 
-        <aside>
+        <aside className="space-y-5">
+          <TeamInfoCard team={team} />
+
           <Card className="overflow-hidden">
             <CardHeader title={`Kadro${squad.length ? ` · ${squad.length}` : ''}`} />
             {squad.length === 0 ? (
@@ -99,6 +127,54 @@ export function TeamPage() {
         </aside>
       </div>
     </div>
+  )
+}
+
+function TeamStars({ squad }: { squad: SquadPlayer[] }) {
+  return (
+    <Card>
+      <CardHeader title="Takımın golcüleri" />
+      <CardBody>
+        <div className="grid grid-cols-3 gap-3">
+          {squad.map((p) => (
+            <Link
+              key={p.playerApiId}
+              to={`/players/${p.playerApiId}`}
+              className="flex flex-col items-center gap-1.5 rounded-lg bg-ink-850 px-2 py-3 text-center transition hover:bg-ink-800"
+            >
+              <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={56} />
+              <div className="mt-0.5 truncate text-xs font-medium text-ink-100">{p.name}</div>
+              <div className="score-num text-2xl font-extrabold text-brand-300">{p.goals ?? 0}</div>
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">gol</div>
+            </Link>
+          ))}
+        </div>
+      </CardBody>
+    </Card>
+  )
+}
+
+function TeamInfoCard({ team }: { team: Team }) {
+  const rows = [
+    team.country && { label: 'Ülke', value: team.country },
+    team.founded && { label: 'Kuruluş', value: String(team.founded) },
+    team.stadiumName && { label: 'Stadyum', value: team.stadiumName },
+    team.city && { label: 'Şehir', value: team.city },
+    team.venueCapacity && { label: 'Kapasite', value: team.venueCapacity.toLocaleString('tr-TR') },
+  ].filter(Boolean) as Array<{ label: string; value: string }>
+  if (rows.length === 0) return null
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader title="Künye" />
+      <ul className="px-2 py-1">
+        {rows.map((r) => (
+          <li key={r.label} className="flex items-center justify-between gap-3 px-2 py-1.5 text-sm">
+            <span className="shrink-0 text-ink-400">{r.label}</span>
+            <span className="truncate text-right font-medium text-ink-100">{r.value}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   )
 }
 

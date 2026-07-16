@@ -105,6 +105,10 @@ export interface Team {
   shortName: string | null
   stadiumName: string | null
   city: string | null
+  founded: number | null
+  country: string | null
+  venueCapacity: number | null
+  venueImage: string | null
 }
 
 export interface SearchTeam {
@@ -219,6 +223,18 @@ export interface PlayerRow {
   photoUrl: string | null
 }
 
+export interface PlayerStatBlock {
+  shots?: { total: number | null; on: number | null }
+  passes?: { total: number | null; key: number | null; accuracy: number | null }
+  tackles?: { total: number | null; blocks: number | null; interceptions: number | null }
+  duels?: { total: number | null; won: number | null }
+  dribbles?: { attempts: number | null; success: number | null }
+  fouls?: { drawn: number | null; committed: number | null }
+  penalty?: { won: number | null; scored: number | null; missed: number | null; saved: number | null }
+  games?: { lineups: number | null; rating: string | null; captain?: boolean }
+  [key: string]: unknown
+}
+
 export interface PlayerSeason {
   leagueId: number
   leagueName: string
@@ -234,6 +250,7 @@ export interface PlayerSeason {
   yellowCards: number | null
   redCards: number | null
   rating: number | null
+  stats: PlayerStatBlock | null
 }
 
 export interface PlayerProfile {
@@ -246,6 +263,8 @@ export interface PlayerProfile {
   position: string | null
   height: string | null
   weight: string | null
+  birthDate: string | null
+  birthPlace: string | null
   photoUrl: string | null
   seasons: PlayerSeason[]
 }

@@ -331,9 +331,10 @@ export async function upsertPlayer(
     `INSERT INTO players (
        player_api_id, league_id, season, team_api_id, team_name, name, firstname, lastname,
        age, nationality, position, height, weight, photo_url,
-       appearances, minutes, goals, assists, yellow_cards, red_cards, rating
+       appearances, minutes, goals, assists, yellow_cards, red_cards, rating,
+       stats, birth_date, birth_place
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      ON CONFLICT (player_api_id, league_id, season) DO UPDATE SET
        team_api_id = EXCLUDED.team_api_id, team_name = EXCLUDED.team_name, name = EXCLUDED.name,
        firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, age = EXCLUDED.age,
@@ -341,12 +342,15 @@ export async function upsertPlayer(
        weight = EXCLUDED.weight, photo_url = EXCLUDED.photo_url, appearances = EXCLUDED.appearances,
        minutes = EXCLUDED.minutes, goals = EXCLUDED.goals, assists = EXCLUDED.assists,
        yellow_cards = EXCLUDED.yellow_cards, red_cards = EXCLUDED.red_cards, rating = EXCLUDED.rating,
+       stats = EXCLUDED.stats, birth_date = EXCLUDED.birth_date, birth_place = EXCLUDED.birth_place,
        updated_at = now()`,
     [
       p.id, leagueId, season, stat.team.id, stat.team.name, p.name, p.firstname, p.lastname,
       p.age, p.nationality, stat.games.position, p.height, p.weight, p.photo,
       stat.games.appearences, stat.games.minutes, stat.goals.total ?? 0, stat.goals.assists ?? 0,
       stat.cards.yellow ?? 0, stat.cards.red ?? 0, rating,
+      JSON.stringify(stat), p.birth?.date ?? null,
+      [p.birth?.place, p.birth?.country].filter(Boolean).join(', ') || null,
     ],
   )
   return 1

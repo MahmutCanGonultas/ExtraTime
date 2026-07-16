@@ -64,6 +64,17 @@ export interface RawLeague {
   seasons: Array<{ year: number; current: boolean }>
 }
 
+export interface RawTeamInfo {
+  team: { id: number; name: string; country: string | null; founded: number | null; logo: string | null }
+  venue: {
+    id: number | null
+    name: string | null
+    city: string | null
+    capacity: number | null
+    image: string | null
+  } | null
+}
+
 export interface RawPlayer {
   player: {
     id: number
@@ -71,6 +82,7 @@ export interface RawPlayer {
     firstname: string | null
     lastname: string | null
     age: number | null
+    birth: { date: string | null; place: string | null; country: string | null } | null
     nationality: string | null
     height: string | null
     weight: string | null

@@ -329,6 +329,8 @@ export interface PlayerProfile {
   position: string | null
   height: string | null
   weight: string | null
+  birthDate: string | null
+  birthPlace: string | null
   photoUrl: string | null
   seasons: Array<{
     leagueId: number
@@ -345,6 +347,8 @@ export interface PlayerProfile {
     yellowCards: number | null
     redCards: number | null
     rating: number | null
+    // Raw API statistics blob (shots, passes, dribbles, duels, …) for the detail page.
+    stats: Record<string, unknown> | null
   }>
 }
 
@@ -360,6 +364,8 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     position: string | null
     height: string | null
     weight: string | null
+    birthDate: string | null
+    birthPlace: string | null
     photoUrl: string | null
     leagueId: number
     leagueName: string
@@ -375,18 +381,21 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     yellowCards: number | null
     redCards: number | null
     rating: number | null
+    stats: Record<string, unknown> | null
   }>(
     `SELECT p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.age, p.nationality,
-            p.position, p.height, p.weight, p.photo_url AS "photoUrl",
+            p.position, p.height, p.weight, p.birth_date AS "birthDate", p.birth_place AS "birthPlace",
+            p.photo_url AS "photoUrl",
             l.id AS "leagueId", l.name AS "leagueName", l.api_football_id AS "leagueApiId", p.season,
             t.id AS "teamId", p.team_api_id AS "teamApiId", p.team_name AS "teamName",
             p.appearances, p.minutes, p.goals, p.assists,
-            p.yellow_cards AS "yellowCards", p.red_cards AS "redCards", p.rating::float8 AS rating
+            p.yellow_cards AS "yellowCards", p.red_cards AS "redCards", p.rating::float8 AS rating,
+            p.stats
      FROM players p
      JOIN leagues l ON l.id = p.league_id
      LEFT JOIN teams t ON t.api_football_id = p.team_api_id
      WHERE p.player_api_id = $1
-     ORDER BY p.season DESC, p.goals DESC NULLS LAST`,
+     ORDER BY p.season DESC, p.appearances DESC NULLS LAST, p.goals DESC NULLS LAST`,
     [playerApiId],
   )
   if (rows.length === 0) return null
@@ -399,8 +408,10 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     age: head.age,
     nationality: head.nationality,
     position: head.position,
-    height: head.height,
-    weight: head.weight,
+    height: rows.find((r) => r.height)?.height ?? head.height,
+    weight: rows.find((r) => r.weight)?.weight ?? head.weight,
+    birthDate: rows.find((r) => r.birthDate)?.birthDate ?? null,
+    birthPlace: rows.find((r) => r.birthPlace)?.birthPlace ?? null,
     photoUrl: head.photoUrl,
     seasons: rows.map((r) => ({
       leagueId: r.leagueId,
@@ -417,6 +428,7 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
       yellowCards: r.yellowCards,
       redCards: r.redCards,
       rating: r.rating,
+      stats: r.stats,
     })),
   }
 }
@@ -437,11 +449,16 @@ export interface SearchPlayer {
 // Global search over team + player names for the header search bar.
 export async function search(q: string): Promise<{ teams: SearchTeam[]; players: SearchPlayer[] }> {
   const like = `%${q}%`
+  const prefix = `${q}%`
+  // Accent-insensitive: normalise both stored name and query with unaccent().
   const teams = (
     await query<SearchTeam>(
       `SELECT id, api_football_id AS "apiFootballId", name
-       FROM teams WHERE name ILIKE $1 ORDER BY (name ILIKE $2) DESC, name LIMIT 8`,
-      [like, `${q}%`],
+       FROM teams
+       WHERE unaccent(name) ILIKE unaccent($1)
+       ORDER BY (unaccent(name) ILIKE unaccent($2)) DESC, name
+       LIMIT 8`,
+      [like, prefix],
     )
   ).rows
   const players = (
@@ -451,14 +468,17 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
            player_api_id AS "playerApiId", name, firstname, lastname, photo_url AS "photoUrl",
            team_name AS "teamName", team_api_id AS "teamApiId", goals, appearances
          FROM players
-         WHERE name ILIKE $1 OR firstname ILIKE $1 OR lastname ILIKE $1
-            OR (COALESCE(firstname, '') || ' ' || COALESCE(lastname, '')) ILIKE $1
+         WHERE unaccent(name) ILIKE unaccent($1)
+            OR unaccent(firstname) ILIKE unaccent($1)
+            OR unaccent(lastname) ILIKE unaccent($1)
+            OR unaccent(COALESCE(firstname, '') || ' ' || COALESCE(lastname, '')) ILIKE unaccent($1)
          ORDER BY player_api_id, season DESC, appearances DESC NULLS LAST
        ) s
-       ORDER BY (s.name ILIKE $2 OR s.firstname ILIKE $2 OR s.lastname ILIKE $2) DESC,
+       ORDER BY (unaccent(s.name) ILIKE unaccent($2) OR unaccent(s.firstname) ILIKE unaccent($2)
+                 OR unaccent(s.lastname) ILIKE unaccent($2)) DESC,
                 s.appearances DESC NULLS LAST, s.name
        LIMIT 8`,
-      [like, `${q}%`],
+      [like, prefix],
     )
   ).rows
   return { teams, players }
@@ -510,15 +530,19 @@ export interface SquadPlayer {
   season: number
 }
 
-// The team's most-recent-season squad we hold, best scorers first.
+// The team's CURRENT-season squad (its newest season we hold), best scorers
+// first. Restricting to the latest season keeps players who have since left —
+// picked up from historical backfills — out of the current roster.
 export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
   const { rows } = await query<SquadPlayer>(
     `SELECT DISTINCT ON (player_api_id)
        player_api_id AS "playerApiId", name, position, nationality, age,
        goals, assists, appearances, minutes, rating::float8 AS rating,
        photo_url AS "photoUrl", season
-     FROM players WHERE team_api_id = $1
-     ORDER BY player_api_id, season DESC, appearances DESC NULLS LAST`,
+     FROM players
+     WHERE team_api_id = $1
+       AND season = (SELECT MAX(season) FROM players WHERE team_api_id = $1)
+     ORDER BY player_api_id, appearances DESC NULLS LAST`,
     [teamApiId],
   )
   return rows.sort(
@@ -529,7 +553,8 @@ export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
 export async function getTeam(teamId: number) {
   const { rows } = await query(
     `SELECT id, api_football_id AS "apiFootballId", name, short_name AS "shortName",
-            stadium_name AS "stadiumName", city
+            stadium_name AS "stadiumName", city, founded, country,
+            venue_capacity AS "venueCapacity", venue_image AS "venueImage"
      FROM teams WHERE id = $1`,
     [teamId],
   )
