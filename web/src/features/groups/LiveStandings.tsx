@@ -6,8 +6,16 @@ import { cn } from '@/lib/cn'
 
 // "If the live scores froze right now" standings — only shown while curated
 // matches are in progress. Points and ranks are provisional (never persisted).
-export function LiveStandings({ groupId, currentUserId }: { groupId: number; currentUserId?: number }) {
-  const q = useProvisionalLeaderboard(groupId)
+export function LiveStandings({
+  groupId,
+  gameId,
+  currentUserId,
+}: {
+  groupId: number
+  gameId: number
+  currentUserId?: number
+}) {
+  const q = useProvisionalLeaderboard(groupId, gameId)
   if (!q.data?.live) return null
   const entries = q.data.entries
 

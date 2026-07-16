@@ -4,8 +4,7 @@ import { useLeagues, useLiveFixtures } from '@/features/football/hooks'
 import type { League } from '@/features/football/types'
 import { LiveMatchCard } from '@/features/football/LiveMatchCard'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
-import { useGroupFixtures, useLeaderboard } from '@/features/groups/hooks'
-import type { GameFixture, Outcome } from '@/features/groups/types'
+import { useLeaderboard } from '@/features/groups/hooks'
 import { Leaderboard } from '@/features/groups/Leaderboard'
 import { useAuth } from '@/features/auth/AuthContext'
 import { TeamLogo } from '@/components/TeamLogo'
@@ -14,10 +13,6 @@ import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/feedback'
-import { useCountdown, formatCountdown } from '@/lib/useCountdown'
-import { formatDateTime } from '@/lib/format'
-
-const outcomeShort: Record<Outcome, string> = { HOME: '1', DRAW: 'X', AWAY: '2' }
 
 export function HomePage() {
   const { user } = useAuth()
@@ -27,12 +22,6 @@ export function HomePage() {
   const live = useLiveFixtures()
   const leaguesQ = useLeagues(true)
   const leaderboard = useLeaderboard(groupId)
-  const groupFixtures = useGroupFixtures(groupId)
-
-  const games = groupFixtures.data ?? []
-  const openGames = games.filter((f) => f.open)
-  const pending = openGames.filter((f) => f.myOutcome == null).length
-  const nextGames = openGames.slice(0, 3)
 
   const myEntry = leaderboard.data?.find((e) => e.userId === user?.id)
   const myRank = myEntry ? (leaderboard.data?.indexOf(myEntry) ?? 0) + 1 : null
@@ -40,9 +29,7 @@ export function HomePage() {
 
   const cta = !active
     ? { label: 'Gruba katıl', href: '/group' }
-    : pending > 0
-      ? { label: `Tahminleri gir · ${pending} maç`, href: '/predictions' }
-      : { label: 'Tahminlerim', href: '/predictions' }
+    : { label: 'Tahminlere gir', href: '/predictions' }
 
   // One entry per competition for the quiet "Ligler" door.
   const primaryMap = new Map<number, League>()
@@ -85,7 +72,6 @@ export function HomePage() {
                     {myEntry?.points ?? 0} puan
                   </>
                 )}
-                {pending > 0 && <> · {pending} tahmin bekliyor</>}
               </>
             ) : (
               'Arkadaşlarınla bir tahmin ligi kur, maçları ekle, herkes tahmin girsin.'
@@ -125,34 +111,7 @@ export function HomePage() {
         </section>
       )}
 
-      {/* 3 — Your next predictions (only with an active group) */}
-      {active && (
-        <section>
-          <div className="flex items-center justify-between">
-            <SectionTitle>Sıradaki tahminlerin</SectionTitle>
-            <Link to="/predictions" className="text-xs font-medium text-brand-300 hover:underline">
-              Tümü →
-            </Link>
-          </div>
-          <Card className="mt-3">
-            {groupFixtures.isLoading ? (
-              <Skeleton className="m-4 h-24" />
-            ) : nextGames.length === 0 ? (
-              <CardBody className="py-6 text-center text-sm text-ink-500">
-                Tahmin bekleyen maç yok.
-              </CardBody>
-            ) : (
-              <ul className="divide-y divide-ink-850">
-                {nextGames.map((f) => (
-                  <NextPredictionRow key={f.fixtureId} fixture={f} />
-                ))}
-              </ul>
-            )}
-          </Card>
-        </section>
-      )}
-
-      {/* 4 — Group standing (only with an active group) */}
+      {/* 3 — Group standing (only with an active group) */}
       {active && (
         <section>
           <div className="flex items-center justify-between">
@@ -215,41 +174,3 @@ function SectionTitle({ children, live }: { children: React.ReactNode; live?: bo
   )
 }
 
-function NextPredictionRow({ fixture }: { fixture: GameFixture }) {
-  const countdown = useCountdown(fixture.kickoffAt)
-  const predicted = fixture.myOutcome != null
-  return (
-    <Link
-      to="/predictions"
-      className="flex items-center gap-3 px-4 py-3 transition hover:bg-ink-850"
-    >
-      <TeamLogo apiId={fixture.leagueApiId} kind="league" size={16} className="hidden sm:block" />
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <TeamLogo apiId={fixture.homeApiId} size={20} />
-        <span className="truncate text-sm text-ink-100">{fixture.homeName}</span>
-        <span className="text-ink-600">-</span>
-        <span className="truncate text-sm text-ink-100">{fixture.awayName}</span>
-        <TeamLogo apiId={fixture.awayApiId} size={20} />
-      </div>
-      <div className="shrink-0 text-right">
-        {predicted ? (
-          <span className="text-xs text-ink-400">
-            Tahminin:{' '}
-            <span className="font-semibold text-ink-200">
-              {fixture.myHome != null
-                ? `${fixture.myHome}-${fixture.myAway}`
-                : outcomeShort[fixture.myOutcome!]}
-            </span>
-          </span>
-        ) : (
-          <span className="rounded-md bg-brand-500/15 px-2 py-1 text-xs font-semibold text-brand-300">
-            Tahmin et
-          </span>
-        )}
-        <div className="mt-0.5 text-[11px] text-ink-500">
-          {countdown.locked ? formatDateTime(fixture.kickoffAt) : formatCountdown(countdown)}
-        </div>
-      </div>
-    </Link>
-  )
-}

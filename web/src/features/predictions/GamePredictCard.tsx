@@ -31,15 +31,17 @@ function deriveOutcome(home: string, away: string): Outcome | null {
 export function GamePredictCard({
   fixture,
   groupId,
+  gameId,
   onRemove,
 }: {
   fixture: GameFixture
   groupId: number
+  gameId: number
   onRemove?: () => void
 }) {
   const countdown = useCountdown(fixture.kickoffAt)
-  const upsert = useUpsertPrediction(groupId)
-  const joker = useSetJoker(groupId)
+  const upsert = useUpsertPrediction(groupId, gameId)
+  const joker = useSetJoker(groupId, gameId)
   const [outcome, setOutcome] = useState<Outcome | null>(fixture.myOutcome)
   const [home, setHome] = useState(fixture.myHome != null ? String(fixture.myHome) : '')
   const [away, setAway] = useState(fixture.myAway != null ? String(fixture.myAway) : '')

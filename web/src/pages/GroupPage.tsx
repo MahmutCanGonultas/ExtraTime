@@ -1,21 +1,17 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, Crown, RefreshCw, Users } from 'lucide-react'
+import { Copy, RefreshCw, Users } from 'lucide-react'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import {
   useCreateGroup,
   useDeleteGroup,
   useGroup,
   useJoinGroup,
-  useLeaderboard,
   useRegenerateInvite,
   useRemoveMember,
   useResetPassword,
 } from '@/features/groups/hooks'
 import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
-import { Leaderboard } from '@/features/groups/Leaderboard'
-import { Podium } from '@/features/groups/Podium'
-import { LiveStandings } from '@/features/groups/LiveStandings'
 import { RivalryBook } from '@/features/groups/RivalryBook'
 import { GameManager } from '@/features/groups/GameManager'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
@@ -25,7 +21,7 @@ import { ApiError } from '@/lib/api'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Field } from '@/components/ui/Input'
-import { Skeleton, EmptyState, ErrorState } from '@/components/ui/feedback'
+import { Skeleton } from '@/components/ui/feedback'
 
 export function GroupPage() {
   const { active, isLoading } = useActiveGroup()
@@ -107,7 +103,6 @@ function NoGroup() {
 function GroupView({ group }: { group: GroupSummary }) {
   const { user } = useAuth()
   const detail = useGroup(group.id)
-  const leaderboard = useLeaderboard(group.id)
   const regenerate = useRegenerateInvite(group.id)
   const [copied, setCopied] = useState(false)
 
@@ -121,8 +116,6 @@ function GroupView({ group }: { group: GroupSummary }) {
     })
   }
 
-  const board = leaderboard.data ?? []
-  const leader = board[0]?.points ? board[0] : null
   const memberCount = g?.members.length ?? group.memberCount
 
   return (
@@ -142,50 +135,13 @@ function GroupView({ group }: { group: GroupSummary }) {
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink-100">
             {g?.name ?? group.name}
           </h1>
-          <p className="mt-1 text-sm text-ink-300">
-            {memberCount} oyuncu{g?.activeSeason ? ` · ${g.activeSeason.title}` : ''}
-          </p>
-          {leader && (
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-200">
-              <Crown className="h-3.5 w-3.5" /> Lider: {leader.displayName} · {leader.points} puan
-            </div>
-          )}
+          <p className="mt-1 text-sm text-ink-300">{memberCount} oyuncu</p>
         </div>
       </section>
 
-      <LiveStandings groupId={group.id} currentUserId={user?.id} />
-
-      {/* Standings — podium + list */}
-      <Card className="overflow-hidden">
-        <CardHeader title="Puan Durumu" />
-        {leaderboard.isLoading ? (
-          <Skeleton className="m-4 h-40" />
-        ) : leaderboard.isError ? (
-          <ErrorState onRetry={() => leaderboard.refetch()} />
-        ) : board.length ? (
-          <>
-            {leader && <Podium entries={board} currentUserId={user?.id} />}
-            <div className={leader ? 'mt-3 border-t border-ink-800' : ''}>
-              <Leaderboard
-                entries={leader ? board.slice(3) : board}
-                currentUserId={user?.id}
-                offset={leader ? 3 : 0}
-              />
-            </div>
-          </>
-        ) : (
-          <EmptyState title="Henüz puan yok" description="Maçlar sonuçlandıkça tablo dolacak." />
-        )}
-      </Card>
+      <GameManager groupId={group.id} isAdmin={g?.isAdmin ?? false} currentUserId={user?.id} />
 
       <RivalryBook groupId={group.id} />
-
-      <GameManager
-        groupId={group.id}
-        isAdmin={g?.isAdmin ?? false}
-        activeSeason={g?.activeSeason ?? null}
-        currentUserId={user?.id}
-      />
 
       {g?.isAdmin && g.inviteCode && (
         <Card>

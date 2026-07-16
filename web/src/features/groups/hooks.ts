@@ -81,7 +81,7 @@ export function useJoinGroup() {
   })
 }
 
-export function useUpsertPrediction(groupId: number) {
+export function useUpsertPrediction(groupId: number, gameId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: {
@@ -96,103 +96,91 @@ export function useUpsertPrediction(groupId: number) {
         predictedAway: input.predictedAway ?? null,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-predictions', groupId] })
-      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
+      qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
       qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
     },
   })
 }
 
-// ---- The group's current game: curated matches, ending, history ----
+// ---- Games: a group can run several at once, each with its own matches ----
 
-export function useGroupFixtures(groupId: number) {
+export function useGames(groupId: number) {
   return useQuery({
-    queryKey: ['group-fixtures', groupId],
-    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/fixtures`),
-    select: (d) => d.fixtures,
+    queryKey: ['games', groupId],
+    queryFn: () => api.get<{ games: SeasonSummary[] }>(`/groups/${groupId}/games`),
+    select: (d) => d.games,
     enabled: groupId > 0,
   })
 }
 
-export function useCandidateFixtures(groupId: number, enabled: boolean) {
+export function useGameDetail(groupId: number, gameId: number | null) {
   return useQuery({
-    queryKey: ['candidate-fixtures', groupId],
-    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/candidate-fixtures`),
-    select: (d) => d.fixtures,
-    enabled: enabled && groupId > 0,
+    queryKey: ['game', groupId, gameId],
+    queryFn: () => api.get<SeasonDetail>(`/groups/${groupId}/games/${gameId}`),
+    enabled: groupId > 0 && gameId != null && gameId > 0,
   })
 }
 
-export function useAddGroupFixture(groupId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (fixtureId: number) => api.post(`/groups/${groupId}/fixtures`, { fixtureId }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
-      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId] })
-    },
-  })
-}
-
-export function useRemoveGroupFixture(groupId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (fixtureId: number) => api.del(`/groups/${groupId}/fixtures/${fixtureId}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
-      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId] })
-      qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
-    },
-  })
-}
-
-export function useSetJoker(groupId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (fixtureId: number) => api.put(`/groups/${groupId}/joker/${fixtureId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] }),
-  })
-}
-
-export function useFinishGame(groupId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: () => api.post<{ champion: Champion | null }>(`/groups/${groupId}/finish`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group', groupId] })
-      qc.invalidateQueries({ queryKey: ['group-seasons', groupId] })
-    },
-  })
-}
-
-export function useNewGame(groupId: number) {
+export function useCreateGame(groupId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (title?: string) =>
-      api.post<{ season: SeasonRef }>(`/groups/${groupId}/new-game`, { title }),
+      api.post<{ game: SeasonRef }>(`/groups/${groupId}/games`, { title }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['games', groupId] }),
+  })
+}
+
+export function useGameCandidates(groupId: number, gameId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['candidate-fixtures', groupId, gameId],
+    queryFn: () =>
+      api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/games/${gameId}/candidate-fixtures`),
+    select: (d) => d.fixtures,
+    enabled: enabled && groupId > 0 && gameId > 0,
+  })
+}
+
+export function useAddGameFixture(groupId: number, gameId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) =>
+      api.post(`/groups/${groupId}/games/${gameId}/fixtures`, { fixtureId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group', groupId] })
-      qc.invalidateQueries({ queryKey: ['group-seasons', groupId] })
-      qc.invalidateQueries({ queryKey: ['group-fixtures', groupId] })
-      qc.invalidateQueries({ queryKey: ['leaderboard', groupId] })
+      qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
+      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId, gameId] })
     },
   })
 }
 
-export function useSeasons(groupId: number) {
-  return useQuery({
-    queryKey: ['group-seasons', groupId],
-    queryFn: () => api.get<{ seasons: SeasonSummary[] }>(`/groups/${groupId}/seasons`),
-    select: (d) => d.seasons,
-    enabled: groupId > 0,
+export function useRemoveGameFixture(groupId: number, gameId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) =>
+      api.del(`/groups/${groupId}/games/${gameId}/fixtures/${fixtureId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
+      qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId, gameId] })
+    },
   })
 }
 
-export function useSeasonDetail(groupId: number, seasonId: number | null) {
-  return useQuery({
-    queryKey: ['group-season', groupId, seasonId],
-    queryFn: () => api.get<SeasonDetail>(`/groups/${groupId}/seasons/${seasonId}`),
-    enabled: groupId > 0 && seasonId != null,
+export function useSetJoker(groupId: number, gameId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fixtureId: number) =>
+      api.put(`/groups/${groupId}/games/${gameId}/joker/${fixtureId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['game', groupId, gameId] }),
+  })
+}
+
+export function useFinishGame(groupId: number, gameId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<{ champion: Champion | null }>(`/groups/${groupId}/games/${gameId}/finish`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['games', groupId] })
+      qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
+    },
   })
 }
 
@@ -213,11 +201,14 @@ export function useTrophies(groupId: number, userId: number) {
   })
 }
 
-export function useProvisionalLeaderboard(groupId: number) {
+export function useProvisionalLeaderboard(groupId: number, gameId: number) {
   return useQuery({
-    queryKey: ['leaderboard-live', groupId],
-    queryFn: () => api.get<{ entries: ProvisionalEntry[]; live: boolean }>(`/groups/${groupId}/leaderboard/live`),
-    enabled: groupId > 0,
+    queryKey: ['leaderboard-live', groupId, gameId],
+    queryFn: () =>
+      api.get<{ entries: ProvisionalEntry[]; live: boolean }>(
+        `/groups/${groupId}/games/${gameId}/leaderboard/live`,
+      ),
+    enabled: groupId > 0 && gameId > 0,
     refetchInterval: 20_000,
   })
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, Plus, Search } from 'lucide-react'
-import { useAddGroupFixture, useCandidateFixtures } from '@/features/groups/hooks'
+import { useAddGameFixture, useGameCandidates } from '@/features/groups/hooks'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/feedback'
@@ -9,11 +9,11 @@ import { cn } from '@/lib/cn'
 
 // Leader-only: browse still-predictable matches from our leagues and add them to
 // the current game.
-export function AddMatchesPanel({ groupId }: { groupId: number }) {
+export function AddMatchesPanel({ groupId, gameId }: { groupId: number; gameId: number }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const candidates = useCandidateFixtures(groupId, open)
-  const add = useAddGroupFixture(groupId)
+  const candidates = useGameCandidates(groupId, gameId, open)
+  const add = useAddGameFixture(groupId, gameId)
 
   const list = (candidates.data ?? []).filter((f) => {
     if (!q) return true
