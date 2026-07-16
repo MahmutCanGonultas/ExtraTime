@@ -44,13 +44,15 @@ export function GamePredictCard({
   const [home, setHome] = useState(fixture.myHome != null ? String(fixture.myHome) : '')
   const [away, setAway] = useState(fixture.myAway != null ? String(fixture.myAway) : '')
   const [showScore, setShowScore] = useState(fixture.myHome != null)
-  const [saved, setSaved] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const live = isLive(fixture.status)
   const finished = isFinished(fixture.status)
   const showResult = live || finished
   const locked = !fixture.open
+  // Predictions are final: once submitted, a member can no longer change it.
+  const predicted = fixture.myOutcome != null
 
   // Picking an outcome clears an inconsistent score; typing a score sets the outcome.
   function pickOutcome(o: Outcome) {
@@ -70,7 +72,6 @@ export function GamePredictCard({
   }
 
   const hasScore = home !== '' && away !== ''
-  const canSave = outcome !== null && !locked && !upsert.isPending
 
   async function save() {
     if (!outcome) return
@@ -82,12 +83,29 @@ export function GamePredictCard({
         predictedHome: hasScore ? Number(home) : null,
         predictedAway: hasScore ? Number(away) : null,
       })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
+      setConfirming(false)
+      // The refetch flips this card into its read-only "predicted" state.
     } catch (err) {
+      setConfirming(false)
       setError(err instanceof ApiError ? err.message : 'Kaydedilemedi')
     }
   }
+
+  const jokerButton = (
+    <button
+      onClick={() => joker.mutate(fixture.fixtureId)}
+      disabled={joker.isPending || fixture.myJoker}
+      title="Bu maçı joker seç — kazandığın puan 2 katına çıkar (oyun başına 1 joker)"
+      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
+        fixture.myJoker
+          ? 'bg-amber-500/15 text-amber-300'
+          : 'text-ink-400 hover:bg-ink-850 hover:text-amber-300'
+      }`}
+    >
+      <Star className={`h-3.5 w-3.5 ${fixture.myJoker ? 'fill-amber-300' : ''}`} />
+      {fixture.myJoker ? 'Joker ✓' : 'Joker'}
+    </button>
+  )
 
   return (
     <Card>
@@ -152,79 +170,7 @@ export function GamePredictCard({
           </div>
         </div>
 
-        {!locked ? (
-          <>
-            {/* recent form of both teams — signal before the pick */}
-            {(fixture.homeForm || fixture.awayForm) && (
-              <div className="flex items-center justify-between text-[11px] text-ink-500">
-                <FormBadges form={fixture.homeForm} />
-                <span className="uppercase tracking-wide">son 5</span>
-                <FormBadges form={fixture.awayForm} />
-              </div>
-            )}
-
-            {/* who wins — the main pick */}
-            <div className="grid grid-cols-3 gap-1.5">
-              <OutcomeButton active={outcome === 'HOME'} onClick={() => pickOutcome('HOME')}>
-                <TeamLogo apiId={fixture.homeApiId} size={20} />
-                <span>Ev</span>
-              </OutcomeButton>
-              <OutcomeButton active={outcome === 'DRAW'} onClick={() => pickOutcome('DRAW')}>
-                <span className="text-base font-black">X</span>
-                <span>Beraberlik</span>
-              </OutcomeButton>
-              <OutcomeButton active={outcome === 'AWAY'} onClick={() => pickOutcome('AWAY')}>
-                <TeamLogo apiId={fixture.awayApiId} size={20} />
-                <span>Deplasman</span>
-              </OutcomeButton>
-            </div>
-
-            {/* optional exact score for the bonus */}
-            {showScore ? (
-              <div className="flex items-center justify-center gap-2">
-                <ScoreBox value={home} onChange={(v) => editScore({ h: v })} />
-                <span className="text-ink-500">-</span>
-                <ScoreBox value={away} onChange={(v) => editScore({ a: v })} />
-                <span className="ml-1 text-xs text-ink-500">tam skor = 5 puan</span>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowScore(true)}
-                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-ink-700 py-1.5 text-xs text-ink-400 transition hover:border-ink-600 hover:text-ink-200"
-              >
-                <Plus className="h-3.5 w-3.5" /> Skor tahmini ekle (bonus puan)
-              </button>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <button
-                onClick={() => joker.mutate(fixture.fixtureId)}
-                disabled={joker.isPending || fixture.myJoker}
-                title="Bu maçı joker seç — kazandığın puan 2 katına çıkar (oyun başına 1 joker)"
-                className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
-                  fixture.myJoker
-                    ? 'bg-amber-500/15 text-amber-300'
-                    : 'text-ink-400 hover:bg-ink-850 hover:text-amber-300'
-                }`}
-              >
-                <Star className={`h-3.5 w-3.5 ${fixture.myJoker ? 'fill-amber-300' : ''}`} />
-                {fixture.myJoker ? 'Joker ✓' : 'Joker'}
-              </button>
-              <div className="flex items-center gap-2">
-                {error ? (
-                  <span className="text-xs text-loss">{error}</span>
-                ) : saved ? (
-                  <span className="flex items-center gap-1 text-xs text-brand-300">
-                    <Check className="h-3.5 w-3.5" /> Kaydedildi
-                  </span>
-                ) : null}
-                <Button size="sm" onClick={save} disabled={!canSave}>
-                  {upsert.isPending ? '...' : 'Kaydet'}
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
+        {locked ? (
           /* locked — show my pick and, once settled, the points */
           <div className="flex items-center justify-between rounded-lg bg-ink-850 px-3 py-2 text-sm">
             {fixture.myOutcome ? (
@@ -251,6 +197,97 @@ export function GamePredictCard({
               </Link>
             )}
           </div>
+        ) : predicted ? (
+          /* submitted — final, cannot be changed; joker can still be set */
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border border-brand-500/20 bg-brand-500/[0.06] px-3 py-2 text-sm">
+              <span className="text-ink-200">
+                Tahminin:{' '}
+                <span className="font-semibold text-ink-100">
+                  {outcomeLabel(fixture.myOutcome!, fixture.homeName, fixture.awayName)}
+                </span>
+                {fixture.myHome != null && (
+                  <span className="text-ink-400">
+                    {' '}
+                    · {fixture.myHome}-{fixture.myAway}
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-ink-500">
+                <Lock className="h-3 w-3" /> değiştirilemez
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              {jokerButton}
+              <span className="text-[11px] text-ink-500">{fixture.predictionCount} tahmin</span>
+            </div>
+          </div>
+        ) : (
+          /* editable — form + pick + optional score + joker + confirm-then-save */
+          <>
+            {(fixture.homeForm || fixture.awayForm) && (
+              <div className="flex items-center justify-between text-[11px] text-ink-500">
+                <FormBadges form={fixture.homeForm} />
+                <span className="uppercase tracking-wide">son 5</span>
+                <FormBadges form={fixture.awayForm} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-1.5">
+              <OutcomeButton active={outcome === 'HOME'} onClick={() => pickOutcome('HOME')}>
+                <TeamLogo apiId={fixture.homeApiId} size={20} />
+                <span>Ev</span>
+              </OutcomeButton>
+              <OutcomeButton active={outcome === 'DRAW'} onClick={() => pickOutcome('DRAW')}>
+                <span className="text-base font-black">X</span>
+                <span>Beraberlik</span>
+              </OutcomeButton>
+              <OutcomeButton active={outcome === 'AWAY'} onClick={() => pickOutcome('AWAY')}>
+                <TeamLogo apiId={fixture.awayApiId} size={20} />
+                <span>Deplasman</span>
+              </OutcomeButton>
+            </div>
+
+            {showScore ? (
+              <div className="flex items-center justify-center gap-2">
+                <ScoreBox value={home} onChange={(v) => editScore({ h: v })} />
+                <span className="text-ink-500">-</span>
+                <ScoreBox value={away} onChange={(v) => editScore({ a: v })} />
+                <span className="ml-1 text-xs text-ink-500">tam skor = 5 puan</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowScore(true)}
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-ink-700 py-1.5 text-xs text-ink-400 transition hover:border-ink-600 hover:text-ink-200"
+              >
+                <Plus className="h-3.5 w-3.5" /> Skor tahmini ekle (bonus puan)
+              </button>
+            )}
+
+            {confirming ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                <span className="text-xs text-amber-200">Emin misin? Tahmin sonra değiştirilemez.</span>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+                    Vazgeç
+                  </Button>
+                  <Button size="sm" onClick={save} disabled={upsert.isPending}>
+                    <Check className="h-4 w-4" /> Evet, kaydet
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                {jokerButton}
+                <div className="flex items-center gap-2">
+                  {error && <span className="text-xs text-loss">{error}</span>}
+                  <Button size="sm" onClick={() => setConfirming(true)} disabled={outcome === null}>
+                    Kaydet
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardBody>
     </Card>

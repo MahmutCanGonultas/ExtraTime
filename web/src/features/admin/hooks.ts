@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { GameFixture, LeaderboardEntry, SeasonRef } from '@/features/groups/types'
+import type { GameFixture, LeaderboardEntry, Outcome, SeasonRef } from '@/features/groups/types'
 
 export interface SyncJobStatus {
   job_name: string
@@ -95,6 +95,44 @@ export function useAdminResetMemberPassword(groupId: number) {
   return useMutation({
     mutationFn: (userId: number) =>
       api.post<{ temporaryPassword: string }>(`/admin/groups/${groupId}/members/${userId}/reset-password`),
+  })
+}
+
+export interface AdminMemberPrediction {
+  userId: number
+  displayName: string
+  predictedOutcome: Outcome | null
+  predictedHome: number | null
+  predictedAway: number | null
+  pointsAwarded: number | null
+}
+
+export function useAdminFixturePredictions(groupId: number, fixtureId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin-fixture-predictions', groupId, fixtureId],
+    queryFn: () =>
+      api.get<{ predictions: AdminMemberPrediction[] }>(
+        `/admin/groups/${groupId}/fixtures/${fixtureId}/predictions`,
+      ),
+    select: (d) => d.predictions,
+    enabled: enabled && groupId > 0 && fixtureId > 0,
+  })
+}
+
+export function useAdminSetPrediction(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      userId: number
+      fixtureId: number
+      outcome: Outcome
+      predictedHome?: number | null
+      predictedAway?: number | null
+    }) => api.post(`/admin/groups/${groupId}/predictions`, input),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin-fixture-predictions', groupId, v.fixtureId] })
+      qc.invalidateQueries({ queryKey: ['admin-group', groupId] })
+    },
   })
 }
 

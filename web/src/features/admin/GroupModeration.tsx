@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { ChevronDown, Plus, Search, X } from 'lucide-react'
+import { ChevronDown, Pencil, Plus, Search, X } from 'lucide-react'
 import {
   useAdminAddFixture,
   useAdminAdjustPoints,
   useAdminCandidateFixtures,
+  useAdminFixturePredictions,
   useAdminGroupOverview,
   useAdminGroups,
   useAdminRemoveFixture,
   useAdminRemoveMember,
   useAdminResetMemberPassword,
+  useAdminSetPrediction,
 } from './hooks'
+import type { GameFixture, Outcome } from '@/features/groups/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -118,26 +121,14 @@ function GroupDetail({ groupId }: { groupId: number }) {
         {fixtures.length === 0 ? (
           <p className="text-xs text-ink-500">Oyunda maç yok.</p>
         ) : (
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {fixtures.map((f) => (
-              <li key={f.fixtureId} className="flex items-center gap-2 py-0.5 text-xs">
-                <TeamLogo apiId={f.homeApiId} size={14} />
-                <span className="min-w-0 flex-1 truncate text-ink-300">
-                  {f.homeName} <span className="text-ink-600">-</span> {f.awayName}
-                </span>
-                <span className="shrink-0 tabular-nums text-ink-500">
-                  {f.homeScore != null ? `${f.homeScore}:${f.awayScore}` : ''}
-                </span>
-                {f.open && (
-                  <button
-                    onClick={() => removeFixture.mutate(f.fixtureId)}
-                    title="Maçı çıkar"
-                    className="shrink-0 rounded p-0.5 text-ink-500 hover:text-loss"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </li>
+              <FixtureModRow
+                key={f.fixtureId}
+                groupId={groupId}
+                fixture={f}
+                onRemove={() => removeFixture.mutate(f.fixtureId)}
+              />
             ))}
           </ul>
         )}
@@ -187,6 +178,90 @@ function GroupDetail({ groupId }: { groupId: number }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const OUT_SHORT: Record<Outcome, string> = { HOME: '1', DRAW: 'X', AWAY: '2' }
+
+function FixtureModRow({
+  groupId,
+  fixture,
+  onRemove,
+}: {
+  groupId: number
+  fixture: GameFixture
+  onRemove: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <li className="rounded-lg bg-ink-900">
+      <div className="flex items-center gap-2 px-2 py-1.5 text-xs">
+        <TeamLogo apiId={fixture.homeApiId} size={14} />
+        <span className="min-w-0 flex-1 truncate text-ink-300">
+          {fixture.homeName} <span className="text-ink-600">-</span> {fixture.awayName}
+        </span>
+        <span className="shrink-0 tabular-nums text-ink-500">
+          {fixture.homeScore != null ? `${fixture.homeScore}:${fixture.awayScore}` : ''}
+        </span>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          title="Tahminleri düzelt"
+          className="shrink-0 rounded p-0.5 text-ink-500 hover:text-brand-300"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        {fixture.open && (
+          <button
+            onClick={onRemove}
+            title="Maçı çıkar"
+            className="shrink-0 rounded p-0.5 text-ink-500 hover:text-loss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {open && <FixturePredictionsEditor groupId={groupId} fixtureId={fixture.fixtureId} />}
+    </li>
+  )
+}
+
+function FixturePredictionsEditor({ groupId, fixtureId }: { groupId: number; fixtureId: number }) {
+  const preds = useAdminFixturePredictions(groupId, fixtureId, true)
+  const setPred = useAdminSetPrediction(groupId)
+  if (preds.isLoading || !preds.data) return <Skeleton className="m-2 h-16" />
+  return (
+    <div className="space-y-1 border-t border-ink-800 px-2 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-ink-500">Tahminleri düzelt</div>
+      {preds.data.map((m) => (
+        <div key={m.userId} className="flex items-center gap-2 text-xs">
+          <span className="w-24 truncate text-ink-200">{m.displayName}</span>
+          <span className="w-10 text-center text-ink-500">
+            {m.predictedOutcome
+              ? m.predictedHome != null
+                ? `${m.predictedHome}-${m.predictedAway}`
+                : OUT_SHORT[m.predictedOutcome]
+              : '—'}
+          </span>
+          <div className="flex gap-1">
+            {(['HOME', 'DRAW', 'AWAY'] as Outcome[]).map((o) => (
+              <button
+                key={o}
+                disabled={setPred.isPending}
+                onClick={() => setPred.mutate({ userId: m.userId, fixtureId, outcome: o })}
+                className={cn(
+                  'h-6 w-7 rounded text-[11px] font-bold transition disabled:opacity-40',
+                  m.predictedOutcome === o
+                    ? 'bg-brand-500/20 text-brand-300'
+                    : 'bg-ink-850 text-ink-400 hover:text-ink-100',
+                )}
+              >
+                {OUT_SHORT[o]}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
