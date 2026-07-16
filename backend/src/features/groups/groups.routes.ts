@@ -5,6 +5,7 @@ import { parseIdParam } from '../../lib/params'
 import { requireAuth } from '../auth/requireAuth'
 import { requireGroupAdmin } from './requireGroupAdmin'
 import * as groups from './groups.service'
+import * as insights from './insights'
 
 export const groupsRouter = Router()
 
@@ -139,6 +140,25 @@ groupsRouter.get(
     const id = parseIdParam(req.params.id)
     const seasonId = parseIdParam(req.params.seasonId)
     res.json(await groups.getSeasonDetail(id, req.userId!, seasonId))
+  }),
+)
+
+// Head-to-head record of the caller vs every other member. Members.
+groupsRouter.get(
+  '/:id/rivalries',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    res.json({ rivalries: await insights.getRivalries(id, req.userId!) })
+  }),
+)
+
+// A member's trophy cabinet (titles, winning jokers, exact scores). Members.
+groupsRouter.get(
+  '/:id/members/:userId/trophies',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    const targetUserId = parseIdParam(req.params.userId)
+    res.json(await insights.getMemberTrophies(id, targetUserId, req.userId!))
   }),
 )
 

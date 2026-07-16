@@ -1,4 +1,5 @@
 import { query } from '../../db/pool'
+import { calculatePoints, type MatchOutcome } from './scoring'
 
 // Season-scoped leaderboard, shared by the live standings endpoint, the
 // champion computation on finish, and the history/season detail view. Kept free
@@ -89,4 +90,68 @@ export async function seasonLeaderboard(
       a.displayName.localeCompare(b.displayName, 'tr'),
   )
   return entries
+}
+
+const LIVE = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT']
+
+export interface ProvisionalEntry extends LeaderboardEntry {
+  livePoints: number
+  direction: number // rank change vs the settled table (+ = moved up)
+}
+
+/**
+ * "If the live scores froze now" leaderboard: settled points PLUS hypothetical
+ * points from in-progress curated matches (scored with the same pure function and
+ * 2x joker as settlement). Never persisted — this keeps "settle only on final".
+ */
+export async function provisionalLeaderboard(
+  groupId: number,
+  seasonId: number | null,
+): Promise<{ entries: ProvisionalEntry[]; live: boolean }> {
+  const base = await seasonLeaderboard(groupId, seasonId)
+  const settledRank = new Map(base.map((e, i) => [e.userId, i + 1]))
+  if (seasonId === null) {
+    return { entries: base.map((e) => ({ ...e, livePoints: 0, direction: 0 })), live: false }
+  }
+
+  const live = await query<{
+    user_id: number
+    outcome: MatchOutcome
+    ph: number | null
+    pa: number | null
+    hs: number
+    as_: number
+    is_joker: boolean
+  }>(
+    `SELECT p.user_id, p.predicted_outcome AS outcome, p.predicted_home AS ph, p.predicted_away AS pa,
+            f.home_score AS hs, f.away_score AS as_,
+            EXISTS (SELECT 1 FROM season_jokers sj
+                    WHERE sj.season_id = $2 AND sj.user_id = p.user_id AND sj.fixture_id = p.fixture_id) AS is_joker
+     FROM predictions p
+     JOIN group_fixtures gf ON gf.group_id = p.group_id AND gf.fixture_id = p.fixture_id AND gf.season_id = $2
+     JOIN fixtures f ON f.id = p.fixture_id
+     WHERE p.group_id = $1 AND f.status = ANY($3) AND f.home_score IS NOT NULL AND f.away_score IS NOT NULL`,
+    [groupId, seasonId, LIVE],
+  )
+
+  const liveByUser = new Map<number, number>()
+  for (const r of live.rows) {
+    const pts =
+      calculatePoints({ outcome: r.outcome, home: r.ph, away: r.pa }, { home: r.hs, away: r.as_ }) *
+      (r.is_joker ? 2 : 1)
+    liveByUser.set(r.user_id, (liveByUser.get(r.user_id) ?? 0) + pts)
+  }
+
+  const entries = base
+    .map((e) => {
+      const livePoints = liveByUser.get(e.userId) ?? 0
+      return { ...e, livePoints, points: e.points + livePoints, direction: 0 }
+    })
+    .sort(
+      (a, b) =>
+        b.points - a.points || b.exactCount - a.exactCount || a.displayName.localeCompare(b.displayName, 'tr'),
+    )
+    .map((e, i) => ({ ...e, direction: (settledRank.get(e.userId) ?? i + 1) - (i + 1) }))
+
+  return { entries, live: live.rows.length > 0 }
 }

@@ -1,7 +1,7 @@
 import { query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
 import { getActiveSeason, getCurrentSeasonId, isMember } from '../groups/groups.service'
-import { seasonLeaderboard, type LeaderboardEntry } from './leaderboard'
+import { provisionalLeaderboard, seasonLeaderboard, type LeaderboardEntry } from './leaderboard'
 import { outcomeOf, type MatchOutcome } from './scoring'
 import { settleFixture } from './settle'
 import { isLocked } from './lock'
@@ -210,6 +210,14 @@ export async function getLeaderboard(
   }
   const target = seasonId ?? (await getCurrentSeasonId(groupId))
   return seasonLeaderboard(groupId, target)
+}
+
+/** "If live scores froze now" standings for the group's current game. */
+export async function getProvisionalLeaderboard(groupId: number, requesterId: number) {
+  if (!(await isMember(groupId, requesterId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  return provisionalLeaderboard(groupId, await getCurrentSeasonId(groupId))
 }
 
 // Settled predictions over time, for the points-trend chart. The client turns

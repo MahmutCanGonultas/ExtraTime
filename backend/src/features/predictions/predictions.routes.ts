@@ -66,6 +66,15 @@ predictionsRouter.get(
   }),
 )
 
+// "If live scores froze now" standings.
+predictionsRouter.get(
+  '/:groupId/leaderboard/live',
+  asyncHandler(async (req, res) => {
+    const groupId = parseIdParam(req.params.groupId)
+    res.json(await predictions.getProvisionalLeaderboard(groupId, req.userId!))
+  }),
+)
+
 predictionsRouter.get(
   '/:groupId/stats',
   asyncHandler(async (req, res) => {
