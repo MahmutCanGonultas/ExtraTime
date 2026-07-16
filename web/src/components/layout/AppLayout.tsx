@@ -9,7 +9,6 @@ import { cn } from '@/lib/cn'
 const baseNav = [
   { to: '/', label: 'Ana Sayfa', end: true },
   { to: '/leagues', label: 'Ligler' },
-  { to: '/predictions', label: 'Tahminler' },
   { to: '/group', label: 'Grup' },
   { to: '/oyun', label: 'Oyun' },
   { to: '/stats', label: 'İstatistik' },

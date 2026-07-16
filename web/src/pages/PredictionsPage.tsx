@@ -58,11 +58,6 @@ export function PredictionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-ink-100">Tahminler</h1>
-        <p className="text-sm text-ink-400">{active.name}</p>
-      </div>
-
       {activeGames.length === 0 ? (
         <EmptyState
           title="Açık oyun yok"

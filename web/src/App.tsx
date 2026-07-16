@@ -40,8 +40,7 @@ import { LeaguesPage } from '@/pages/LeaguesPage'
 import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
 import { TeamPage } from '@/pages/TeamPage'
 import { PlayerDetailPage } from '@/pages/PlayerDetailPage'
-import { GroupPage } from '@/pages/GroupPage'
-import { PredictionsPage } from '@/pages/PredictionsPage'
+import { GroupHubPage } from '@/pages/GroupHubPage'
 import { MiniGamePage } from '@/pages/MiniGamePage'
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
@@ -68,8 +67,8 @@ export function App() {
                 <Route path="/teams/:id" element={<TeamPage />} />
                 <Route path="/players/:apiId" element={<PlayerDetailPage />} />
                 <Route path="/matches/:id" element={<MatchPage />} />
-                <Route path="/group" element={<GroupPage />} />
-                <Route path="/predictions" element={<PredictionsPage />} />
+                <Route path="/group" element={<GroupHubPage />} />
+                <Route path="/predictions" element={<Navigate to="/group" replace />} />
                 <Route path="/oyun" element={<MiniGamePage />} />
                 <Route
                   path="/stats"
