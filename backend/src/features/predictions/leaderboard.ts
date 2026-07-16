@@ -92,6 +92,99 @@ export async function seasonLeaderboard(
   return entries
 }
 
+export interface WeekStanding {
+  userId: number
+  displayName: string
+  points: number
+  exactCount: number
+}
+
+export interface GameWeek {
+  weekStart: string // ISO date of the week's Monday (Europe/Istanbul)
+  matchCount: number
+  settledCount: number
+  settled: boolean // every match of the week is final
+  standings: WeekStanding[]
+  champion: WeekStanding | null // crowned once the week is settled
+}
+
+/**
+ * Per-week breakdown of a game: fixtures are bucketed by their (Istanbul) calendar
+ * week, and each week gets its own standings + champion. The OVERALL champion is
+ * still the season total (seasonLeaderboard) — i.e. the sum of every week.
+ */
+export async function seasonWeeks(groupId: number, seasonId: number | null): Promise<GameWeek[]> {
+  if (seasonId === null) return []
+  const WEEK = `date_trunc('week', f.kickoff_at AT TIME ZONE 'Europe/Istanbul')`
+
+  const fixtures = await query<{ weekStart: string; matchCount: number; settledCount: number }>(
+    `SELECT to_char(${WEEK}, 'YYYY-MM-DD') AS "weekStart",
+            COUNT(*)::int AS "matchCount",
+            COUNT(*) FILTER (WHERE f.status IN ('FT','AET','PEN'))::int AS "settledCount"
+     FROM group_fixtures gf JOIN fixtures f ON f.id = gf.fixture_id
+     WHERE gf.season_id = $1
+     GROUP BY 1 ORDER BY 1`,
+    [seasonId],
+  )
+
+  const rows = await query<{
+    weekStart: string
+    userId: number
+    displayName: string
+    points: number
+    exactCount: number
+  }>(
+    `SELECT to_char(${WEEK}, 'YYYY-MM-DD') AS "weekStart",
+            u.id AS "userId", u.display_name AS "displayName",
+            COALESCE(SUM(p.points_awarded), 0)::int AS points,
+            COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount"
+     FROM group_fixtures gf
+     JOIN fixtures f ON f.id = gf.fixture_id
+     JOIN group_members gm ON gm.group_id = gf.group_id
+     JOIN users u ON u.id = gm.user_id
+     LEFT JOIN predictions p ON p.group_id = gf.group_id AND p.user_id = gm.user_id
+       AND p.fixture_id = gf.fixture_id AND p.settled_at IS NOT NULL
+     WHERE gf.season_id = $1 AND gf.group_id = $2
+     GROUP BY 1, u.id, u.display_name`,
+    [seasonId, groupId],
+  )
+
+  const byWeek = new Map<number, WeekStanding[]>()
+  const dummyIndex = new Map<string, number>()
+  const weeks: GameWeek[] = fixtures.rows.map((f, i) => {
+    dummyIndex.set(f.weekStart, i)
+    return {
+      weekStart: f.weekStart,
+      matchCount: f.matchCount,
+      settledCount: f.settledCount,
+      settled: f.settledCount === f.matchCount && f.matchCount > 0,
+      standings: [],
+      champion: null,
+    }
+  })
+
+  for (const r of rows.rows) {
+    const idx = dummyIndex.get(r.weekStart)
+    if (idx == null) continue
+    const list = byWeek.get(idx) ?? []
+    list.push({ userId: r.userId, displayName: r.displayName, points: r.points, exactCount: r.exactCount })
+    byWeek.set(idx, list)
+  }
+
+  for (const [idx, list] of byWeek) {
+    list.sort(
+      (a, b) =>
+        b.points - a.points || b.exactCount - a.exactCount || a.displayName.localeCompare(b.displayName, 'tr'),
+    )
+    weeks[idx].standings = list
+    if (weeks[idx].settled && list.length > 0 && list[0].points > 0) {
+      weeks[idx].champion = list[0]
+    }
+  }
+
+  return weeks
+}
+
 const LIVE = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT']
 
 export interface ProvisionalEntry extends LeaderboardEntry {

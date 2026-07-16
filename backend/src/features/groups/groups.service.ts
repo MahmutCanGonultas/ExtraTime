@@ -4,7 +4,7 @@ import { getPool, query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
 import { isUniqueViolation } from '../../lib/pg-error'
 import { CONFIGURED_LEAGUE_API_IDS } from '../football/leagues.config'
-import { seasonLeaderboard } from '../predictions/leaderboard'
+import { seasonLeaderboard, seasonWeeks } from '../predictions/leaderboard'
 
 const SALT_ROUNDS = 10
 // No ambiguous characters (0/O, 1/I) so codes are easy to read out loud.
@@ -439,7 +439,8 @@ export async function getSeasonDetail(groupId: number, userId: number, seasonId:
 
   const standings = await seasonLeaderboard(groupId, seasonId)
   const fixtures = await listGroupFixtures(groupId, userId, seasonId)
-  return { season, standings, fixtures }
+  const weeks = await seasonWeeks(groupId, seasonId)
+  return { season, standings, fixtures, weeks }
 }
 
 // ---------------------------------------------------------------------------

@@ -76,10 +76,27 @@ export interface SeasonSummary {
   matchCount: number
 }
 
+export interface WeekStanding {
+  userId: number
+  displayName: string
+  points: number
+  exactCount: number
+}
+
+export interface GameWeek {
+  weekStart: string
+  matchCount: number
+  settledCount: number
+  settled: boolean
+  standings: WeekStanding[]
+  champion: WeekStanding | null
+}
+
 export interface SeasonDetail {
   season: SeasonSummary
   standings: LeaderboardEntry[]
   fixtures: GameFixture[]
+  weeks: GameWeek[]
 }
 
 export interface Rivalry {

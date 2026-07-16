@@ -15,6 +15,7 @@ import { HowToPlay } from '@/features/predictions/HowToPlay'
 import { AddMatchesPanel } from '@/features/predictions/AddMatchesPanel'
 import { LiveStandings } from '@/features/groups/LiveStandings'
 import { Leaderboard } from '@/features/groups/Leaderboard'
+import { WeeklyChampions } from '@/features/groups/WeeklyChampions'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Skeleton, EmptyState } from '@/components/ui/feedback'
@@ -182,6 +183,14 @@ export function PredictionsPage() {
                   <CardHeader title="Bu oyunun sıralaması" />
                   <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
                 </Card>
+              )}
+
+              {gameDetail.data && gameDetail.data.weeks.length > 0 && (
+                <WeeklyChampions
+                  weeks={gameDetail.data.weeks}
+                  overallLeader={gameDetail.data.standings[0] ?? null}
+                  currentUserId={user?.id}
+                />
               )}
             </>
           )}
