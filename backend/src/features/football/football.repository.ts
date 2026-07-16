@@ -94,10 +94,11 @@ export async function listLeagues(activeOnly = false) {
 export async function getStandings(leagueId: number) {
   const { rows } = await query(
     `SELECT s.position, s.played, s.won, s.drawn, s.lost, s.goals_for AS "goalsFor",
-            s.goals_against AS "goalsAgainst", s.points, s.form,
+            s.goals_against AS "goalsAgainst", s.points, s.form, s.group_label AS "groupLabel",
             t.id AS "teamId", t.api_football_id AS "teamApiId", t.name AS "teamName"
      FROM standings s JOIN teams t ON t.id = s.team_id
-     WHERE s.league_id = $1 ORDER BY s.position`,
+     WHERE s.league_id = $1
+     ORDER BY s.group_label NULLS FIRST, s.position`,
     [leagueId],
   )
   return rows
