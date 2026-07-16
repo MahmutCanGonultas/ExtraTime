@@ -84,8 +84,12 @@ describe('API integration (in-memory Postgres)', () => {
     const group = await api('POST', '/api/v1/groups', { token, body: { name: 'Kanka Ligi' } })
     const groupId = group.json.group.id as number
 
-    // The leader curates the match into the group's game before anyone predicts.
-    const add = await api('POST', `/api/v1/groups/${groupId}/fixtures`, {
+    // A new group starts with one active game; grab its id.
+    const games = await api('GET', `/api/v1/groups/${groupId}/games`, { token })
+    const gameId = games.json.games[0].id as number
+
+    // The leader curates the match into the game before anyone predicts.
+    const add = await api('POST', `/api/v1/groups/${groupId}/games/${gameId}/fixtures`, {
       token,
       body: { fixtureId: 1 },
     })
@@ -118,7 +122,7 @@ describe('API integration (in-memory Postgres)', () => {
     expect(mine.exactCount).toBe(1)
 
     // Finishing the game crowns the leader as champion.
-    const finish = await api('POST', `/api/v1/groups/${groupId}/finish`, { token })
+    const finish = await api('POST', `/api/v1/groups/${groupId}/games/${gameId}/finish`, { token })
     expect(finish.status).toBe(200)
     expect(finish.json.champion.userId).toBe(userId)
     expect(finish.json.champion.points).toBe(5)

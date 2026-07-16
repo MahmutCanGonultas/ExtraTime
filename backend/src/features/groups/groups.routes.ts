@@ -49,97 +49,93 @@ groupsRouter.get(
   }),
 )
 
-// ---- The group's current game: curated matches, ending, history ----
+// ---- Games: a group can run SEVERAL at once, each with its own matches ----
 
-// The active game's matches (each with the caller's own prediction). Members.
+// Every game the group runs (active + finished). Members.
 groupsRouter.get(
-  '/:id/fixtures',
+  '/:id/games',
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
-    res.json({ fixtures: await groups.listGroupFixtures(id, req.userId!) })
+    res.json({ games: await groups.listSeasons(id, req.userId!) })
   }),
 )
 
-// Matches the leader can still add to the current game. Admin only.
-groupsRouter.get(
-  '/:id/candidate-fixtures',
+// Start a fresh game. Admin only. (No limit — many can run in parallel.)
+groupsRouter.post(
+  '/:id/games',
   requireGroupAdmin,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
-    res.json({ fixtures: await groups.getCandidateFixtures(id) })
+    const { title } = newGameSchema.parse(req.body ?? {})
+    res.status(201).json({ game: await groups.createGame(id, title) })
+  }),
+)
+
+// One game's full record: matches (with my prediction) + standings. Members.
+groupsRouter.get(
+  '/:id/games/:gameId',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    const gameId = parseIdParam(req.params.gameId)
+    res.json(await groups.getSeasonDetail(id, req.userId!, gameId))
+  }),
+)
+
+// Matches the leader can still add to a game. Admin only.
+groupsRouter.get(
+  '/:id/games/:gameId/candidate-fixtures',
+  requireGroupAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    const gameId = parseIdParam(req.params.gameId)
+    res.json({ fixtures: await groups.getCandidateFixtures(id, gameId) })
   }),
 )
 
 groupsRouter.post(
-  '/:id/fixtures',
+  '/:id/games/:gameId/fixtures',
   requireGroupAdmin,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
+    const gameId = parseIdParam(req.params.gameId)
     const { fixtureId } = addFixtureSchema.parse(req.body)
-    await groups.addGroupFixture(id, fixtureId, req.userId!)
+    await groups.addGroupFixture(id, gameId, fixtureId, req.userId!)
     res.status(201).json({ ok: true })
   }),
 )
 
 groupsRouter.delete(
-  '/:id/fixtures/:fixtureId',
+  '/:id/games/:gameId/fixtures/:fixtureId',
   requireGroupAdmin,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
+    const gameId = parseIdParam(req.params.gameId)
     const fixtureId = parseIdParam(req.params.fixtureId)
-    await groups.removeGroupFixture(id, fixtureId)
+    await groups.removeGroupFixture(id, gameId, fixtureId)
     res.status(204).send()
   }),
 )
 
-// Set (or move) the caller's joker match (2x points) — any member.
+// Set (or move) the caller's joker match in a game (2x points) — any member.
 groupsRouter.put(
-  '/:id/joker/:fixtureId',
+  '/:id/games/:gameId/joker/:fixtureId',
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
+    const gameId = parseIdParam(req.params.gameId)
     const fixtureId = parseIdParam(req.params.fixtureId)
-    await groups.setJoker(id, req.userId!, fixtureId)
+    await groups.setJoker(id, gameId, req.userId!, fixtureId)
     res.json({ ok: true })
   }),
 )
 
-// End the current game — crown the leader as champion. Admin only.
+// End a game — crown its leader as champion. Admin only.
 groupsRouter.post(
-  '/:id/finish',
+  '/:id/games/:gameId/finish',
   requireGroupAdmin,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
-    res.json({ champion: await groups.finishActiveSeason(id) })
-  }),
-)
-
-// Start a fresh game (only after the previous one is finished). Admin only.
-groupsRouter.post(
-  '/:id/new-game',
-  requireGroupAdmin,
-  asyncHandler(async (req, res) => {
-    const id = parseIdParam(req.params.id)
-    const { title } = newGameSchema.parse(req.body ?? {})
-    res.status(201).json({ season: await groups.startNewSeason(id, title) })
-  }),
-)
-
-// The group's history — every game it has run. Members.
-groupsRouter.get(
-  '/:id/seasons',
-  asyncHandler(async (req, res) => {
-    const id = parseIdParam(req.params.id)
-    res.json({ seasons: await groups.listSeasons(id, req.userId!) })
-  }),
-)
-
-// One past (or current) game's full record. Members.
-groupsRouter.get(
-  '/:id/seasons/:seasonId',
-  asyncHandler(async (req, res) => {
-    const id = parseIdParam(req.params.id)
-    const seasonId = parseIdParam(req.params.seasonId)
-    res.json(await groups.getSeasonDetail(id, req.userId!, seasonId))
+    const gameId = parseIdParam(req.params.gameId)
+    res.json({ champion: await groups.finishGame(id, gameId) })
   }),
 )
 

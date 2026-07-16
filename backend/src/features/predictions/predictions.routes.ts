@@ -66,12 +66,13 @@ predictionsRouter.get(
   }),
 )
 
-// "If live scores froze now" standings.
+// "If live scores froze now" standings for a specific game.
 predictionsRouter.get(
-  '/:groupId/leaderboard/live',
+  '/:groupId/games/:gameId/leaderboard/live',
   asyncHandler(async (req, res) => {
     const groupId = parseIdParam(req.params.groupId)
-    res.json(await predictions.getProvisionalLeaderboard(groupId, req.userId!))
+    const gameId = parseIdParam(req.params.gameId)
+    res.json(await predictions.getProvisionalLeaderboard(groupId, req.userId!, gameId))
   }),
 )
 

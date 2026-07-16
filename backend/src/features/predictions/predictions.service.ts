@@ -212,12 +212,16 @@ export async function getLeaderboard(
   return seasonLeaderboard(groupId, target)
 }
 
-/** "If live scores froze now" standings for the group's current game. */
-export async function getProvisionalLeaderboard(groupId: number, requesterId: number) {
+/** "If live scores froze now" standings for one game. */
+export async function getProvisionalLeaderboard(
+  groupId: number,
+  requesterId: number,
+  gameId: number,
+) {
   if (!(await isMember(groupId, requesterId))) {
     throw AppError.forbidden('You are not a member of this group')
   }
-  return provisionalLeaderboard(groupId, await getCurrentSeasonId(groupId))
+  return provisionalLeaderboard(groupId, gameId)
 }
 
 // Settled predictions over time, for the points-trend chart. The client turns

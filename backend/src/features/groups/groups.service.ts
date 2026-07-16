@@ -132,7 +132,8 @@ export interface SeasonRef {
   status: 'active' | 'finished'
 }
 
-/** The group's current open game, or null when it is between games. */
+/** The group's most recent open game, or null when it is between games. (A group
+ *  can now run several games at once — this is just the newest active one.) */
 export async function getActiveSeason(groupId: number): Promise<SeasonRef | null> {
   const { rows } = await query<SeasonRef>(
     `SELECT id, title, status FROM group_seasons
@@ -143,10 +144,15 @@ export async function getActiveSeason(groupId: number): Promise<SeasonRef | null
   return rows[0] ?? null
 }
 
-async function requireActiveSeasonId(groupId: number): Promise<number> {
-  const season = await getActiveSeason(groupId)
-  if (!season) throw AppError.badRequest('Bu grupta açık bir oyun yok; önce yeni oyun başlat')
-  return season.id
+/** Assert a game id belongs to the group and is still active — the gate for every
+ *  admin write on a specific game. Returns nothing, throws if not. */
+async function assertActiveGame(groupId: number, gameId: number): Promise<void> {
+  const { rows } = await query<{ ok: boolean }>(
+    `SELECT (status = 'active') AS ok FROM group_seasons WHERE id = $1 AND group_id = $2`,
+    [gameId, groupId],
+  )
+  if (!rows[0]) throw AppError.notFound('Oyun bulunamadı')
+  if (!rows[0].ok) throw AppError.badRequest('Bu oyun bitmiş')
 }
 
 /** The season whose standings we show "now": the open game, or, between games,
@@ -198,13 +204,15 @@ const FIXTURE_FIELDS = `
   ht.id AS "homeId", ht.api_football_id AS "homeApiId", ht.name AS "homeName",
   at.id AS "awayId", at.api_football_id AS "awayApiId", at.name AS "awayName"`
 
-/** Add a fixture to the group's current game. Admin-only (enforced by route). */
+/** Add a fixture to a specific game. A match can belong to only ONE game per group
+ *  (predictions are keyed by group+fixture). Admin-only (enforced by route). */
 export async function addGroupFixture(
   groupId: number,
+  gameId: number,
   fixtureId: number,
   addedBy: number,
 ): Promise<void> {
-  const seasonId = await requireActiveSeasonId(groupId)
+  await assertActiveGame(groupId, gameId)
   const { rows } = await query<{ open: boolean; league_api: number }>(
     `SELECT (f.status = 'NS' AND f.kickoff_at > now()) AS open, lg.api_football_id AS league_api
      FROM fixtures f JOIN leagues lg ON lg.id = f.league_id WHERE f.id = $1`,
@@ -216,17 +224,26 @@ export async function addGroupFixture(
     throw AppError.badRequest('Bu lig oyuna eklenemez')
   }
   if (!fixture.open) throw AppError.badRequest('Başlamış ya da oynanmış bir maç eklenemez')
+  const dup = await query(
+    `SELECT 1 FROM group_fixtures WHERE group_id = $1 AND fixture_id = $2`,
+    [groupId, fixtureId],
+  )
+  if ((dup.rowCount ?? 0) > 0) throw AppError.badRequest('Bu maç grubun bir oyununda zaten var')
 
   await query(
     `INSERT INTO group_fixtures (season_id, group_id, fixture_id, added_by)
      VALUES ($1, $2, $3, $4) ON CONFLICT (season_id, fixture_id) DO NOTHING`,
-    [seasonId, groupId, fixtureId, addedBy],
+    [gameId, groupId, fixtureId, addedBy],
   )
 }
 
-/** Remove a fixture from the current game, dropping any predictions on it. */
-export async function removeGroupFixture(groupId: number, fixtureId: number): Promise<void> {
-  const seasonId = await requireActiveSeasonId(groupId)
+/** Remove a fixture from a game, dropping any predictions on it. */
+export async function removeGroupFixture(
+  groupId: number,
+  gameId: number,
+  fixtureId: number,
+): Promise<void> {
+  await assertActiveGame(groupId, gameId)
   const client = await getPool()!.connect()
   try {
     await client.query('BEGIN')
@@ -235,7 +252,7 @@ export async function removeGroupFixture(groupId: number, fixtureId: number): Pr
       fixtureId,
     ])
     await client.query(`DELETE FROM group_fixtures WHERE season_id = $1 AND fixture_id = $2`, [
-      seasonId,
+      gameId,
       fixtureId,
     ])
     await client.query('COMMIT')
@@ -278,51 +295,55 @@ async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: nu
 /** Set (or move) the caller's joker to a match in the current game. The chosen
  *  match must still be open; you cannot move the joker once the match it sits on
  *  has locked. */
-export async function setJoker(groupId: number, userId: number, fixtureId: number): Promise<void> {
+export async function setJoker(
+  groupId: number,
+  gameId: number,
+  userId: number,
+  fixtureId: number,
+): Promise<void> {
   if (!(await isMember(groupId, userId))) {
     throw AppError.forbidden('You are not a member of this group')
   }
-  const seasonId = await requireActiveSeasonId(groupId)
+  await assertActiveGame(groupId, gameId)
   const gate = await query<{ in_game: boolean; open: boolean }>(
     `SELECT
        EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.season_id = $2 AND gf.fixture_id = $1) AS in_game,
        (f.status = 'NS' AND f.kickoff_at > now()) AS open
      FROM fixtures f WHERE f.id = $1`,
-    [fixtureId, seasonId],
+    [fixtureId, gameId],
   )
   const g = gate.rows[0]
   if (!g || !g.in_game) throw AppError.badRequest('Bu maç oyunda değil')
   if (!g.open) throw AppError.badRequest('Başlamış maça joker konamaz')
 
-  // Guard against moving the joker off an already-locked match.
+  // Guard against moving the joker off an already-locked match (per game).
   const existing = await query<{ locked: boolean }>(
     `SELECT (f.status <> 'NS' OR f.kickoff_at <= now()) AS locked
      FROM season_jokers sj JOIN fixtures f ON f.id = sj.fixture_id
      WHERE sj.season_id = $1 AND sj.user_id = $2`,
-    [seasonId, userId],
+    [gameId, userId],
   )
   if (existing.rows[0]?.locked) throw AppError.badRequest('Joker kilitlendi, artık değiştirilemez')
 
   await query(
     `INSERT INTO season_jokers (season_id, user_id, fixture_id) VALUES ($1, $2, $3)
      ON CONFLICT (season_id, user_id) DO UPDATE SET fixture_id = EXCLUDED.fixture_id, created_at = now()`,
-    [seasonId, userId, fixtureId],
+    [gameId, userId, fixtureId],
   )
 }
 
-/** The curated matches of a season, each with the requester's own prediction. */
-export async function listGroupFixtures(groupId: number, userId: number, seasonId?: number) {
+/** The curated matches of a game, each with the requester's own prediction. */
+export async function listGroupFixtures(groupId: number, userId: number, gameId: number) {
   if (!(await isMember(groupId, userId))) {
     throw AppError.forbidden('You are not a member of this group')
   }
-  const targetSeason = seasonId ?? (await getActiveSeason(groupId))?.id ?? null
-  if (targetSeason === null) return []
-  return seasonFixturesFor(groupId, targetSeason, userId)
+  return seasonFixturesFor(groupId, gameId, userId)
 }
 
-/** Upcoming, still-predictable matches the leader can add (excludes ones already in). */
-export async function getCandidateFixtures(groupId: number) {
-  const seasonId = await requireActiveSeasonId(groupId)
+/** Upcoming, still-predictable matches the leader can add to a game — excludes any
+ *  fixture already used in ANY of the group's games (a match lives in one game). */
+export async function getCandidateFixtures(groupId: number, gameId: number) {
+  await assertActiveGame(groupId, gameId)
   const { rows } = await query(
     `SELECT f.id AS "fixtureId", ${FIXTURE_FIELDS}
      FROM fixtures f
@@ -331,10 +352,10 @@ export async function getCandidateFixtures(groupId: number) {
      JOIN teams at ON at.id = f.away_team_id
      WHERE lg.api_football_id = ANY($2)
        AND f.status = 'NS' AND f.kickoff_at > now()
-       AND f.id NOT IN (SELECT fixture_id FROM group_fixtures WHERE season_id = $1)
+       AND f.id NOT IN (SELECT fixture_id FROM group_fixtures WHERE group_id = $1)
      ORDER BY f.kickoff_at ASC
      LIMIT 100`,
-    [seasonId, CONFIGURED_LEAGUE_API_IDS],
+    [groupId, CONFIGURED_LEAGUE_API_IDS],
   )
   return rows
 }
@@ -349,26 +370,23 @@ export interface Champion {
   points: number
 }
 
-/** End the current game: crown the points leader and lock the season. */
-export async function finishActiveSeason(groupId: number): Promise<Champion | null> {
-  const seasonId = await requireActiveSeasonId(groupId)
-  const standings = await seasonLeaderboard(groupId, seasonId)
+/** End a specific game: crown the points leader and lock it. */
+export async function finishGame(groupId: number, gameId: number): Promise<Champion | null> {
+  await assertActiveGame(groupId, gameId)
+  const standings = await seasonLeaderboard(groupId, gameId)
   const winner = standings[0] ?? null
   await query(
     `UPDATE group_seasons
        SET status = 'finished', finished_at = now(),
            champion_user_id = $2, champion_points = $3
      WHERE id = $1`,
-    [seasonId, winner?.userId ?? null, winner?.points ?? null],
+    [gameId, winner?.userId ?? null, winner?.points ?? null],
   )
   return winner ? { userId: winner.userId, displayName: winner.displayName, points: winner.points } : null
 }
 
-/** Start a fresh game. Only allowed when the previous one has been finished. */
-export async function startNewSeason(groupId: number, title?: string): Promise<SeasonRef> {
-  if (await getActiveSeason(groupId)) {
-    throw AppError.badRequest('Zaten açık bir oyun var; önce onu bitir')
-  }
+/** Start a fresh game. A group can run SEVERAL at once, so there is no guard. */
+export async function createGame(groupId: number, title?: string): Promise<SeasonRef> {
   const { rows: countRows } = await query<{ count: number }>(
     `SELECT COUNT(*)::int AS count FROM group_seasons WHERE group_id = $1`,
     [groupId],
@@ -391,10 +409,12 @@ export async function listSeasons(groupId: number, userId: number) {
     `SELECT gs.id, gs.title, gs.status, gs.started_at AS "startedAt", gs.finished_at AS "finishedAt",
             gs.champion_points AS "championPoints", gs.champion_user_id AS "championUserId",
             cu.display_name AS "championName",
-            (SELECT COUNT(*)::int FROM group_fixtures gf WHERE gf.season_id = gs.id) AS "matchCount"
+            COUNT(gf.id)::int AS "matchCount"
      FROM group_seasons gs
      LEFT JOIN users cu ON cu.id = gs.champion_user_id
+     LEFT JOIN group_fixtures gf ON gf.season_id = gs.id
      WHERE gs.group_id = $1
+     GROUP BY gs.id, cu.display_name
      ORDER BY gs.started_at DESC`,
     [groupId],
   )

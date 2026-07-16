@@ -57,25 +57,34 @@ adminRouter.get(
   '/groups/:id',
   asyncHandler(async (req, res) => res.json(await groups.adminGroupOverview(parseIdParam(req.params.id)))),
 )
+// Platform-admin moderation operates on the group's newest active game.
+async function requireActiveGameId(groupId: number): Promise<number> {
+  const game = await groups.getActiveSeason(groupId)
+  if (!game) throw AppError.badRequest('Grupta açık oyun yok')
+  return game.id
+}
 adminRouter.get(
   '/groups/:id/candidate-fixtures',
-  asyncHandler(async (req, res) =>
-    res.json({ fixtures: await groups.getCandidateFixtures(parseIdParam(req.params.id)) }),
-  ),
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    res.json({ fixtures: await groups.getCandidateFixtures(id, await requireActiveGameId(id)) })
+  }),
 )
 adminRouter.post(
   '/groups/:id/fixtures',
   asyncHandler(async (req, res) => {
     const adminId = requireAdminUser(req)
+    const id = parseIdParam(req.params.id)
     const { fixtureId } = addFixtureSchema.parse(req.body)
-    await groups.addGroupFixture(parseIdParam(req.params.id), fixtureId, adminId)
+    await groups.addGroupFixture(id, await requireActiveGameId(id), fixtureId, adminId)
     res.status(201).json({ ok: true })
   }),
 )
 adminRouter.delete(
   '/groups/:id/fixtures/:fixtureId',
   asyncHandler(async (req, res) => {
-    await groups.removeGroupFixture(parseIdParam(req.params.id), parseIdParam(req.params.fixtureId))
+    const id = parseIdParam(req.params.id)
+    await groups.removeGroupFixture(id, await requireActiveGameId(id), parseIdParam(req.params.fixtureId))
     res.status(204).send()
   }),
 )
