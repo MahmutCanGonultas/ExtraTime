@@ -455,6 +455,9 @@ export interface PlayerProfile {
   currentTeamId: number | null
   currentTeamApiId: number | null
   currentTeamName: string | null
+  // The season of that club row. If it isn't the current campaign the player has
+  // left/retired (e.g. Hazard's last Real Madrid season), so the UI can say so.
+  currentTeamSeason: number | null
   seasons: Array<{
     leagueId: number
     leagueName: string
@@ -556,6 +559,7 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
     currentTeamId: currentClub.teamId,
     currentTeamApiId: currentClub.teamApiId,
     currentTeamName: currentClub.teamName,
+    currentTeamSeason: currentClub.season,
     seasons: rows.map((r) => ({
       leagueId: r.leagueId,
       leagueName: r.leagueName,

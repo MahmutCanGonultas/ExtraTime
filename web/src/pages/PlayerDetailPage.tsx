@@ -1,12 +1,17 @@
 import { Link, useParams } from 'react-router-dom'
 import { usePlayer } from '@/features/football/hooks'
-import type { PlayerSeason, PlayerStatBlock } from '@/features/football/types'
+import type { PlayerSeason } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { Card } from '@/components/ui/Card'
 import { Table, Th, Td, Tr } from '@/components/ui/Table'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
+import { flagEmoji } from '@/lib/flags'
+
+// The season key of the current campaign; a current-club row older than this
+// means the player has left/retired.
+const CURRENT_SEASON = 2026
 
 function seasonLabel(season: number): string {
   const next = (season + 1) % 100
@@ -22,30 +27,36 @@ export function PlayerDetailPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Oyuncu bulunamadı" />
 
-  // Headline = the player's main competition (most appearances), not merely the
-  // newest — so a club season outranks a short cup/national-team run.
-  const primary = data.seasons.reduce(
-    (best, s) => ((s.appearances ?? 0) > (best?.appearances ?? -1) ? s : best),
-    data.seasons[0] as (typeof data.seasons)[number] | undefined,
-  )
   const facts = [
     data.position && { label: 'Mevki', value: data.position },
-    data.nationality && { label: 'Uyruk', value: data.nationality },
+    data.nationality && {
+      label: 'Uyruk',
+      value: `${flagEmoji(data.nationality)} ${data.nationality}`.trim(),
+    },
     data.age != null && { label: 'Yaş', value: String(data.age) },
     data.height && { label: 'Boy', value: data.height },
     data.weight && { label: 'Kilo', value: data.weight },
     data.birthPlace && { label: 'Doğum yeri', value: data.birthPlace },
   ].filter(Boolean) as Array<{ label: string; value: string }>
 
-  const stats = primary
-    ? [
-        { label: 'Maç', value: primary.appearances ?? 0 },
-        { label: 'Gol', value: primary.goals ?? 0, accent: true },
-        { label: 'Asist', value: primary.assists ?? 0 },
-        { label: 'Dakika', value: primary.minutes ?? 0 },
-        { label: 'Reyting', value: primary.rating != null ? primary.rating.toFixed(2) : '—' },
-      ]
-    : []
+  // Career totals across every season we hold — the "10-year" summary.
+  const totals = data.seasons.reduce(
+    (a, s) => ({
+      apps: a.apps + (s.appearances ?? 0),
+      goals: a.goals + (s.goals ?? 0),
+      assists: a.assists + (s.assists ?? 0),
+    }),
+    { apps: 0, goals: 0, assists: 0 },
+  )
+  const distinctSeasons = new Set(data.seasons.map((s) => s.season)).size
+  const summary = [
+    { label: 'Sezon', value: distinctSeasons },
+    { label: 'Maç', value: totals.apps },
+    { label: 'Gol', value: totals.goals, accent: true },
+    { label: 'Asist', value: totals.assists },
+  ]
+
+  const isFormer = data.currentTeamSeason != null && data.currentTeamSeason < CURRENT_SEASON
 
   return (
     <div className="space-y-5">
@@ -60,14 +71,11 @@ export function PlayerDetailPage() {
           <PlayerAvatar
             playerApiId={data.playerApiId}
             name={data.name}
-            size={96}
+            size={104}
             className="ring-2 ring-brand-500/40"
           />
           <div className="min-w-0">
             <h1 className="text-3xl font-extrabold tracking-tight text-ink-100">{data.name}</h1>
-            {(data.firstname || data.lastname) && (
-              <p className="text-sm text-ink-300">{[data.firstname, data.lastname].filter(Boolean).join(' ')}</p>
-            )}
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
               {facts.map((f) => (
                 <div key={f.label}>
@@ -77,42 +85,49 @@ export function PlayerDetailPage() {
               ))}
             </div>
             {data.currentTeamName && (
-              <Link
-                to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1 text-xs font-medium text-ink-200 transition hover:text-brand-300"
-              >
-                {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={16} />}
-                {data.currentTeamName}
-              </Link>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Link
+                  to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1 text-xs font-medium text-ink-200 transition hover:text-brand-300"
+                >
+                  {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={16} />}
+                  {data.currentTeamName}
+                  {isFormer && data.currentTeamSeason != null && (
+                    <span className="text-ink-400">· {seasonLabel(data.currentTeamSeason)}</span>
+                  )}
+                </Link>
+                {isFormer && (
+                  <span className="rounded-full bg-ink-950/40 px-2 py-0.5 text-[11px] text-ink-400">
+                    Güncel kadroda değil
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* Headline stats (latest season) */}
-      {stats.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {stats.map((s) => (
-            <Card key={s.label}>
-              <div className="px-3 py-4 text-center">
-                <div className={`score-num text-3xl font-extrabold ${s.accent ? 'text-brand-300' : 'text-ink-100'}`}>
-                  {s.value}
-                </div>
-                <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{s.label}</div>
+      {/* Career totals */}
+      <div className="grid grid-cols-4 gap-3">
+        {summary.map((s) => (
+          <Card key={s.label}>
+            <div className="px-3 py-4 text-center">
+              <div
+                className={`score-num text-2xl font-extrabold tabular-nums sm:text-3xl ${
+                  s.accent ? 'text-brand-300' : 'text-ink-100'
+                }`}
+              >
+                {s.value}
               </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{s.label}</div>
+            </div>
+          </Card>
+        ))}
+      </div>
 
-      {/* Detailed stat breakdown (main competition) */}
-      {primary?.stats && <StatBreakdown s={primary.stats} />}
-
-      {/* Season-by-season table */}
+      {/* Season-by-season history */}
       <Card className="overflow-hidden">
-        <div className="section-label px-4 pt-3 text-ink-400">
-          Kariyer · sezon istatistikleri
-        </div>
+        <div className="section-label px-4 pt-3 text-ink-400">Kariyer · sezon sezon</div>
         <Table>
           <thead>
             <tr>
@@ -166,73 +181,5 @@ function SeasonRow({ s }: { s: PlayerSeason }) {
         {s.rating != null ? <span className="font-medium text-brand-300">{s.rating.toFixed(2)}</span> : '—'}
       </Td>
     </Tr>
-  )
-}
-
-function num(v: unknown): number | null {
-  if (typeof v === 'number') return v
-  if (v == null) return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-function pick(entries: Array<[string, number | string | null]>): Array<{ label: string; value: string }> {
-  return entries
-    .filter(([, v]) => v != null && v !== '' && v !== 0)
-    .map(([label, v]) => ({ label, value: String(v) }))
-}
-
-function StatBreakdown({ s }: { s: PlayerStatBlock }) {
-  const groups = [
-    {
-      title: 'Hücum',
-      rows: pick([
-        ['Şut', num(s.shots?.total)],
-        ['İsabetli şut', num(s.shots?.on)],
-        ['Dribling', num(s.dribbles?.attempts)],
-        ['Başarılı dribling', num(s.dribbles?.success)],
-        ['Penaltı gol', num(s.penalty?.scored)],
-      ]),
-    },
-    {
-      title: 'Pas',
-      rows: pick([
-        ['Toplam pas', num(s.passes?.total)],
-        ['Kilit pas', num(s.passes?.key)],
-        ['Pas isabeti', s.passes?.accuracy != null ? `%${s.passes.accuracy}` : null],
-      ]),
-    },
-    {
-      title: 'Savunma & Mücadele',
-      rows: pick([
-        ['Top kapma', num(s.tackles?.total)],
-        ['Blok', num(s.tackles?.blocks)],
-        ['Kesme', num(s.tackles?.interceptions)],
-        ['İkili mücadele', num(s.duels?.total)],
-        ['Kazanılan mücadele', num(s.duels?.won)],
-        ['Faul yaptığı', num(s.fouls?.committed)],
-        ['Faul çektiği', num(s.fouls?.drawn)],
-      ]),
-    },
-  ].filter((g) => g.rows.length > 0)
-
-  if (groups.length === 0) return null
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {groups.map((g) => (
-        <Card key={g.title}>
-          <div className="section-label px-4 pt-3 text-ink-400">{g.title}</div>
-          <ul className="px-2 py-1">
-            {g.rows.map((r) => (
-              <li key={r.label} className="flex items-center justify-between px-2 py-1.5 text-sm">
-                <span className="text-ink-400">{r.label}</span>
-                <span className="score-num font-semibold text-ink-100">{r.value}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ))}
-    </div>
   )
 }

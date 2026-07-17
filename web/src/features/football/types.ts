@@ -277,6 +277,7 @@ export interface PlayerProfile {
   currentTeamId: number | null
   currentTeamApiId: number | null
   currentTeamName: string | null
+  currentTeamSeason: number | null
   seasons: PlayerSeason[]
 }
 
