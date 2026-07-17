@@ -361,6 +361,11 @@ const GUESS_SEARCH_LEAGUES = [
 const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the three clubs below
 const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşiktaş
 
+// Continental club cups (Champions / Europa / Conference League). A player's row
+// in one of these names the club he played that tie for, which can be a former
+// or loan club — so for "current club" a same-season domestic-league row wins.
+const CUP_LEAGUE_API_IDS = new Set([2, 3, 848])
+
 // Shared column list + FROM/WHERE so the pool and the autocomplete stay in
 // lockstep (same universe, same current-season rows). $1=season, $2=big5 ids,
 // $3=extra league id, $4=extra club ids. "appearances" is the player's career
@@ -551,8 +556,16 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
   if (rows.length === 0) return null
   const head = rows[0]
   const birthDate = rows.find((r) => r.birthDate)?.birthDate ?? null
-  // Rows are season-DESC; the first non-national-team row is the current club.
-  const currentClub = rows.find((r) => r.leagueApiId !== 1) ?? head
+  // Current club: the most-recent season's DOMESTIC-league row. A continental-cup
+  // row (Champions/Europa/Conference) can name a loan or former club — e.g. a
+  // player who moved but still shows a prior club's European run — so it must not
+  // win over the league row of the same season; national-team rows are never a
+  // club. Rows are already season-DESC, appearances-DESC.
+  const clubRows = rows.filter((r) => r.leagueApiId !== 1)
+  const topSeason = clubRows[0]?.season
+  const seasonRows = clubRows.filter((r) => r.season === topSeason)
+  const currentClub =
+    seasonRows.find((r) => !CUP_LEAGUE_API_IDS.has(r.leagueApiId)) ?? seasonRows[0] ?? head
   return {
     playerApiId: head.playerApiId,
     name: head.name,
@@ -635,9 +648,12 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
             OR unaccent(p.firstname) ILIKE unaccent($1)
             OR unaccent(p.lastname) ILIKE unaccent($1)
             OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($1)
-         -- Prefer a player's CLUB over their national team (World Cup, api id 1),
-         -- then newest season, then most appearances — so the displayed team is current.
-         ORDER BY p.player_api_id, (l.api_football_id = 1) ASC, p.season DESC, p.appearances DESC NULLS LAST
+         -- Displayed team should be the current CLUB: national team (World Cup,
+         -- api id 1) last; then newest season; then, within a season, a domestic
+         -- league beats a continental cup (which can name a loan/former club);
+         -- then most appearances.
+         ORDER BY p.player_api_id, (l.api_football_id = 1) ASC, p.season DESC,
+                  (l.api_football_id = ANY(ARRAY[2, 3, 848])) ASC, p.appearances DESC NULLS LAST
        ) s
        ORDER BY
          -- Tier 1: the term is the whole surname (name is exactly it, or ends
