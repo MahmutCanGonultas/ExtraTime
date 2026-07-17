@@ -4,11 +4,11 @@
 -- block the delete (the fixture stays in the game, the adjustment keeps its
 -- effect on scores; only the attribution becomes "unknown").
 ALTER TABLE group_fixtures ALTER COLUMN added_by DROP NOT NULL;
-ALTER TABLE group_fixtures DROP CONSTRAINT group_fixtures_added_by_fkey;
+ALTER TABLE group_fixtures DROP CONSTRAINT IF EXISTS group_fixtures_added_by_fkey;
 ALTER TABLE group_fixtures ADD CONSTRAINT group_fixtures_added_by_fkey
   FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE SET NULL;
 
 ALTER TABLE point_adjustments ALTER COLUMN created_by DROP NOT NULL;
-ALTER TABLE point_adjustments DROP CONSTRAINT point_adjustments_created_by_fkey;
+ALTER TABLE point_adjustments DROP CONSTRAINT IF EXISTS point_adjustments_created_by_fkey;
 ALTER TABLE point_adjustments ADD CONSTRAINT point_adjustments_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;

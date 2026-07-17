@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Tabs } from '@/components/ui/Tabs'
 import { Skeleton, EmptyState } from '@/components/ui/feedback'
 import { formatDateTime } from '@/lib/format'
+import { ApiError } from '@/lib/api'
 
 const TABS = [
   { key: 'overview', label: 'Genel Bakış' },
@@ -86,6 +87,13 @@ function SyncPanel() {
         <p className="text-xs text-ink-500">
           Her senkronizasyon API-Football kotasından harcar; canlı maç günlerinde dikkatli tetikle.
         </p>
+        {trigger.isError && (
+          <p className="text-sm text-loss">
+            Senkronizasyon başarısız:{' '}
+            {trigger.error instanceof ApiError ? trigger.error.message : 'bilinmeyen hata'}
+          </p>
+        )}
+        {trigger.isSuccess && <p className="text-sm text-brand-300">Senkronizasyon tetiklendi.</p>}
 
         {status.isLoading ? (
           <Skeleton className="h-32" />

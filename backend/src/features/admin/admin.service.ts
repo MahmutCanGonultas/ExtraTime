@@ -70,7 +70,9 @@ export interface AdminUser {
 
 export async function adminListUsers(search: string): Promise<AdminUser[]> {
   const term = search.trim()
-  const like = `%${term}%`
+  // Escape LIKE metacharacters (%, _, \) so a literal "a_b" or "%" searches for the
+  // text itself instead of acting as a wildcard.
+  const like = `%${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
   const { rows } = await query<{
     id: number
     email: string
@@ -179,7 +181,12 @@ async function requireUser(userId: number): Promise<{ email: string; isAdminFlag
 }
 
 export async function adminResetUserPassword(userId: number): Promise<string> {
-  await requireUser(userId)
+  const target = await requireUser(userId)
+  // Never let another admin reset the env owner's password (account takeover of the
+  // immutable root). The owner changes their own password from Settings.
+  if (isAdminEmail(target.email)) {
+    throw AppError.badRequest('Platform sahibinin (ADMIN_EMAILS) şifresi buradan sıfırlanamaz')
+  }
   const temporaryPassword = randomPassword(10)
   const hash = await bcrypt.hash(temporaryPassword, SALT_ROUNDS)
   await query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, userId])
@@ -190,7 +197,20 @@ export async function adminUpdateUser(
   userId: number,
   patch: { displayName?: string; email?: string },
 ): Promise<void> {
-  await requireUser(userId)
+  const target = await requireUser(userId)
+  if (patch.email != null) {
+    const newEmail = patch.email.trim().toLowerCase()
+    // Nobody may claim an ADMIN_EMAILS address (that would mint an env-tier admin
+    // the panel can never demote, and could block the real owner from registering)…
+    if (isAdminEmail(newEmail)) {
+      throw AppError.badRequest('Bu e-posta ADMIN_EMAILS ile korumalı, atanamaz')
+    }
+    // …and the env owner cannot be renamed off their protected address (that would
+    // strip their admin status and lock them out of login).
+    if (isAdminEmail(target.email)) {
+      throw AppError.badRequest('Platform sahibinin (ADMIN_EMAILS) e-postası buradan değiştirilemez')
+    }
+  }
   const sets: string[] = []
   const args: unknown[] = []
   if (patch.displayName != null) {
@@ -241,6 +261,11 @@ export async function adminDeleteUser(targetUserId: number, actingAdminId: numbe
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    // champion_user_id has no FK, so null the user out of any finished season they
+    // won in a group they don't own (would otherwise dangle as a ghost champion).
+    await client.query(`UPDATE group_seasons SET champion_user_id = NULL WHERE champion_user_id = $1`, [
+      targetUserId,
+    ])
     // Groups this user owns cascade-delete their members, seasons, curated
     // fixtures, predictions and adjustments…
     await client.query(`DELETE FROM groups WHERE admin_user_id = $1`, [targetUserId])

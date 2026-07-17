@@ -1254,7 +1254,6 @@ function PlayerPicker({
           </button>
         </div>
         <div className="p-3">
-          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Input
             autoFocus
             value={term}

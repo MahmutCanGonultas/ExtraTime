@@ -25,6 +25,15 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return
   }
 
+  // body-parser throws a SyntaxError with status 400 for unparseable JSON — treat
+  // it as a clean validation error, not an unexpected 500.
+  if (err instanceof SyntaxError && (err as { status?: number }).status === 400) {
+    res.status(400).json({
+      error: { code: ErrorCodes.VALIDATION_ERROR, message: 'Geçersiz istek gövdesi (JSON)' },
+    })
+    return
+  }
+
   logger.error({ err }, 'Unhandled error')
   res.status(500).json({ error: { code: ErrorCodes.INTERNAL, message: 'Internal server error' } })
 }

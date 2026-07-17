@@ -40,12 +40,12 @@ const adjustmentSchema = z.object({
 const addFixtureSchema = z.object({ fixtureId: z.number().int().positive() })
 const userPatchSchema = z
   .object({
-    displayName: z.string().min(2).max(50).optional(),
-    email: z.string().email().max(120).optional(),
+    displayName: z.string().trim().min(2).max(50).optional(),
+    email: z.string().trim().email().max(120).optional(),
   })
   .refine((b) => b.displayName != null || b.email != null, { message: 'Değişiklik yok' })
 const setAdminSchema = z.object({ isAdmin: z.boolean() })
-const renameGroupSchema = z.object({ name: z.string().min(2).max(60) })
+const renameGroupSchema = z.object({ name: z.string().trim().min(2).max(60) })
 const transferSchema = z.object({ email: z.string().email().max(120) })
 const addMemberSchema = z.object({ email: z.string().email().max(120) })
 const adminPredictionSchema = z
@@ -95,6 +95,7 @@ adminRouter.post(
 adminRouter.delete(
   '/groups/:id/fixtures/:fixtureId',
   asyncHandler(async (req, res) => {
+    requireAdminUser(req)
     const id = parseIdParam(req.params.id)
     await groups.removeGroupFixture(id, await requireActiveGameId(id), parseIdParam(req.params.fixtureId))
     res.status(204).send()

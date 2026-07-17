@@ -1,6 +1,6 @@
 import { query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
-import { getActiveSeason, getCurrentSeasonId, isMember } from '../groups/groups.service'
+import { getCurrentSeasonId, isMember } from '../groups/groups.service'
 import { provisionalLeaderboard, seasonLeaderboard, type LeaderboardEntry } from './leaderboard'
 import { outcomeOf, type MatchOutcome } from './scoring'
 import { settleFixture } from './settle'

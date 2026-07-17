@@ -87,7 +87,12 @@ export function useAdminRemoveMember(groupId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (userId: number) => api.del(`/admin/groups/${groupId}/members/${userId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-group', groupId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-group', groupId] })
+      // Keep the summary lists' member counts in sync.
+      qc.invalidateQueries({ queryKey: ['admin-groups'] })
+      qc.invalidateQueries({ queryKey: ['admin-all-groups'] })
+    },
   })
 }
 
@@ -222,7 +227,10 @@ export function useAdminSetUserAdmin() {
   return useMutation({
     mutationFn: (input: { userId: number; isAdmin: boolean }) =>
       api.post(`/admin/users/${input.userId}/admin`, { isAdmin: input.isAdmin }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      qc.invalidateQueries({ queryKey: ['admin-stats'] })
+    },
   })
 }
 
