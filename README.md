@@ -7,12 +7,16 @@ guessing games, and track everyone's form with charts.
 The interface is in Turkish; the codebase is in English.
 
 <p align="center">
-  <img src="docs/screenshots/standings.png" width="48%" alt="League standings" />
-  <img src="docs/screenshots/predictions.png" width="48%" alt="Prediction center" />
+  <img src="docs/screenshots/league.png" width="49%" alt="League standings" />&nbsp;
+  <img src="docs/screenshots/guess.png" width="49%" alt="Kim Bu? — guess the player" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/stats.png" width="48%" alt="Analytics" />
-  <img src="docs/screenshots/mobile.png" width="24%" alt="Mobile" />
+  <img src="docs/screenshots/lineup.png" width="49%" alt="Kadro Kur — line-up builder" />&nbsp;
+  <img src="docs/screenshots/player.png" width="49%" alt="Player page" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/team.png" width="49%" alt="Team page" />&nbsp;
+  <img src="docs/screenshots/mobile.png" width="23%" alt="Mobile" />
 </p>
 
 ## What it does
