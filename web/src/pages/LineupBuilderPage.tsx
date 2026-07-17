@@ -233,6 +233,8 @@ export function LineupBuilderPage() {
   const [dragSource, setDragSource] = useState<DragSource | null>(null)
   // The open player actions menu (which slot + where on screen).
   const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null)
+  // When set, the next player tapped swaps places with this slot ("yer değiştir").
+  const [swapFrom, setSwapFrom] = useState<number | null>(null)
   // Players sent away for squad planning, so they leave the bench pool.
   const [released, setReleased] = useState<{ player: Placed; kind: 'sold' | 'loaned' }[]>([])
 
@@ -262,6 +264,22 @@ export function LineupBuilderPage() {
     const px = clamp(x, 5, 95)
     const py = clamp(y, 6, 94)
     if (src.kind === 'slot') {
+      // Dropped on top of another player → swap their places instead of stacking.
+      let target = -1
+      let best = Infinity
+      placedSlots.forEach((s, i) => {
+        if (i === src.index || !players[i]) return
+        const d = (s.x - px) ** 2 + (s.y - py) ** 2
+        if (d < best) {
+          best = d
+          target = i
+        }
+      })
+      if (target >= 0 && best < 130) {
+        swapSlots(src.index, target)
+        return
+      }
+      // Otherwise, free-position the dragged player where they were dropped.
       setPositions((prev) => {
         const next = [...prev]
         next[src.index] = { x: px, y: py }
@@ -298,12 +316,14 @@ export function LineupBuilderPage() {
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
   const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>([])
   const [loadedTeamApiId, setLoadedTeamApiId] = useState<number | null>(null)
+  const [loadedTeamName, setLoadedTeamName] = useState<string | null>(null)
   const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
   useEffect(() => {
     if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
       setPlayers(fillFromSquad(squadData.squad, slots))
       setLoadedSquad(squadData.squad)
       setLoadedTeamApiId(squadData.team.apiFootballId)
+      setLoadedTeamName(loadTeam.name)
       setTitle(loadTeam.name)
       setLoadTeam(null)
     }
@@ -353,6 +373,22 @@ export function LineupBuilderPage() {
     setCaptain((c) => (c === idx ? null : idx))
   }
 
+  // Trade two players' places. Each slot keeps its own on-pitch spot (and free
+  // override), so the two footballers cleanly swap positions; the captaincy
+  // follows its player. Swapping into an empty slot just moves the player there.
+  function swapSlots(a: number, b: number) {
+    if (a === b) return
+    setPlayers((prev) => {
+      const next = [...prev]
+      const tmp = next[a]
+      next[a] = next[b]
+      next[b] = tmp
+      return next
+    })
+    setCaptain((c) => (c === a ? b : c === b ? a : c))
+    setSwapFrom(null)
+  }
+
   // Sell / loan out a player: they leave the XI and the bench pool.
   function sendAway(idx: number, kind: 'sold' | 'loaned') {
     const p = players[idx]
@@ -370,6 +406,7 @@ export function LineupBuilderPage() {
     setPositions(Array(11).fill(null))
     setReleased([])
     setMenu(null)
+    setSwapFrom(null)
   }
 
   return (
@@ -406,15 +443,25 @@ export function LineupBuilderPage() {
                 players={players}
                 captain={captain}
                 teamApiId={loadedTeamApiId}
-                onSlot={setActiveSlot}
-                onMenu={(i, e) => setMenu({ idx: i, x: e.clientX, y: e.clientY })}
+                teamName={loadedTeamName}
+                swapFrom={swapFrom}
+                onSlot={(i) => {
+                  if (swapFrom !== null) return swapSlots(swapFrom, i)
+                  setActiveSlot(i)
+                }}
+                onMenu={(i, e) => {
+                  if (swapFrom !== null) return swapSlots(swapFrom, i)
+                  setMenu({ idx: i, x: e.clientX, y: e.clientY })
+                }}
                 onRemove={remove}
                 onCaptain={toggleCaptain}
                 onDragStart={(i) => setDragSource({ kind: 'slot', index: i })}
                 onDropAt={dropAt}
               />
               <p className="mt-2 text-center text-[11px] text-ink-500">
-                Oyuncuya tıkla → işlemler · sahada sürükle · yedeğe sürükleyerek çıkar
+                {swapFrom !== null
+                  ? 'Yer değiştirmek için başka bir oyuncuya (veya boş mevkiye) dokun'
+                  : 'Oyuncuya tıkla → işlemler · sahada sürükle · üst üste bırakınca yer değişir'}
               </p>
             </div>
 
@@ -553,6 +600,10 @@ export function LineupBuilderPage() {
             setActiveSlot(menu.idx)
             setMenu(null)
           }}
+          onSwap={() => {
+            setSwapFrom(menu.idx)
+            setMenu(null)
+          }}
           onCaptain={() => {
             toggleCaptain(menu.idx)
             setMenu(null)
@@ -573,6 +624,23 @@ export function LineupBuilderPage() {
           onPick={(p) => assign(activeSlot, p)}
         />
       )}
+
+      {swapFrom !== null && players[swapFrom] && (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-xl border border-brand-500/50 bg-ink-900 px-4 py-2.5 shadow-2xl shadow-ink-950/60">
+            <span className="text-sm text-ink-100">
+              <span className="font-bold text-brand-300">{surname(players[swapFrom]!.name)}</span> ile
+              yer değiştir — bir oyuncuya dokun
+            </span>
+            <button
+              onClick={() => setSwapFrom(null)}
+              className="rounded-md border border-ink-700 px-2.5 py-1 text-xs font-medium text-ink-300 transition hover:bg-ink-800"
+            >
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -584,6 +652,7 @@ function PlayerActionMenu({
   y,
   onClose,
   onChange,
+  onSwap,
   onCaptain,
   onBench,
   onSell,
@@ -595,6 +664,7 @@ function PlayerActionMenu({
   y: number
   onClose: () => void
   onChange: () => void
+  onSwap: () => void
   onCaptain: () => void
   onBench: () => void
   onSell: () => void
@@ -602,8 +672,9 @@ function PlayerActionMenu({
 }) {
   const flag = flagEmoji(player.nationality ?? null)
   const left = Math.max(8, Math.min(x, window.innerWidth - 236))
-  const top = Math.max(8, Math.min(y, window.innerHeight - 320))
+  const top = Math.max(8, Math.min(y, window.innerHeight - 356))
   const items = [
+    { icon: '🔀', label: 'Yer değiştir', onClick: onSwap },
     { icon: '🔁', label: 'Oyuncuyu değiştir', onClick: onChange },
     { icon: '👑', label: isCaptain ? 'Kaptanlığı al' : 'Kaptan yap', onClick: onCaptain },
     { icon: '🔻', label: 'Yedeğe al', onClick: onBench },
@@ -749,6 +820,8 @@ function Pitch({
   players,
   captain,
   teamApiId,
+  teamName,
+  swapFrom,
   onSlot,
   onMenu,
   onRemove,
@@ -760,6 +833,8 @@ function Pitch({
   players: (Placed | null)[]
   captain: number | null
   teamApiId: number | null
+  teamName: string | null
+  swapFrom: number | null
   onSlot: (i: number) => void
   onMenu: (i: number, e: React.MouseEvent) => void
   onRemove: (i: number) => void
@@ -802,10 +877,14 @@ function Pitch({
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[16%] w-[54%] -translate-x-1/2 border border-b-0 border-white/30" />
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[7%] w-[28%] -translate-x-1/2 border border-b-0 border-white/30" />
 
-      {/* Loaded team's crest as a faint translucent watermark behind the players */}
+      {/* Loaded team's identity — a clear crest + name badge in the corner, so
+          it's obvious whose squad is on the pitch (no buried watermark). */}
       {teamApiId != null && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.10]">
-          <TeamLogo apiId={teamApiId} size={300} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]" />
+        <div className="pointer-events-none absolute left-2.5 top-2.5 z-10 flex items-center gap-1.5 rounded-lg bg-ink-950/75 px-2 py-1 ring-1 ring-white/15 backdrop-blur-sm">
+          <TeamLogo apiId={teamApiId} size={20} />
+          {teamName && (
+            <span className="max-w-[140px] truncate text-[11px] font-bold text-white">{teamName}</span>
+          )}
         </div>
       )}
 
@@ -816,6 +895,8 @@ function Pitch({
           player={players[i]}
           number={players[i]?.jerseyNumber ?? i + 1}
           isCaptain={captain === i}
+          isSwapSource={swapFrom === i}
+          swapping={swapFrom !== null}
           onClick={() => onSlot(i)}
           onMenu={(e) => onMenu(i, e)}
           onRemove={() => onRemove(i)}
@@ -832,6 +913,8 @@ function SlotChip({
   player,
   number,
   isCaptain,
+  isSwapSource,
+  swapping,
   onClick,
   onMenu,
   onRemove,
@@ -842,6 +925,8 @@ function SlotChip({
   player: Placed | null
   number: number
   isCaptain: boolean
+  isSwapSource: boolean
+  swapping: boolean
   onClick: () => void
   onMenu: (e: React.MouseEvent) => void
   onRemove: () => void
@@ -859,13 +944,17 @@ function SlotChip({
             onClick={onMenu}
             draggable
             onDragStart={onDragStart}
-            className="relative cursor-grab transition hover:scale-105 active:cursor-grabbing"
-            title="Tıkla: işlemler · sürükle: taşı"
+            className={cn(
+              'relative cursor-grab transition hover:scale-105 active:cursor-grabbing',
+              swapping && !isSwapSource && 'hover:scale-110',
+            )}
+            title={swapping ? 'Yer değiştirmek için dokun' : 'Tıkla: işlemler · sürükle: taşı'}
           >
             <div
               className={cn(
                 'grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
-                ROLE_RING[slot.role],
+                isSwapSource ? 'ring-brand-400 ring-offset-2 ring-offset-emerald-900' : ROLE_RING[slot.role],
+                isSwapSource && 'animate-pulse',
               )}
             >
               <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={52} />
