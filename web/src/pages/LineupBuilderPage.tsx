@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, X, Trash2, Users } from 'lucide-react'
-import { useSearch } from '@/features/football/hooks'
+import { Plus, X, Trash2, Users, Sparkles } from 'lucide-react'
+import { useSearch, useTeamSquad } from '@/features/football/hooks'
+import type { SquadPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
+import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -104,6 +106,57 @@ function loadSaved(): SavedState {
   }
 }
 
+function roleForPosition(pos: string | null): Role | null {
+  switch (pos) {
+    case 'Goalkeeper':
+      return 'GK'
+    case 'Defender':
+      return 'DEF'
+    case 'Midfielder':
+      return 'MID'
+    case 'Attacker':
+      return 'ATT'
+    default:
+      return null
+  }
+}
+
+// Auto-fill the formation from a team's squad: the best (most-played) player for
+// each slot's role, then any leftovers into still-empty slots.
+function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
+  const byRole: Record<Role, SquadPlayer[]> = { GK: [], DEF: [], MID: [], ATT: [] }
+  const ranked = [...squad].sort((a, b) => (b.appearances ?? 0) - (a.appearances ?? 0))
+  for (const p of ranked) {
+    const r = roleForPosition(p.position)
+    if (r) byRole[r].push(p)
+  }
+  const used = new Set<number>()
+  const toPlaced = (p: SquadPlayer): Placed => ({
+    playerApiId: p.playerApiId,
+    name: p.name,
+    photoUrl: p.photoUrl,
+  })
+  const next: (Placed | null)[] = slots.map((slot) => {
+    const list = byRole[slot.role]
+    while (list.length && used.has(list[0].playerApiId)) list.shift()
+    const p = list.shift()
+    if (!p) return null
+    used.add(p.playerApiId)
+    return toPlaced(p)
+  })
+  const leftover = ranked.filter((p) => !used.has(p.playerApiId))
+  for (let i = 0; i < next.length; i++) {
+    if (!next[i]) {
+      const p = leftover.shift()
+      if (p) {
+        used.add(p.playerApiId)
+        next[i] = toPlaced(p)
+      }
+    }
+  }
+  return next
+}
+
 export function LineupBuilderPage() {
   const initial = useMemo(loadSaved, [])
   const [formation, setFormation] = useState<FormationKey>(initial.formation)
@@ -118,6 +171,17 @@ export function LineupBuilderPage() {
   useEffect(() => {
     safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players }))
   }, [formation, title, players])
+
+  // Load a team's current squad onto the pitch (best player per slot role).
+  const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
+  const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
+  useEffect(() => {
+    if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
+      setPlayers(fillFromSquad(squadData.squad, slots))
+      setTitle(loadTeam.name)
+      setLoadTeam(null)
+    }
+  }, [loadTeam, squadData, slots])
 
   function assign(idx: number, p: Placed) {
     setPlayers((prev) => {
@@ -175,6 +239,8 @@ export function LineupBuilderPage() {
             </label>
           </Card>
 
+          <TeamLoader onLoad={setLoadTeam} />
+
           <Card className="space-y-3 p-4">
             <div className="section-label text-ink-400">Diziliş</div>
             <div className="grid grid-cols-3 gap-2">
@@ -213,6 +279,46 @@ export function LineupBuilderPage() {
   )
 }
 
+function TeamLoader({ onLoad }: { onLoad: (t: { id: number; name: string }) => void }) {
+  const [term, setTerm] = useState('')
+  const { data } = useSearch(term)
+  const teams = data?.teams ?? []
+  return (
+    <Card className="space-y-2 p-4">
+      <div className="section-label flex items-center gap-1.5 text-ink-400">
+        <Sparkles className="h-3.5 w-3.5 text-brand-300" />
+        Hazır kadro yükle
+      </div>
+      <p className="text-xs text-ink-500">Bir takım ara; güncel kadrosu dizilişe otursun.</p>
+      <div className="relative">
+        <Input
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          placeholder="Takım ara (ör. Fenerbahçe)"
+        />
+        {term.trim().length >= 2 && teams.length > 0 && (
+          <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-ink-700 bg-ink-900 shadow-2xl">
+            {teams.map((t) => (
+              <li key={t.id}>
+                <button
+                  onClick={() => {
+                    onLoad({ id: t.id, name: t.name })
+                    setTerm('')
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-ink-800"
+                >
+                  <TeamLogo apiId={t.apiFootballId} size={22} />
+                  <span className="truncate text-sm text-ink-100">{t.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 const ROLE_LABEL: Record<Role, string> = {
   GK: 'Kaleci',
   DEF: 'Defans',
@@ -233,19 +339,25 @@ function Pitch({
 }) {
   return (
     <div
-      className="relative mx-auto aspect-[3/4] w-full max-w-[540px] overflow-hidden rounded-xl ring-1 ring-emerald-900/40"
+      className="relative mx-auto aspect-[3/4] w-full max-w-[560px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60"
       style={{
         backgroundImage:
-          'repeating-linear-gradient(180deg, #0f3d29 0 11%, #0d3624 11% 22%), radial-gradient(120% 80% at 50% -10%, rgba(194,245,66,0.12), transparent 60%)',
+          'repeating-linear-gradient(180deg, #124d33 0 8.33%, #0e4229 8.33% 16.66%), radial-gradient(130% 90% at 50% 0%, rgba(194,245,66,0.10), transparent 55%)',
       }}
     >
-      {/* Field markings */}
-      <div className="pointer-events-none absolute inset-3 rounded-lg border border-white/25" />
-      <div className="pointer-events-none absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-white/25" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
-      {/* penalty boxes */}
-      <div className="pointer-events-none absolute left-1/2 top-3 h-[15%] w-[46%] -translate-x-1/2 border border-t-0 border-white/25" />
-      <div className="pointer-events-none absolute bottom-3 left-1/2 h-[15%] w-[46%] -translate-x-1/2 border border-b-0 border-white/25" />
+      {/* Depth vignette */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_90px_rgba(0,0,0,0.45)]" />
+      {/* Boundary + halfway line */}
+      <div className="pointer-events-none absolute inset-3 rounded-lg border border-white/30" />
+      <div className="pointer-events-none absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-white/30" />
+      {/* Center circle + spot */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/40" />
+      {/* Penalty + goal boxes */}
+      <div className="pointer-events-none absolute left-1/2 top-3 h-[16%] w-[54%] -translate-x-1/2 border border-t-0 border-white/30" />
+      <div className="pointer-events-none absolute left-1/2 top-3 h-[7%] w-[28%] -translate-x-1/2 border border-t-0 border-white/30" />
+      <div className="pointer-events-none absolute bottom-3 left-1/2 h-[16%] w-[54%] -translate-x-1/2 border border-b-0 border-white/30" />
+      <div className="pointer-events-none absolute bottom-3 left-1/2 h-[7%] w-[28%] -translate-x-1/2 border border-b-0 border-white/30" />
 
       {slots.map((slot, i) => (
         <SlotChip
