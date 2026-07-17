@@ -16,6 +16,7 @@ interface Placed {
   playerApiId: number
   name: string
   photoUrl: string | null
+  jerseyNumber?: number | null
 }
 
 type Role = 'GK' | 'DEF' | 'MID' | 'ATT'
@@ -69,11 +70,22 @@ function buildSlots(key: FormationKey): Slot[] {
 }
 
 const ROLE_RING: Record<Role, string> = {
-  GK: 'ring-amber-400/70',
-  DEF: 'ring-sky-400/70',
-  MID: 'ring-brand-400/80',
-  ATT: 'ring-rose-400/70',
+  GK: 'ring-amber-400/80',
+  DEF: 'ring-sky-400/80',
+  MID: 'ring-brand-400/90',
+  ATT: 'ring-rose-400/80',
 }
+
+const ROLE_BADGE: Record<Role, string> = {
+  GK: 'bg-amber-400 text-ink-950',
+  DEF: 'bg-sky-400 text-ink-950',
+  MID: 'bg-brand-400 text-ink-950',
+  ATT: 'bg-rose-400 text-ink-950',
+}
+
+const ROLE_SHORT: Record<Role, string> = { GK: 'KAL', DEF: 'DEF', MID: 'OS', ATT: 'FOR' }
+
+const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
 const STORAGE_KEY = 'extratime:lineup:v1'
 
@@ -138,6 +150,7 @@ function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
     playerApiId: p.playerApiId,
     name: p.name,
     photoUrl: p.photoUrl,
+    jerseyNumber: p.jerseyNumber,
   })
   const next: (Placed | null)[] = slots.map((slot) => {
     const list = byRole[slot.role]
@@ -393,15 +406,25 @@ function SlotChip({
     >
       {player ? (
         <div className="group relative flex flex-col items-center">
-          <button
-            onClick={onClick}
-            className={cn(
-              'grid place-items-center rounded-full bg-ink-950/70 ring-2 transition hover:scale-105',
-              ROLE_RING[slot.role],
+          <button onClick={onClick} className="relative transition hover:scale-105" title="Değiştir">
+            <div
+              className={cn(
+                'grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
+                ROLE_RING[slot.role],
+              )}
+            >
+              <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={52} />
+            </div>
+            {player.jerseyNumber != null && (
+              <span
+                className={cn(
+                  'absolute -bottom-1 -left-1 grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-[10px] font-black tabular-nums shadow ring-2 ring-ink-950/70',
+                  ROLE_BADGE[slot.role],
+                )}
+              >
+                {player.jerseyNumber}
+              </span>
             )}
-            title="Değiştir"
-          >
-            <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={44} />
           </button>
           <button
             onClick={onRemove}
@@ -411,20 +434,23 @@ function SlotChip({
           >
             <X className="h-3 w-3" />
           </button>
-          <span className="mt-1 max-w-[92px] truncate rounded bg-ink-950/70 px-1.5 py-0.5 text-[11px] font-medium text-white">
-            {player.name}
+          <span className="mt-1.5 max-w-[96px] truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10">
+            {surname(player.name)}
           </span>
         </div>
       ) : (
         <button
           onClick={onClick}
           className={cn(
-            'grid h-11 w-11 place-items-center rounded-full border-2 border-dashed bg-ink-950/40 text-white/70 transition hover:scale-105 hover:bg-ink-950/60',
+            'grid h-12 w-12 place-items-center rounded-full border-2 border-dashed bg-ink-950/30 backdrop-blur-sm transition hover:scale-105 hover:border-white/70 hover:bg-ink-950/50',
             'border-white/40',
           )}
           title={`${ROLE_LABEL[slot.role]} ekle`}
         >
-          <Plus className="h-5 w-5" />
+          <span className="flex flex-col items-center leading-none text-white/70">
+            <Plus className="h-4 w-4" />
+            <span className="mt-0.5 text-[8px] font-bold tracking-wide">{ROLE_SHORT[slot.role]}</span>
+          </span>
         </button>
       )}
     </div>
