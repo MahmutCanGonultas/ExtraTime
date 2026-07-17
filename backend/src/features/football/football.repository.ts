@@ -698,6 +698,9 @@ export interface SquadPlayer {
   rating: number | null
   photoUrl: string | null
   season: number
+  // Career-peak appearances, so a current (preseason, stat-less) squad can still
+  // be ranked by who the established players are.
+  careerApps: number | null
 }
 
 // The team's CURRENT-season squad (its newest season we hold), best scorers
@@ -705,14 +708,15 @@ export interface SquadPlayer {
 // picked up from historical backfills — out of the current roster.
 export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
   const { rows } = await query<SquadPlayer>(
-    `SELECT DISTINCT ON (player_api_id)
-       player_api_id AS "playerApiId", name, position, nationality, age, jersey_number AS "jerseyNumber",
-       goals, assists, appearances, minutes, rating::float8 AS rating,
-       photo_url AS "photoUrl", season
-     FROM players
-     WHERE team_api_id = $1
-       AND season = (SELECT MAX(season) FROM players WHERE team_api_id = $1)
-     ORDER BY player_api_id, appearances DESC NULLS LAST`,
+    `SELECT DISTINCT ON (pl.player_api_id)
+       pl.player_api_id AS "playerApiId", pl.name, pl.position, pl.nationality, pl.age,
+       pl.jersey_number AS "jerseyNumber", pl.goals, pl.assists, pl.appearances, pl.minutes,
+       pl.rating::float8 AS rating, pl.photo_url AS "photoUrl", pl.season,
+       (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = pl.player_api_id) AS "careerApps"
+     FROM players pl
+     WHERE pl.team_api_id = $1
+       AND pl.season = (SELECT MAX(season) FROM players WHERE team_api_id = $1)
+     ORDER BY pl.player_api_id, pl.appearances DESC NULLS LAST`,
     [teamApiId],
   )
   return rows.sort(
@@ -741,11 +745,13 @@ export async function getTeamSquadHistory(
   if (seasons.length === 0) return { seasons: [], season: null, squad: [] }
   const target = season != null && seasons.includes(season) ? season : seasons[0]
   const { rows } = await query<SquadPlayer>(
-    `SELECT DISTINCT ON (player_api_id)
-       player_api_id AS "playerApiId", name, position, nationality, age, jersey_number AS "jerseyNumber",
-       goals, assists, appearances, minutes, rating::float8 AS rating, photo_url AS "photoUrl", season
-     FROM players WHERE team_api_id = $1 AND season = $2
-     ORDER BY player_api_id, appearances DESC NULLS LAST`,
+    `SELECT DISTINCT ON (pl.player_api_id)
+       pl.player_api_id AS "playerApiId", pl.name, pl.position, pl.nationality, pl.age,
+       pl.jersey_number AS "jerseyNumber", pl.goals, pl.assists, pl.appearances, pl.minutes,
+       pl.rating::float8 AS rating, pl.photo_url AS "photoUrl", pl.season,
+       (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = pl.player_api_id) AS "careerApps"
+     FROM players pl WHERE pl.team_api_id = $1 AND pl.season = $2
+     ORDER BY pl.player_api_id, pl.appearances DESC NULLS LAST`,
     [teamApiId, target],
   )
   const squad = rows.sort(

@@ -9,6 +9,7 @@ import * as groups from '../groups/groups.service'
 import * as predictions from '../predictions/predictions.service'
 import {
   backfillAllSeasons,
+  refreshCurrentSquads,
   seedLeaguesJob,
   syncFixtures,
   syncLiveScores,
@@ -176,6 +177,10 @@ adminRouter.post(
 adminRouter.post(
   '/sync/live',
   asyncHandler(async (_req, res) => res.json(await syncLiveScores())),
+)
+adminRouter.post(
+  '/sync/squads',
+  asyncHandler(async (_req, res) => res.json(await refreshCurrentSquads())),
 )
 adminRouter.post(
   '/sync/standings',

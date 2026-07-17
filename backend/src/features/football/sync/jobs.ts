@@ -540,6 +540,29 @@ export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number
 }
 
 /**
+ * Daily refresh of every tracked team's current squad so transfers show up —
+ * important during the transfer window. Re-pulls the live roster for all teams
+ * we hold a current-season row for, then re-derives nationality/name parts.
+ * Heavier than the other daily jobs (~one request per team), so it runs once a
+ * day.
+ */
+export async function refreshCurrentSquads(): Promise<SyncResult> {
+  return runJob('squads', async () => {
+    const { rows } = await query<{ teamApiId: number; leagueId: number }>(
+      `SELECT DISTINCT p.team_api_id AS "teamApiId", p.league_id AS "leagueId"
+       FROM players p JOIN leagues l ON l.id = p.league_id
+       WHERE p.season = $1 AND p.team_api_id IS NOT NULL
+         AND l.api_football_id = ANY($2)`,
+      [CURRENT_SQUAD_SEASON, CONFIGURED_LEAGUE_API_IDS],
+    )
+    const n = await syncCurrentSquads(rows)
+    await backfillCurrentSquadProfiles()
+    await expandAbbreviatedNames()
+    return n
+  })
+}
+
+/**
  * Retire tournaments (e.g. the World Cup) once every match has been played, so
  * they drop off the home page automatically. Club leagues never auto-retire.
  */

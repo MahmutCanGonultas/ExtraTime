@@ -160,6 +160,7 @@ export interface SquadPlayer {
   rating: number | null
   photoUrl: string | null
   season: number
+  careerApps: number | null
 }
 
 export interface TeamDetail {

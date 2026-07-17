@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { logger } from '../../../lib/logger'
 import {
+  refreshCurrentSquads,
   syncFixtures,
   syncLiveScores,
   syncRecentMatchDetails,
@@ -16,6 +17,10 @@ import { syncResultsAndSettle } from '../../predictions/settle'
 export function startScheduler(): void {
   // Fixtures: twice a day.
   cron.schedule('0 6,18 * * *', () => void syncFixtures())
+
+  // Squads: once a day, so transfers (new club, shirt number) show up — matters
+  // during the transfer window. Runs early, before the standings/scorer sync.
+  cron.schedule('0 4 * * *', () => void refreshCurrentSquads())
 
   // Standings, scorers, assists: once a day, staggered a few minutes apart.
   cron.schedule('30 6 * * *', () => void syncStandings())

@@ -125,7 +125,10 @@ function roleForPosition(pos: string | null): Role | null {
 // each slot's role, then any leftovers into still-empty slots.
 function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
   const byRole: Record<Role, SquadPlayer[]> = { GK: [], DEF: [], MID: [], ATT: [] }
-  const ranked = [...squad].sort((a, b) => (b.appearances ?? 0) - (a.appearances ?? 0))
+  // Rank by career peak so the XI is the established players even when the
+  // current (preseason) season has no appearances yet.
+  const prom = (p: SquadPlayer) => p.careerApps ?? p.appearances ?? 0
+  const ranked = [...squad].sort((a, b) => prom(b) - prom(a))
   for (const p of ranked) {
     const r = roleForPosition(p.position)
     if (r) byRole[r].push(p)
