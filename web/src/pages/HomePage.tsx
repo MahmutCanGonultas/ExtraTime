@@ -58,7 +58,7 @@ export function HomePage() {
           <div>
             <div className="flex items-center gap-2 text-brand-300">
               <BallMark size={16} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.25em]">ExtraTime</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em]">EXTRATIME</span>
             </div>
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink-100 sm:text-4xl">
               Merhaba, {user?.displayName ?? 'oyuncu'}

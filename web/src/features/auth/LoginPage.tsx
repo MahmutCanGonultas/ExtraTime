@@ -33,7 +33,7 @@ export function LoginPage() {
   return (
     <AuthShell
       title="Giriş yap"
-      subtitle="ExtraTime'a hoş geldin"
+      subtitle="EXTRATIME'a hoş geldin"
       footer={
         <>
           Hesabın yok mu?{' '}

@@ -4,7 +4,12 @@ import { cn } from '@/lib/cn'
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn('w-full border-collapse text-sm', className)} {...props} />
+      {/* tabular-nums keeps every digit the same width so stat columns line up
+          exactly under their (centered) headers instead of looking ragged. */}
+      <table
+        className={cn('w-full border-collapse text-sm tabular-nums', className)}
+        {...props}
+      />
     </div>
   )
 }

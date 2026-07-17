@@ -22,8 +22,10 @@ export function Brand({ className, markSize = 26 }: { className?: string; markSi
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <BallMark size={markSize} className="text-brand-400" />
-      <span className="font-display text-xl font-bold uppercase tracking-wide text-ink-100">
-        Extra<span className="text-brand-400">Time</span>
+      {/* Literal Latin caps so the Turkish page locale can't turn the "i" into a
+          dotted "İ" via text-transform — the brand is EXTRATIME. */}
+      <span className="font-display text-xl font-bold tracking-wide text-ink-100">
+        EXTRA<span className="text-brand-400">TIME</span>
       </span>
     </span>
   )
