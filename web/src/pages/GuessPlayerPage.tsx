@@ -170,7 +170,7 @@ export function GuessPlayerPage() {
 
       {/* Photo + controls on the left, guesses on the right — so many guesses
           stay visible at once. Stacks to a single column on small screens. */}
-      <div className="grid gap-5 lg:grid-cols-[380px_1fr] lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-[420px_1fr] lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-20">
           {/* Censored photo of the mystery player — no name/initial leaks. */}
           <Card className="relative flex flex-col items-center gap-3 overflow-hidden p-6">
@@ -349,7 +349,7 @@ function MysteryPhoto({
   useEffect(() => setFailed(false), [player?.playerApiId])
 
   return (
-    <div className="relative aspect-square w-full max-w-[300px] overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
+    <div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
       {player?.photoUrl && !failed ? (
         <img
           src={player.photoUrl}
