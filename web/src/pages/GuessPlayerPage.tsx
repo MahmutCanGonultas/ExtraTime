@@ -208,7 +208,7 @@ export function GuessPlayerPage() {
       {guesses.length > 0 && secret && (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[620px]">
+            <div className="min-w-180">
               <GuessHeader />
               <ul className="divide-y divide-ink-850">
                 {guesses.map((g) => (
@@ -321,17 +321,17 @@ function MysteryPhoto({
   )
 }
 
-const COLS = 'grid grid-cols-[1.6fr_1fr_1fr_1.3fr_1.3fr_0.7fr_0.7fr] gap-1.5'
+const COLS = 'grid grid-cols-[1.8fr_1.1fr_1.1fr_1.4fr_1.4fr_0.85fr_0.85fr] gap-2'
 
 function GuessHeader() {
   return (
     <div
       className={cn(
         COLS,
-        'border-b border-ink-800 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-400',
+        'border-b border-ink-800 bg-ink-900/50 px-3 py-3 text-xs font-bold uppercase tracking-wider text-ink-400',
       )}
     >
-      <span>Oyuncu</span>
+      <span className="flex items-center">Oyuncu</span>
       <span className="text-center">Uyruk</span>
       <span className="text-center">Mevki</span>
       <span className="text-center">Takım</span>
@@ -346,21 +346,24 @@ function Tile({
   state,
   children,
   arrow,
+  big,
 }: {
   state: TileState
   children: React.ReactNode
   arrow?: Arrow
+  big?: boolean
 }) {
   return (
     <div
       className={cn(
-        'flex min-h-[38px] items-center justify-center gap-0.5 rounded px-1 text-center text-xs font-medium ring-1',
+        'flex min-h-[58px] items-center justify-center gap-1 rounded-lg px-1.5 text-center ring-1',
+        big ? 'text-xl font-bold' : 'text-sm font-semibold',
         TILE_BG[state],
       )}
     >
-      <span className="truncate">{children}</span>
-      {arrow === 'up' && <ArrowUp className="h-3.5 w-3.5 shrink-0" />}
-      {arrow === 'down' && <ArrowDown className="h-3.5 w-3.5 shrink-0" />}
+      <span className={big ? 'tabular-nums' : 'line-clamp-2 leading-tight'}>{children}</span>
+      {arrow === 'up' && <ArrowUp className="h-5 w-5 shrink-0" />}
+      {arrow === 'down' && <ArrowDown className="h-5 w-5 shrink-0" />}
     </div>
   )
 }
@@ -377,13 +380,13 @@ function NationalityTile({
   return (
     <div
       className={cn(
-        'flex min-h-[38px] flex-col items-center justify-center rounded px-1 text-center ring-1',
+        'flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-center ring-1',
         TILE_BG[state],
       )}
       title={nationality ?? undefined}
     >
-      <span className="text-base leading-none">{flag || '🏳️'}</span>
-      <span className="mt-0.5 w-full truncate text-[9px] font-medium leading-tight">
+      <span className="text-2xl leading-none">{flag || '🏳️'}</span>
+      <span className="w-full truncate text-[11px] font-semibold leading-tight">
         {nationality ?? '—'}
       </span>
     </div>
@@ -399,19 +402,19 @@ function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPool
   const jersey = cmpNum(guess.jerseyNumber, secret.jerseyNumber)
 
   return (
-    <li className={cn(COLS, 'items-center px-3 py-2')}>
-      <span className="flex items-center gap-2">
-        <PlayerAvatar playerApiId={guess.playerApiId} name={guess.name} size={26} />
-        <span className="truncate text-sm text-ink-100">{guess.name}</span>
+    <li className={cn(COLS, 'items-stretch px-3 py-2.5')}>
+      <span className="flex items-center gap-2.5">
+        <PlayerAvatar playerApiId={guess.playerApiId} name={guess.name} size={38} />
+        <span className="truncate text-base font-semibold text-ink-100">{guess.name}</span>
       </span>
       <NationalityTile state={nat} nationality={guess.nationality} />
       <Tile state={pos}>{posLabel(guess.position)}</Tile>
       <Tile state={team}>{guess.teamName ?? '—'}</Tile>
       <Tile state={league}>{guess.leagueName}</Tile>
-      <Tile state={age.state} arrow={age.arrow}>
+      <Tile state={age.state} arrow={age.arrow} big>
         {guess.age ?? '—'}
       </Tile>
-      <Tile state={jersey.state} arrow={jersey.arrow}>
+      <Tile state={jersey.state} arrow={jersey.arrow} big>
         {guess.jerseyNumber ?? '?'}
       </Tile>
     </li>
