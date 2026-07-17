@@ -35,9 +35,9 @@ const posLabel = (p: string | null) => (p ? (POS_TR[p] ?? p) : '—')
 // How censored the photo is: fully blurred at the start, opening a little with
 // each wrong guess, fully clear once the round is over.
 const MAX_GUESSES = 8
-const BASE_BLUR = 18
-const BLUR_STEP = 1.3
-const MIN_BLUR = 5 // never fully clears during play — only when solved / given up
+const BASE_BLUR = 16
+const BLUR_STEP = 2 // opens a bit faster per wrong guess
+const MIN_BLUR = 4 // but never fully clears during play — only when solved / given up
 function blurFor(wrongGuesses: number, finished: boolean): number {
   if (finished) return 0
   return Math.max(MIN_BLUR, BASE_BLUR - wrongGuesses * BLUR_STEP)
