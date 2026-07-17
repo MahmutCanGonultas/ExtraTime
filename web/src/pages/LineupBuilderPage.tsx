@@ -38,9 +38,16 @@ const FORMATIONS: Record<string, { y: number; n: number }[]> = {
   '4-3-3': [{ y: 73, n: 4 }, { y: 50, n: 3 }, { y: 17, n: 3 }],
   '4-4-2': [{ y: 73, n: 4 }, { y: 50, n: 4 }, { y: 18, n: 2 }],
   '4-2-3-1': [{ y: 74, n: 4 }, { y: 58, n: 2 }, { y: 37, n: 3 }, { y: 16, n: 1 }],
+  '4-1-4-1': [{ y: 73, n: 4 }, { y: 58, n: 1 }, { y: 40, n: 4 }, { y: 18, n: 1 }],
+  '4-5-1': [{ y: 73, n: 4 }, { y: 50, n: 5 }, { y: 18, n: 1 }],
+  '4-4-1-1': [{ y: 73, n: 4 }, { y: 52, n: 4 }, { y: 34, n: 1 }, { y: 17, n: 1 }],
   '3-5-2': [{ y: 74, n: 3 }, { y: 50, n: 5 }, { y: 18, n: 2 }],
   '3-4-3': [{ y: 74, n: 3 }, { y: 52, n: 4 }, { y: 20, n: 3 }],
+  '4-3-2-1': [{ y: 73, n: 4 }, { y: 52, n: 3 }, { y: 34, n: 2 }, { y: 17, n: 1 }],
   '5-3-2': [{ y: 75, n: 5 }, { y: 50, n: 3 }, { y: 20, n: 2 }],
+  '5-4-1': [{ y: 75, n: 5 }, { y: 50, n: 4 }, { y: 18, n: 1 }],
+  // Joke formation: a ten-man wall across the back, nobody up front.
+  '10-0-0': [{ y: 74, n: 10 }],
 }
 type FormationKey = keyof typeof FORMATIONS
 
@@ -610,8 +617,9 @@ export function LineupBuilderPage() {
                       ? 'border-brand-500 bg-brand-500 text-ink-950'
                       : 'border-ink-700 bg-ink-850 text-ink-200 hover:border-ink-600 hover:bg-ink-800',
                   )}
+                  title={key === '10-0-0' ? 'Otobüsü çek! (şaka dizilişi)' : undefined}
                 >
-                  {key}
+                  {key === '10-0-0' ? '🧱 10-0-0' : key}
                 </button>
               ))}
             </div>
