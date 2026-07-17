@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   useBracket,
   useLeagueFixtures,
@@ -22,12 +22,27 @@ import { Input } from '@/components/ui/Input'
 import { Tabs } from '@/components/ui/Tabs'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
+function seasonLabel(season: number): string {
+  const next = (season + 1) % 100
+  return `${season}/${next.toString().padStart(2, '0')}`
+}
+
 export function LeagueDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const leagueId = Number(id)
   const [tab, setTab] = useState<string | null>(null)
   const { data: leagues } = useLeagues(false)
   const league = leagues?.find((l) => l.id === leagueId)
+
+  // Every season we hold for this same competition, newest first — powers the
+  // season switcher so any league (not just the featured six) can reach its past.
+  const seasons = useMemo(() => {
+    if (!league) return []
+    return (leagues ?? [])
+      .filter((l) => l.apiFootballId === league.apiFootballId)
+      .sort((a, b) => b.season - a.season)
+  }, [leagues, league])
 
   // The "Eleme" (knockout) tab only exists for tournaments that have a bracket.
   const bracket = useBracket(leagueId)
@@ -49,16 +64,33 @@ export function LeagueDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {league && <TeamLogo apiId={league.apiFootballId} kind="league" size={40} />}
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink-100">{league?.name ?? 'Lig'}</h1>
           {league && (
             <p className="text-sm text-ink-400">
-              {league.country} · {league.season} sezonu
+              {league.country} · {seasonLabel(league.season)} sezonu
             </p>
           )}
         </div>
+        {seasons.length > 1 && (
+          <label className="ml-auto flex items-center gap-2 text-sm text-ink-400">
+            <span className="hidden sm:inline">Sezon</span>
+            <select
+              value={leagueId}
+              onChange={(e) => navigate(`/leagues/${e.target.value}`)}
+              className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm font-semibold text-ink-100 outline-none transition hover:border-ink-600 focus:border-brand-500"
+            >
+              {seasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {seasonLabel(s.season)}
+                  {s.isCurrent ? ' • güncel' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <Tabs items={tabs} active={active} onChange={setTab} />
