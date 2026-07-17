@@ -29,7 +29,7 @@ export const requireSyncAccess = asyncHandler(async (req, _res, next) => {
     try {
       const { userId } = verifyToken(header.slice('Bearer '.length).trim())
       const user = await getUserById(userId)
-      if (user && isPlatformAdmin(user.email)) {
+      if (user && isPlatformAdmin(user)) {
         req.userId = userId
         next()
         return

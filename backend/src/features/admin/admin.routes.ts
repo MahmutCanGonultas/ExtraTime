@@ -6,6 +6,7 @@ import { asyncHandler } from '../../lib/middleware/async'
 import { parseIdParam } from '../../lib/params'
 import { requireSyncAccess } from './sync.middleware'
 import * as groups from '../groups/groups.service'
+import * as admin from './admin.service'
 import * as predictions from '../predictions/predictions.service'
 import {
   backfillAllSeasons,
@@ -37,6 +38,16 @@ const adjustmentSchema = z.object({
   reason: z.string().max(200).optional(),
 })
 const addFixtureSchema = z.object({ fixtureId: z.number().int().positive() })
+const userPatchSchema = z
+  .object({
+    displayName: z.string().min(2).max(50).optional(),
+    email: z.string().email().max(120).optional(),
+  })
+  .refine((b) => b.displayName != null || b.email != null, { message: 'Değişiklik yok' })
+const setAdminSchema = z.object({ isAdmin: z.boolean() })
+const renameGroupSchema = z.object({ name: z.string().min(2).max(60) })
+const transferSchema = z.object({ email: z.string().email().max(120) })
+const addMemberSchema = z.object({ email: z.string().email().max(120) })
 const adminPredictionSchema = z
   .object({
     userId: z.number().int().positive(),
@@ -151,6 +162,104 @@ adminRouter.post(
       b.predictedHome ?? null,
       b.predictedAway ?? null,
     )
+    res.status(201).json({ ok: true })
+  }),
+)
+
+// --- Platform overview ---
+adminRouter.get(
+  '/stats',
+  asyncHandler(async (_req, res) => res.json(await admin.adminStats())),
+)
+
+// --- User management ---
+adminRouter.get(
+  '/users',
+  asyncHandler(async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : ''
+    res.json({ users: await admin.adminListUsers(search) })
+  }),
+)
+adminRouter.get(
+  '/users/:id',
+  asyncHandler(async (req, res) => res.json(await admin.adminUserDetail(parseIdParam(req.params.id)))),
+)
+adminRouter.post(
+  '/users/:id/reset-password',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    const temporaryPassword = await admin.adminResetUserPassword(parseIdParam(req.params.id))
+    res.json({ temporaryPassword })
+  }),
+)
+adminRouter.patch(
+  '/users/:id',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    await admin.adminUpdateUser(parseIdParam(req.params.id), userPatchSchema.parse(req.body))
+    res.json({ ok: true })
+  }),
+)
+adminRouter.post(
+  '/users/:id/admin',
+  asyncHandler(async (req, res) => {
+    const actingAdminId = requireAdminUser(req)
+    const { isAdmin } = setAdminSchema.parse(req.body)
+    await admin.adminSetUserAdmin(parseIdParam(req.params.id), isAdmin, actingAdminId)
+    res.json({ ok: true })
+  }),
+)
+adminRouter.delete(
+  '/users/:id',
+  asyncHandler(async (req, res) => {
+    const actingAdminId = requireAdminUser(req)
+    await admin.adminDeleteUser(parseIdParam(req.params.id), actingAdminId)
+    res.status(204).send()
+  }),
+)
+
+// --- Group management (list + rename/transfer/invite/add-member/delete) ---
+adminRouter.get(
+  '/all-groups',
+  asyncHandler(async (_req, res) => res.json({ groups: await admin.adminListAllGroups() })),
+)
+adminRouter.patch(
+  '/groups/:id',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    await admin.adminRenameGroup(parseIdParam(req.params.id), renameGroupSchema.parse(req.body).name)
+    res.json({ ok: true })
+  }),
+)
+adminRouter.delete(
+  '/groups/:id',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    await admin.adminDeleteGroup(parseIdParam(req.params.id))
+    res.status(204).send()
+  }),
+)
+adminRouter.post(
+  '/groups/:id/transfer',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    await admin.adminTransferGroup(parseIdParam(req.params.id), transferSchema.parse(req.body).email)
+    res.json({ ok: true })
+  }),
+)
+adminRouter.post(
+  '/groups/:id/regenerate-invite',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    const inviteCode = await admin.adminRegenerateInvite(parseIdParam(req.params.id))
+    res.json({ inviteCode })
+  }),
+)
+adminRouter.post(
+  '/groups/:id/add-member',
+  asyncHandler(async (req, res) => {
+    requireAdminUser(req)
+    await admin.adminAddMemberByEmail(parseIdParam(req.params.id), addMemberSchema.parse(req.body).email)
     res.status(201).json({ ok: true })
   }),
 )

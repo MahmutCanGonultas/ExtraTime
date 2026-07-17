@@ -59,7 +59,7 @@ authRouter.get(
   asyncHandler(async (req, res) => {
     const user = await getUserById(req.userId!)
     if (!user) throw AppError.unauthorized('User no longer exists')
-    res.json({ user, isPlatformAdmin: isPlatformAdmin(user.email) })
+    res.json({ user, isPlatformAdmin: isPlatformAdmin(user) })
   }),
 )
 
@@ -76,7 +76,7 @@ authRouter.patch(
   asyncHandler(async (req, res) => {
     const { displayName } = updateNameSchema.parse(req.body)
     const user = await updateDisplayName(req.userId!, displayName)
-    res.json({ user, isPlatformAdmin: isPlatformAdmin(user.email) })
+    res.json({ user, isPlatformAdmin: isPlatformAdmin(user) })
   }),
 )
 

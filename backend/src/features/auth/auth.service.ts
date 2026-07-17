@@ -7,18 +7,26 @@ import { signToken } from '../../lib/jwt'
 
 const SALT_ROUNDS = 10
 
-// Platform admins (the app owner) are configured by email in ADMIN_EMAILS.
-export function isPlatformAdmin(email: string): boolean {
+// Platform admins bootstrap from ADMIN_EMAILS (the app owner's email is baked
+// into the env so there is always at least one admin who cannot be locked out).
+export function isAdminEmail(email: string): boolean {
   const admins = env.ADMIN_EMAILS.split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
   return admins.includes(email.trim().toLowerCase())
 }
 
+// A user is a platform admin if they are in ADMIN_EMAILS OR carry the runtime
+// is_admin flag (granted from the admin panel).
+export function isPlatformAdmin(user: Pick<PublicUser, 'email' | 'isAdmin'>): boolean {
+  return user.isAdmin || isAdminEmail(user.email)
+}
+
 export interface PublicUser {
   id: number
   email: string
   displayName: string
+  isAdmin: boolean
 }
 
 export interface AuthResult {
@@ -41,7 +49,7 @@ export async function registerUser(
        VALUES ($1, $2, $3) RETURNING id`,
       [normalizedEmail, passwordHash, name],
     )
-    const user: PublicUser = { id: rows[0].id, email: normalizedEmail, displayName: name }
+    const user: PublicUser = { id: rows[0].id, email: normalizedEmail, displayName: name, isAdmin: false }
     return { user, token: signToken({ userId: user.id }) }
   } catch (err) {
     if (isUniqueViolation(err)) throw AppError.conflict('This email is already registered')
@@ -51,29 +59,36 @@ export async function registerUser(
 
 export async function loginUser(email: string, password: string): Promise<AuthResult> {
   const normalizedEmail = email.trim().toLowerCase()
-  const { rows } = await query<{ id: number; password_hash: string; display_name: string }>(
-    `SELECT id, password_hash, display_name FROM users WHERE email = $1`,
-    [normalizedEmail],
-  )
+  const { rows } = await query<{
+    id: number
+    password_hash: string
+    display_name: string
+    is_admin: boolean
+  }>(`SELECT id, password_hash, display_name, is_admin FROM users WHERE email = $1`, [normalizedEmail])
   const row = rows[0]
   // Same error whether the email is unknown or the password is wrong, so an
   // attacker cannot tell which emails exist.
   if (!row || !(await bcrypt.compare(password, row.password_hash))) {
     throw AppError.unauthorized('Invalid email or password')
   }
-  const user: PublicUser = { id: row.id, email: normalizedEmail, displayName: row.display_name }
+  const user: PublicUser = {
+    id: row.id,
+    email: normalizedEmail,
+    displayName: row.display_name,
+    isAdmin: row.is_admin,
+  }
   return { user, token: signToken({ userId: user.id }) }
 }
 
 export async function updateDisplayName(userId: number, displayName: string): Promise<PublicUser> {
   const name = displayName.trim()
-  const { rows } = await query<{ id: number; email: string; display_name: string }>(
-    `UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, email, display_name`,
+  const { rows } = await query<{ id: number; email: string; display_name: string; is_admin: boolean }>(
+    `UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, email, display_name, is_admin`,
     [name, userId],
   )
   const row = rows[0]
   if (!row) throw AppError.notFound('User not found')
-  return { id: row.id, email: row.email, displayName: row.display_name }
+  return { id: row.id, email: row.email, displayName: row.display_name, isAdmin: row.is_admin }
 }
 
 export async function changePassword(
@@ -95,10 +110,12 @@ export async function changePassword(
 }
 
 export async function getUserById(id: number): Promise<PublicUser | null> {
-  const { rows } = await query<{ id: number; email: string; display_name: string }>(
-    `SELECT id, email, display_name FROM users WHERE id = $1`,
+  const { rows } = await query<{ id: number; email: string; display_name: string; is_admin: boolean }>(
+    `SELECT id, email, display_name, is_admin FROM users WHERE id = $1`,
     [id],
   )
   const row = rows[0]
-  return row ? { id: row.id, email: row.email, displayName: row.display_name } : null
+  return row
+    ? { id: row.id, email: row.email, displayName: row.display_name, isAdmin: row.is_admin }
+    : null
 }
