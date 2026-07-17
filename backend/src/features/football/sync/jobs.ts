@@ -343,26 +343,32 @@ export async function syncPlayersFor(
   leagueApiId: number,
   season: number,
 ): Promise<number> {
-  const client = await getPool()!.connect()
   let n = 0
-  try {
-    let page = 1
-    let total = 1
-    do {
-      const body = await apiFootballGetEnvelope<RawPlayer[]>('players', {
-        league: leagueApiId,
-        season,
-        page,
-      })
-      total = body.paging?.total ?? 1
-      for (const raw of body.response) {
-        n += await upsertPlayer(client, leagueId, leagueApiId, season, raw)
+  let page = 1
+  let total = 1
+  do {
+    const body = await apiFootballGetEnvelope<RawPlayer[]>('players', {
+      league: leagueApiId,
+      season,
+      page,
+    })
+    total = body.paging?.total ?? 1
+    // Fresh short-lived connection per page (retried), so a Neon drop between
+    // the slow API calls can't terminate a long backfill mid-way.
+    n += await withDbRetry(async () => {
+      const client = await getPool()!.connect()
+      try {
+        let cnt = 0
+        for (const raw of body.response) {
+          cnt += await upsertPlayer(client, leagueId, leagueApiId, season, raw)
+        }
+        return cnt
+      } finally {
+        client.release()
       }
-      page += 1
-    } while (page <= total)
-  } finally {
-    client.release()
-  }
+    })
+    page += 1
+  } while (page <= total)
   return n
 }
 
