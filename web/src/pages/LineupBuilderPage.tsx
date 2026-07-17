@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { safeGetItem, safeSetItem } from '@/lib/storage'
+import { flagEmoji } from '@/lib/flags'
 import { cn } from '@/lib/cn'
 
 // A placed player only needs enough to draw the chip; the rest lives on the
@@ -96,6 +97,9 @@ function benchRole(pos: string | null): string {
 // A free position (percent of the pitch) that overrides a player's formation slot.
 type Pos = { x: number; y: number }
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
+
+// What is being dragged: a player already on a slot, or a bench player.
+type DragSource = { kind: 'slot'; index: number } | { kind: 'bench'; player: SquadPlayer }
 
 const STORAGE_KEY = 'extratime:lineup:v1'
 
@@ -199,7 +203,7 @@ export function LineupBuilderPage() {
   const [captain, setCaptain] = useState<number | null>(() => initial.captain)
   const [positions, setPositions] = useState<(Pos | null)[]>(() => initial.positions)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
-  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [dragSource, setDragSource] = useState<DragSource | null>(null)
 
   const slots = useMemo(() => buildSlots(formation), [formation])
   const filled = players.filter(Boolean).length
@@ -218,15 +222,49 @@ export function LineupBuilderPage() {
     setPositions(Array(11).fill(null))
   }
 
-  // Drop a dragged player at an arbitrary point on the pitch (free positioning).
+  // Drop on the pitch: reposition a slot player, or sign a bench player into the
+  // nearest slot at that spot.
   function dropAt(x: number, y: number) {
-    if (dragFrom == null) return
+    const src = dragSource
+    setDragSource(null)
+    if (!src) return
+    const px = clamp(x, 5, 95)
+    const py = clamp(y, 6, 94)
+    if (src.kind === 'slot') {
+      setPositions((prev) => {
+        const next = [...prev]
+        next[src.index] = { x: px, y: py }
+        return next
+      })
+      return
+    }
+    let nearest = 0
+    let best = Infinity
+    placedSlots.forEach((s, i) => {
+      const d = (s.x - px) ** 2 + (s.y - py) ** 2
+      if (d < best) {
+        best = d
+        nearest = i
+      }
+    })
+    assign(nearest, {
+      playerApiId: src.player.playerApiId,
+      name: src.player.name,
+      photoUrl: src.player.photoUrl,
+      jerseyNumber: src.player.jerseyNumber,
+    })
     setPositions((prev) => {
       const next = [...prev]
-      next[dragFrom] = { x: clamp(x, 5, 95), y: clamp(y, 6, 94) }
+      next[nearest] = { x: px, y: py }
       return next
     })
-    setDragFrom(null)
+  }
+
+  // Drag a pitch player onto the bench to send them off (they rejoin the bench).
+  function dropOnBench() {
+    const src = dragSource
+    setDragSource(null)
+    if (src?.kind === 'slot') remove(src.index)
   }
 
   // Load a team's current squad onto the pitch (best player per slot role); the
@@ -310,54 +348,52 @@ export function LineupBuilderPage() {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        {/* Pitch + bench */}
-        <div className="space-y-4">
-          <Card className="overflow-hidden p-3 sm:p-4">
-            <Pitch
-              slots={placedSlots}
-              players={players}
-              captain={captain}
-              onSlot={setActiveSlot}
-              onRemove={remove}
-              onCaptain={toggleCaptain}
-              onDragStart={setDragFrom}
-              onDropAt={dropAt}
-            />
-            <p className="mt-2 text-center text-[11px] text-ink-500">
-              Oyuncuyu sahada istediğin yere sürükle · kaptan için 👑 simgesine dokun
-            </p>
-          </Card>
+        {/* Pitch + bench strip */}
+        <Card className="overflow-hidden p-3 sm:p-4">
+          <div className="flex gap-3">
+            <div className="min-w-0 flex-1">
+              <Pitch
+                slots={placedSlots}
+                players={players}
+                captain={captain}
+                onSlot={setActiveSlot}
+                onRemove={remove}
+                onCaptain={toggleCaptain}
+                onDragStart={(i) => setDragSource({ kind: 'slot', index: i })}
+                onDropAt={dropAt}
+              />
+              <p className="mt-2 text-center text-[11px] text-ink-500">
+                Oyuncuyu sahada sürükle · yedeğe sürükleyerek çıkar · kaptan için 👑
+              </p>
+            </div>
 
-          {bench.length > 0 && (
-            <Card className="p-4">
-              <div className="section-label mb-2 text-ink-400">Yedekler · {bench.length}</div>
-              <div className="flex flex-wrap gap-2">
-                {bench.map((p) => (
-                  <button
-                    key={p.playerApiId}
-                    onClick={() => addFromBench(p)}
-                    disabled={xiFull}
-                    title={
-                      xiFull ? 'İlk 11 dolu — önce birini çıkar' : `${p.name} → ilk boş mevkiye ekle`
-                    }
-                    className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-ink-600 hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={26} />
-                    <span className="min-w-0">
-                      <span className="block max-w-[130px] truncate text-sm text-ink-100">
-                        {p.name}
-                      </span>
-                      <span className="block truncate text-[10px] text-ink-500">
-                        {benchRole(p.position)}
-                        {p.jerseyNumber != null ? ` · ${p.jerseyNumber}` : ''}
-                      </span>
-                    </span>
-                  </button>
-                ))}
+            {loadedSquad.length > 0 && (
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={dropOnBench}
+                className="flex w-[92px] shrink-0 flex-col rounded-xl border border-ink-800 bg-ink-950/40 p-1.5"
+              >
+                <div className="section-label px-1 pb-1 text-[10px] text-ink-400">
+                  Yedek · {bench.length}
+                </div>
+                <div className="flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-0.5">
+                  {bench.map((p) => (
+                    <BenchChip
+                      key={p.playerApiId}
+                      player={p}
+                      onDragStart={() => setDragSource({ kind: 'bench', player: p })}
+                      onClick={() => addFromBench(p)}
+                      disabled={xiFull}
+                    />
+                  ))}
+                  {bench.length === 0 && (
+                    <p className="px-1 py-2 text-center text-[10px] text-ink-600">Herkes sahada</p>
+                  )}
+                </div>
               </div>
-            </Card>
-          )}
-        </div>
+            )}
+          </div>
+        </Card>
 
         {/* Controls */}
         <div className="space-y-4">
@@ -445,6 +481,45 @@ function TeamLoader({ onLoad }: { onLoad: (t: { id: number; name: string }) => v
         )}
       </div>
     </Card>
+  )
+}
+
+function BenchChip({
+  player,
+  onDragStart,
+  onClick,
+  disabled,
+}: {
+  player: SquadPlayer
+  onDragStart: () => void
+  onClick: () => void
+  disabled: boolean
+}) {
+  const flag = flagEmoji(player.nationality)
+  const role = benchRole(player.position)
+  return (
+    <button
+      draggable
+      onDragStart={onDragStart}
+      onClick={onClick}
+      disabled={disabled}
+      title={`${player.name} · ${role}${player.age != null ? ` · ${player.age} yaş` : ''}\nSahaya sürükle veya dokun`}
+      className="flex cursor-grab items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-1.5 py-1 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <div className="relative shrink-0">
+        <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={26} />
+        {flag && <span className="absolute -bottom-1 -right-1 text-[10px] leading-none">{flag}</span>}
+      </div>
+      <span className="min-w-0">
+        <span className="block truncate text-[11px] font-semibold text-ink-100">
+          {surname(player.name)}
+        </span>
+        <span className="block truncate text-[9px] text-ink-500">
+          {role}
+          {player.jerseyNumber != null ? ` · ${player.jerseyNumber}` : ''}
+        </span>
+      </span>
+    </button>
   )
 }
 
