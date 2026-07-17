@@ -24,6 +24,7 @@ export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 88, name: 'Eredivisie', country: 'Hollanda' },
   { apiFootballId: 71, name: 'Brasileirão', country: 'Brezilya' },
   { apiFootballId: 307, name: 'Suudi Pro Ligi', country: 'Suudi Arabistan' },
+  { apiFootballId: 253, name: 'MLS', country: 'ABD' },
   { apiFootballId: 2, name: 'Şampiyonlar Ligi', country: 'Avrupa' },
   { apiFootballId: 3, name: 'UEFA Avrupa Ligi', country: 'Avrupa' },
   { apiFootballId: 848, name: 'UEFA Konferans Ligi', country: 'Avrupa' },

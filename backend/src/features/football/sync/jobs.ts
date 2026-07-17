@@ -484,6 +484,26 @@ export async function backfillCurrentSquadProfiles(): Promise<number> {
 }
 
 /**
+ * Expand abbreviated display names ("L. Messi" → "Lionel Messi") using the
+ * player's firstname. Only touches rows shaped like "X. Surname" that have a
+ * firstname to expand from; everyone else (already-full names, or no firstname)
+ * is left untouched. Returns rows updated.
+ */
+export async function expandAbbreviatedNames(): Promise<number> {
+  const res = await withDbRetry(() =>
+    query(
+      `UPDATE players
+       SET name = split_part(firstname, ' ', 1) || ' ' || substring(name from '^[A-Z]\\. (.*)$'),
+           updated_at = now()
+       WHERE name ~ '^[A-Z]\\. '
+         AND firstname IS NOT NULL AND firstname <> ''
+         AND substring(name from '^[A-Z]\\. (.*)$') IS NOT NULL`,
+    ),
+  )
+  return res.rowCount ?? 0
+}
+
+/**
  * Fill nationality + name parts on current-season rows from the players/profiles
  * endpoint — for players who have no historical row to copy from (new signings,
  * youth). One request per player; resilient and retry-wrapped. Returns rows

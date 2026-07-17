@@ -411,17 +411,28 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
            OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
        ORDER BY p.player_api_id
      ) s
-     -- Players whose name/surname begins with the term (incl. a later word like
-     -- a surname) rank first; within that, most-capped (best-known) first — so a
-     -- superstar surfaces above obscure namesakes.
+     -- Rank most-relevant, best-known first: exact whole-surname matches, then
+     -- prefix/word matches, each by prominence — so a superstar surfaces above
+     -- obscure namesakes ("messi" → Lionel Messi, not "Messias").
      ORDER BY
+       (unaccent(s.name) ILIKE unaccent($8) OR unaccent(s.name) ILIKE unaccent($9)) DESC,
        (unaccent(s.name) ILIKE unaccent($6)
         OR unaccent(s.name) ILIKE unaccent($7)
         OR unaccent(COALESCE(s."lastname", '')) ILIKE unaccent($6)) DESC,
        s.appearances DESC NULLS LAST,
        s.name
      LIMIT 20`,
-    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS, like, prefix, wordStart],
+    [
+      GUESS_SEASON,
+      GUESS_FULL_LEAGUES,
+      GUESS_EXTRA_LEAGUE,
+      GUESS_EXTRA_CLUBS,
+      like,
+      prefix,
+      wordStart,
+      q,
+      `% ${q}`,
+    ],
   )
   return rows
 }
@@ -593,26 +604,38 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
       [like, prefix],
     )
   ).rows
+  const wordStart = `% ${q}%`
   const players = (
     await query<SearchPlayer>(
       `SELECT "playerApiId", name, "photoUrl", "teamName", "teamApiId" FROM (
          SELECT DISTINCT ON (p.player_api_id)
            p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.photo_url AS "photoUrl",
-           p.team_name AS "teamName", p.team_api_id AS "teamApiId", p.goals, p.appearances
+           p.team_name AS "teamName", p.team_api_id AS "teamApiId",
+           -- Career-peak appearances rank prominence; the picked row's own
+           -- appearances are 0 for a current preseason squad, which would sink
+           -- the biggest names below journeymen.
+           (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances
          FROM players p JOIN leagues l ON l.id = p.league_id
          WHERE unaccent(p.name) ILIKE unaccent($1)
             OR unaccent(p.firstname) ILIKE unaccent($1)
             OR unaccent(p.lastname) ILIKE unaccent($1)
             OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($1)
          -- Prefer a player's CLUB over their national team (World Cup, api id 1),
-         -- then newest season, then most appearances.
+         -- then newest season, then most appearances — so the displayed team is current.
          ORDER BY p.player_api_id, (l.api_football_id = 1) ASC, p.season DESC, p.appearances DESC NULLS LAST
        ) s
-       ORDER BY (unaccent(s.name) ILIKE unaccent($2) OR unaccent(s.firstname) ILIKE unaccent($2)
-                 OR unaccent(s.lastname) ILIKE unaccent($2)) DESC,
-                s.appearances DESC NULLS LAST, s.name
+       ORDER BY
+         -- Tier 1: the term is the whole surname (name is exactly it, or ends
+         -- with it as a word) — "messi" beats "Messias", "ronaldo" beats none.
+         (unaccent(s.name) ILIKE unaccent($4) OR unaccent(s.name) ILIKE unaccent($5)) DESC,
+         -- Tier 2: the term begins the name, a later word, or the surname field.
+         (unaccent(s.name) ILIKE unaccent($2)
+          OR unaccent(s.name) ILIKE unaccent($3)
+          OR unaccent(COALESCE(s.lastname, '')) ILIKE unaccent($2)
+          OR unaccent(s.firstname) ILIKE unaccent($2)) DESC,
+         s.appearances DESC NULLS LAST, s.name
        LIMIT 8`,
-      [like, prefix],
+      [like, prefix, wordStart, q, `% ${q}`],
     )
   ).rows
   return { teams, players }

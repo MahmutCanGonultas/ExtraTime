@@ -10,7 +10,6 @@ const baseNav = [
   { to: '/', label: 'Ana Sayfa', end: true },
   { to: '/leagues', label: 'Ligler' },
   { to: '/group', label: 'Grup' },
-  { to: '/oyun', label: 'Oyun' },
   { to: '/kadro-kur', label: 'Kadro Kur' },
   { to: '/kim-bu', label: 'Kim Bu?' },
   { to: '/stats', label: 'İstatistik' },
