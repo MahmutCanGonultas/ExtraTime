@@ -361,6 +361,13 @@ const GUESS_SEARCH_LEAGUES = [
 const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the three clubs below
 const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşiktaş
 
+// MLS + the second divisions. These are guessable, but they are only used as a
+// player's *shown* club when he has no top-flight row — so a superstar with a
+// stray/erroneous MLS squad entry (e.g. Lewandowski briefly listed at an MLS
+// club) still reads as his real top-flight club, matching the answer pool, while
+// a genuine MLS-only player (Messi at Inter Miami) keeps his MLS club.
+const GUESS_SECONDARY_LEAGUES = [253, 40, 141, 136, 79, 62, 95, 89, 72, 204, 308]
+
 // Continental club cups (Champions / Europa / Conference League). A player's row
 // in one of these names the club he played that tie for, which can be a former
 // or loan club — so for "current club" a same-season domestic-league row wins.
@@ -425,7 +432,10 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
            OR unaccent(p.firstname) ILIKE unaccent($5)
            OR unaccent(p.lastname) ILIKE unaccent($5)
            OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
-       ORDER BY p.player_api_id, p.season DESC, p.appearances DESC NULLS LAST
+       -- Prefer a top-flight club over a secondary-league (MLS / 2nd-div) row, then
+       -- the newest season — so the shown club is the player's real current club.
+       ORDER BY p.player_api_id, (l.api_football_id = ANY($10)) ASC,
+                p.season DESC, p.appearances DESC NULLS LAST
      ) s
      -- Rank most-relevant, best-known first: exact whole-surname matches, then
      -- prefix/word matches, each by prominence — so a superstar surfaces above
@@ -448,6 +458,7 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
       wordStart,
       q,
       `% ${q}`,
+      GUESS_SECONDARY_LEAGUES,
     ],
   )
   return rows
