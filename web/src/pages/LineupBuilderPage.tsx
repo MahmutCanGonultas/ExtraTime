@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X, Trash2, Users, Sparkles } from 'lucide-react'
+import { Plus, X, Trash2, Users, Sparkles, ArrowLeftRight } from 'lucide-react'
 import { useSearch, useTeamSquad } from '@/features/football/hooks'
 import type { SquadPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -474,25 +474,35 @@ export function LineupBuilderPage() {
           <TeamLoader onLoad={setLoadTeam} />
 
           {released.length > 0 && (
-            <Card className="space-y-2 p-4">
-              <div className="section-label text-ink-400">Gönderilenler · {released.length}</div>
-              <div className="space-y-1.5">
+            <Card className="space-y-2.5 p-4 shadow-lg shadow-amber-950/10 ring-1 ring-amber-500/40">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
+                <ArrowLeftRight className="h-4 w-4" />
+                Gönderilenler · {released.length}
+              </div>
+              <div className="space-y-2">
                 {released.map(({ player, kind }) => (
                   <div
                     key={player.playerApiId}
-                    className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5"
+                    className="flex items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-900 px-2.5 py-2"
                   >
-                    <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={26} />
+                    <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={30} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-ink-100">{player.name}</span>
-                      <span className="text-[10px] font-semibold text-ink-500">
-                        {kind === 'sold' ? '💰 Satıldı' : '🔄 Kiralık'}
+                      <span className="block truncate text-sm font-semibold text-ink-100">
+                        {player.name}
+                      </span>
+                      <span
+                        className={cn(
+                          'mt-0.5 inline-block rounded px-1.5 py-px text-[9px] font-black tracking-wide',
+                          kind === 'sold' ? 'bg-loss/20 text-loss' : 'bg-sky-500/20 text-sky-300',
+                        )}
+                      >
+                        {kind === 'sold' ? '💰 SATILDI' : '🔄 KİRALIK'}
                       </span>
                     </span>
                     <button
                       onClick={() => recall(player.playerApiId)}
-                      className="rounded-md border border-ink-700 px-2 py-1 text-[11px] text-ink-300 transition hover:bg-ink-800"
-                      title="Geri al"
+                      className="rounded-md border border-brand-500/40 px-2.5 py-1 text-[11px] font-semibold text-brand-300 transition hover:bg-brand-500/10"
+                      title="Kadroya geri al"
                     >
                       Geri al
                     </button>
