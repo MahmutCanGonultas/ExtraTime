@@ -176,13 +176,6 @@ groupsRouter.delete(
   }),
 )
 
-groupsRouter.post(
-  '/:id/members/:userId/reset-password',
-  requireGroupAdmin,
-  asyncHandler(async (req, res) => {
-    const id = parseIdParam(req.params.id)
-    const targetUserId = parseIdParam(req.params.userId)
-    const temporaryPassword = await groups.adminResetPassword(id, targetUserId)
-    res.json({ temporaryPassword })
-  }),
-)
+// NOTE: a group leader manages only the game (matches, members) — never account
+// credentials. Resetting a member's password is a PLATFORM-ADMIN action, exposed
+// solely under /admin, not to group leaders.

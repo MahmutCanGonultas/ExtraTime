@@ -240,9 +240,3 @@ export function useRemoveMember(groupId: number) {
   })
 }
 
-export function useResetPassword(groupId: number) {
-  return useMutation({
-    mutationFn: (userId: number) =>
-      api.post<{ temporaryPassword: string }>(`/groups/${groupId}/members/${userId}/reset-password`),
-  })
-}
