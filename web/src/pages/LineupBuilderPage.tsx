@@ -371,12 +371,12 @@ export function LineupBuilderPage() {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={dropOnBench}
-                className="flex w-[92px] shrink-0 flex-col rounded-xl border border-ink-800 bg-ink-950/40 p-1.5"
+                className="w-full shrink-0 rounded-xl border border-ink-800 bg-ink-950/40 p-2 sm:w-56"
               >
-                <div className="section-label px-1 pb-1 text-[10px] text-ink-400">
-                  Yedek · {bench.length}
+                <div className="section-label px-1 pb-2 text-[11px] text-ink-400">
+                  Yedekler · {bench.length}
                 </div>
-                <div className="flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-0.5">
+                <div className="grid max-h-[560px] grid-cols-2 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-1">
                   {bench.map((p) => (
                     <BenchChip
                       key={p.playerApiId}
@@ -387,7 +387,9 @@ export function LineupBuilderPage() {
                     />
                   ))}
                   {bench.length === 0 && (
-                    <p className="px-1 py-2 text-center text-[10px] text-ink-600">Herkes sahada</p>
+                    <p className="col-span-full px-1 py-2 text-center text-[11px] text-ink-600">
+                      Herkes sahada
+                    </p>
                   )}
                 </div>
               </div>
@@ -504,17 +506,15 @@ function BenchChip({
       onClick={onClick}
       disabled={disabled}
       title={`${player.name} · ${role}${player.age != null ? ` · ${player.age} yaş` : ''}\nSahaya sürükle veya dokun`}
-      className="flex cursor-grab items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-1.5 py-1 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex w-full cursor-grab items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60"
     >
       <div className="relative shrink-0">
-        <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={26} />
-        {flag && <span className="absolute -bottom-1 -right-1 text-[10px] leading-none">{flag}</span>}
+        <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={34} />
+        {flag && <span className="absolute -bottom-1 -right-1 text-xs leading-none">{flag}</span>}
       </div>
-      <span className="min-w-0">
-        <span className="block truncate text-[11px] font-semibold text-ink-100">
-          {surname(player.name)}
-        </span>
-        <span className="block truncate text-[9px] text-ink-500">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-ink-100">{player.name}</span>
+        <span className="block truncate text-[10px] text-ink-500">
           {role}
           {player.jerseyNumber != null ? ` · ${player.jerseyNumber}` : ''}
         </span>
