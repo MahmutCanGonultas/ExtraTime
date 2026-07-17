@@ -249,11 +249,11 @@ function PlayersTab({ leagueId }: { leagueId: number }) {
               <Td>
                 <Link
                   to={`/players/${p.playerApiId}`}
-                  className="flex items-center gap-2.5 hover:text-brand-300"
+                  className="flex items-center gap-3 hover:text-brand-300"
                 >
-                  <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={28} />
+                  <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={36} />
                   <div className="min-w-0">
-                    <div className="truncate text-ink-100">{p.name}</div>
+                    <div className="truncate text-[15px] font-semibold text-ink-100">{p.name}</div>
                     {p.teamName && (
                       <div className="flex items-center gap-1 truncate text-xs text-ink-400">
                         {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={12} />}
