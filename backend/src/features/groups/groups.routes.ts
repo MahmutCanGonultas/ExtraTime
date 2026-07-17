@@ -116,18 +116,6 @@ groupsRouter.delete(
   }),
 )
 
-// Set (or move) the caller's joker match in a game (2x points) — any member.
-groupsRouter.put(
-  '/:id/games/:gameId/joker/:fixtureId',
-  asyncHandler(async (req, res) => {
-    const id = parseIdParam(req.params.id)
-    const gameId = parseIdParam(req.params.gameId)
-    const fixtureId = parseIdParam(req.params.fixtureId)
-    await groups.setJoker(id, gameId, req.userId!, fixtureId)
-    res.json({ ok: true })
-  }),
-)
-
 // End a game — crown its leader as champion. Admin only.
 groupsRouter.post(
   '/:id/games/:gameId/finish',

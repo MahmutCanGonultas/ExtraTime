@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Lock, Plus, Check, X, Star } from 'lucide-react'
+import { Lock, Plus, Check, X } from 'lucide-react'
 import type { GameFixture, Outcome } from '@/features/groups/types'
-import { useSetJoker, useUpsertPrediction } from '@/features/groups/hooks'
+import { useUpsertPrediction } from '@/features/groups/hooks'
 import { isFinished, isLive } from '@/features/football/matchStatus'
 import { FormBadges } from '@/features/football/FormBadges'
 import { TeamLogo } from '@/components/TeamLogo'
@@ -41,7 +41,6 @@ export function GamePredictCard({
 }) {
   const countdown = useCountdown(fixture.kickoffAt)
   const upsert = useUpsertPrediction(groupId, gameId)
-  const joker = useSetJoker(groupId, gameId)
   const [outcome, setOutcome] = useState<Outcome | null>(fixture.myOutcome)
   const [home, setHome] = useState(fixture.myHome != null ? String(fixture.myHome) : '')
   const [away, setAway] = useState(fixture.myAway != null ? String(fixture.myAway) : '')
@@ -93,22 +92,6 @@ export function GamePredictCard({
     }
   }
 
-  const jokerButton = (
-    <button
-      onClick={() => joker.mutate(fixture.fixtureId)}
-      disabled={joker.isPending || fixture.myJoker}
-      title="Bu maçı joker seç — kazandığın puan 2 katına çıkar (oyun başına 1 joker)"
-      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
-        fixture.myJoker
-          ? 'bg-amber-500/15 text-amber-300'
-          : 'text-ink-400 hover:bg-ink-850 hover:text-amber-300'
-      }`}
-    >
-      <Star className={`h-3.5 w-3.5 ${fixture.myJoker ? 'fill-amber-300' : ''}`} />
-      {fixture.myJoker ? 'Joker ✓' : 'Joker'}
-    </button>
-  )
-
   return (
     <Card className="transition duration-200 hover:border-ink-700">
       <CardBody className="space-y-3">
@@ -119,15 +102,6 @@ export function GamePredictCard({
             <span className="truncate">{fixture.leagueName}</span>
           </span>
           <span className="flex items-center gap-1.5">
-            {fixture.myJoker && (
-              <span
-                title="Joker maçın — puanlar 2 katı"
-                className="flex items-center gap-0.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300"
-              >
-                <Star className="h-3 w-3 fill-amber-300" />
-                2×
-              </span>
-            )}
             {live ? (
               <Badge tone="loss">{liveMinuteLabel(fixture.status, fixture.elapsed)}</Badge>
             ) : finished ? (
@@ -219,8 +193,7 @@ export function GamePredictCard({
                 <Lock className="h-3 w-3" /> değiştirilemez
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              {jokerButton}
+            <div className="flex items-center justify-end">
               <span className="text-[11px] text-ink-500">{fixture.predictionCount} tahmin</span>
             </div>
           </div>
@@ -279,14 +252,11 @@ export function GamePredictCard({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-2">
-                {jokerButton}
-                <div className="flex items-center gap-2">
-                  {error && <span className="text-xs text-loss">{error}</span>}
-                  <Button size="sm" onClick={() => setConfirming(true)} disabled={outcome === null}>
-                    Kaydet
-                  </Button>
-                </div>
+              <div className="flex items-center justify-end gap-2">
+                {error && <span className="text-xs text-loss">{error}</span>}
+                <Button size="sm" onClick={() => setConfirming(true)} disabled={outcome === null}>
+                  Kaydet
+                </Button>
               </div>
             )}
           </>

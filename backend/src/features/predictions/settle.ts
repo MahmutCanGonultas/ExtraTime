@@ -33,23 +33,12 @@ export async function settleFixture(fixtureId: number): Promise<number> {
     [fixtureId],
   )
 
-  // Who has this match as their joker (2x points) — keyed by group+user.
-  const jokers = await query<{ user_id: number; group_id: number }>(
-    `SELECT DISTINCT sj.user_id, gf.group_id
-     FROM season_jokers sj
-     JOIN group_fixtures gf ON gf.season_id = sj.season_id AND gf.fixture_id = sj.fixture_id
-     WHERE sj.fixture_id = $1`,
-    [fixtureId],
-  )
-  const jokerSet = new Set(jokers.rows.map((j) => `${j.group_id}:${j.user_id}`))
-
   let scored = 0
   for (const p of preds.rows) {
-    const base = calculatePoints(
+    const points = calculatePoints(
       { outcome: p.predicted_outcome, home: p.predicted_home, away: p.predicted_away },
       actual,
     )
-    const points = jokerSet.has(`${p.group_id}:${p.user_id}`) ? base * 2 : base
     await query(`UPDATE predictions SET points_awarded = $1, settled_at = now() WHERE id = $2`, [
       points,
       p.id,

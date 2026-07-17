@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ListChecks, Target, Trophy, Star, ChevronDown, HelpCircle, AlertTriangle } from 'lucide-react'
+import { ListChecks, Target, Trophy, ChevronDown, HelpCircle, AlertTriangle } from 'lucide-react'
 import { Card, CardBody } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
 
@@ -28,7 +28,7 @@ export function HowToPlay() {
         <HelpCircle className="h-4 w-4 text-brand-400" />
         <span className="text-sm font-semibold text-ink-100">Nasıl oynanır?</span>
         <span className="ml-1 truncate text-xs text-ink-500">
-          Tam skor 5 · Kazanan 3 · Skor kaçarsa −1 · Joker 2×
+          Tam skor 5 · Kazanan 3 · Skor kaçarsa −1
         </span>
         <ChevronDown className={cn('ml-auto h-4 w-4 shrink-0 text-ink-400 transition', open && 'rotate-180')} />
       </button>
@@ -63,12 +63,6 @@ export function HowToPlay() {
               düşer</span> (kazananda 3 yerine 2, beraberlikte 0). Sadece “kim kazanır”ı seçersen bu risk
               yok. Örn: 5-3 dedin, maç 2-1 bitti → 2 puan.
             </span>
-          </p>
-
-          <p className="flex items-center gap-2 text-xs text-ink-400">
-            <Star className="h-4 w-4 shrink-0 fill-amber-300 text-amber-300" />
-            Her oyunda <span className="font-semibold text-amber-300">1 maça joker</span> koyabilirsin —
-            o maçtan kazandığın puan 2 katına çıkar.
           </p>
         </CardBody>
       )}

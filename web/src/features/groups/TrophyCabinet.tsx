@@ -1,4 +1,4 @@
-import { Trophy, Star, Target } from 'lucide-react'
+import { Trophy, Target } from 'lucide-react'
 import { useTrophies } from './hooks'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/feedback'
@@ -12,7 +12,6 @@ export function TrophyCabinet({ groupId, userId }: { groupId: number; userId: nu
 
   const tiles = [
     { icon: Trophy, label: 'Şampiyonluk', value: data.championships.length, tone: 'text-amber-300' },
-    { icon: Star, label: 'Tutan joker', value: data.winningJokers, tone: 'text-brand-300' },
     { icon: Target, label: 'Tam skor', value: data.exactScores, tone: 'text-ink-100' },
   ]
 

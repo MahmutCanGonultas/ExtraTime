@@ -164,15 +164,6 @@ export function useRemoveGameFixture(groupId: number, gameId: number) {
   })
 }
 
-export function useSetJoker(groupId: number, gameId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (fixtureId: number) =>
-      api.put(`/groups/${groupId}/games/${gameId}/joker/${fixtureId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['game', groupId, gameId] }),
-  })
-}
-
 export function useFinishGame(groupId: number, gameId: number) {
   const qc = useQueryClient()
   return useMutation({

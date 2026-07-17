@@ -194,8 +194,8 @@ export interface ProvisionalEntry extends LeaderboardEntry {
 
 /**
  * "If the live scores froze now" leaderboard: settled points PLUS hypothetical
- * points from in-progress curated matches (scored with the same pure function and
- * 2x joker as settlement). Never persisted — this keeps "settle only on final".
+ * points from in-progress curated matches (scored with the same pure function as
+ * settlement). Never persisted — this keeps "settle only on final".
  */
 export async function provisionalLeaderboard(
   groupId: number,
@@ -214,12 +214,9 @@ export async function provisionalLeaderboard(
     pa: number | null
     hs: number
     as_: number
-    is_joker: boolean
   }>(
     `SELECT p.user_id, p.predicted_outcome AS outcome, p.predicted_home AS ph, p.predicted_away AS pa,
-            f.home_score AS hs, f.away_score AS as_,
-            EXISTS (SELECT 1 FROM season_jokers sj
-                    WHERE sj.season_id = $2 AND sj.user_id = p.user_id AND sj.fixture_id = p.fixture_id) AS is_joker
+            f.home_score AS hs, f.away_score AS as_
      FROM predictions p
      JOIN group_fixtures gf ON gf.group_id = p.group_id AND gf.fixture_id = p.fixture_id AND gf.season_id = $2
      JOIN fixtures f ON f.id = p.fixture_id
@@ -229,9 +226,10 @@ export async function provisionalLeaderboard(
 
   const liveByUser = new Map<number, number>()
   for (const r of live.rows) {
-    const pts =
-      calculatePoints({ outcome: r.outcome, home: r.ph, away: r.pa }, { home: r.hs, away: r.as_ }) *
-      (r.is_joker ? 2 : 1)
+    const pts = calculatePoints(
+      { outcome: r.outcome, home: r.ph, away: r.pa },
+      { home: r.hs, away: r.as_ },
+    )
     liveByUser.set(r.user_id, (liveByUser.get(r.user_id) ?? 0) + pts)
   }
 

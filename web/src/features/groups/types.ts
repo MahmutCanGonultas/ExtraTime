@@ -53,7 +53,6 @@ export interface GameFixture {
   myHome: number | null
   myAway: number | null
   myPoints: number | null
-  myJoker: boolean
   predictionCount: number
   open: boolean
 }
@@ -117,7 +116,6 @@ export interface Championship {
 export interface Trophies {
   displayName: string
   championships: Championship[]
-  winningJokers: number
   exactScores: number
 }
 

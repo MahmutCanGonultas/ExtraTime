@@ -271,7 +271,6 @@ async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: nu
     `SELECT gf.fixture_id AS "fixtureId", ${FIXTURE_FIELDS},
             mp.predicted_outcome AS "myOutcome", mp.predicted_home AS "myHome",
             mp.predicted_away AS "myAway", mp.points_awarded AS "myPoints",
-            (mj.id IS NOT NULL) AS "myJoker",
             sh.form AS "homeForm", sa.form AS "awayForm",
             (SELECT COUNT(*)::int FROM predictions p2
              WHERE p2.group_id = $1 AND p2.fixture_id = gf.fixture_id) AS "predictionCount",
@@ -282,7 +281,6 @@ async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: nu
      JOIN teams ht ON ht.id = f.home_team_id
      JOIN teams at ON at.id = f.away_team_id
      LEFT JOIN predictions mp ON mp.group_id = $1 AND mp.fixture_id = gf.fixture_id AND mp.user_id = $3
-     LEFT JOIN season_jokers mj ON mj.season_id = $2 AND mj.user_id = $3 AND mj.fixture_id = gf.fixture_id
      LEFT JOIN standings sh ON sh.league_id = f.league_id AND sh.team_id = f.home_team_id
      LEFT JOIN standings sa ON sa.league_id = f.league_id AND sa.team_id = f.away_team_id
      WHERE gf.season_id = $2
@@ -290,46 +288,6 @@ async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: nu
     [groupId, seasonId, viewerId],
   )
   return rows
-}
-
-/** Set (or move) the caller's joker to a match in the current game. The chosen
- *  match must still be open; you cannot move the joker once the match it sits on
- *  has locked. */
-export async function setJoker(
-  groupId: number,
-  gameId: number,
-  userId: number,
-  fixtureId: number,
-): Promise<void> {
-  if (!(await isMember(groupId, userId))) {
-    throw AppError.forbidden('You are not a member of this group')
-  }
-  await assertActiveGame(groupId, gameId)
-  const gate = await query<{ in_game: boolean; open: boolean }>(
-    `SELECT
-       EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.season_id = $2 AND gf.fixture_id = $1) AS in_game,
-       (f.status = 'NS' AND f.kickoff_at > now()) AS open
-     FROM fixtures f WHERE f.id = $1`,
-    [fixtureId, gameId],
-  )
-  const g = gate.rows[0]
-  if (!g || !g.in_game) throw AppError.badRequest('Bu maç oyunda değil')
-  if (!g.open) throw AppError.badRequest('Başlamış maça joker konamaz')
-
-  // Guard against moving the joker off an already-locked match (per game).
-  const existing = await query<{ locked: boolean }>(
-    `SELECT (f.status <> 'NS' OR f.kickoff_at <= now()) AS locked
-     FROM season_jokers sj JOIN fixtures f ON f.id = sj.fixture_id
-     WHERE sj.season_id = $1 AND sj.user_id = $2`,
-    [gameId, userId],
-  )
-  if (existing.rows[0]?.locked) throw AppError.badRequest('Joker kilitlendi, artık değiştirilemez')
-
-  await query(
-    `INSERT INTO season_jokers (season_id, user_id, fixture_id) VALUES ($1, $2, $3)
-     ON CONFLICT (season_id, user_id) DO UPDATE SET fixture_id = EXCLUDED.fixture_id, created_at = now()`,
-    [gameId, userId, fixtureId],
-  )
 }
 
 /** The curated matches of a game, each with the requester's own prediction. */
