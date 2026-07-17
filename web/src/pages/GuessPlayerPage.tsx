@@ -172,7 +172,7 @@ export function GuessPlayerPage() {
       <Card className="flex flex-col items-center gap-3 p-6">
         <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
         {finished ? (
-          <div className="text-center">
+          <div className="animate-pop-in text-center">
             <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-ink-100">
               {won && <Check className="h-5 w-5 text-emerald-400" />}
               {secret?.name}
@@ -449,7 +449,7 @@ function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPool
   const jersey = cmpNum(guess.jerseyNumber, secret.jerseyNumber)
 
   return (
-    <li className={cn(COLS, 'items-center px-3 py-2.5')}>
+    <li className={cn(COLS, 'animate-guess-in items-center px-3 py-2.5')}>
       <span className="flex min-w-0 items-center gap-2.5" title={guess.name}>
         <PlayerAvatar playerApiId={guess.playerApiId} name={guess.name} size={38} />
         <span className="min-w-0 truncate text-base font-semibold text-ink-100">{guess.name}</span>

@@ -297,11 +297,13 @@ export function LineupBuilderPage() {
   // rest of the squad becomes the bench.
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
   const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>([])
+  const [loadedTeamApiId, setLoadedTeamApiId] = useState<number | null>(null)
   const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
   useEffect(() => {
     if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
       setPlayers(fillFromSquad(squadData.squad, slots))
       setLoadedSquad(squadData.squad)
+      setLoadedTeamApiId(squadData.team.apiFootballId)
       setTitle(loadTeam.name)
       setLoadTeam(null)
     }
@@ -403,6 +405,7 @@ export function LineupBuilderPage() {
                 slots={placedSlots}
                 players={players}
                 captain={captain}
+                teamApiId={loadedTeamApiId}
                 onSlot={setActiveSlot}
                 onMenu={(i, e) => setMenu({ idx: i, x: e.clientX, y: e.clientY })}
                 onRemove={remove}
@@ -745,6 +748,7 @@ function Pitch({
   slots,
   players,
   captain,
+  teamApiId,
   onSlot,
   onMenu,
   onRemove,
@@ -755,6 +759,7 @@ function Pitch({
   slots: Slot[]
   players: (Placed | null)[]
   captain: number | null
+  teamApiId: number | null
   onSlot: (i: number) => void
   onMenu: (i: number, e: React.MouseEvent) => void
   onRemove: (i: number) => void
@@ -796,6 +801,13 @@ function Pitch({
       <div className="pointer-events-none absolute left-1/2 top-3 h-[7%] w-[28%] -translate-x-1/2 border border-t-0 border-white/30" />
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[16%] w-[54%] -translate-x-1/2 border border-b-0 border-white/30" />
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[7%] w-[28%] -translate-x-1/2 border border-b-0 border-white/30" />
+
+      {/* Loaded team's crest as a faint centre-circle watermark */}
+      {teamApiId != null && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.09] drop-shadow">
+          <TeamLogo apiId={teamApiId} size={240} />
+        </div>
+      )}
 
       {slots.map((slot, i) => (
         <SlotChip
