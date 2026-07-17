@@ -12,7 +12,6 @@ const baseNav = [
   { to: '/group', label: 'Grup' },
   { to: '/kadro-kur', label: 'Kadro Kur' },
   { to: '/kim-bu', label: 'Kim Bu?' },
-  { to: '/stats', label: 'İstatistik' },
 ]
 
 export function AppLayout() {

@@ -1,8 +1,7 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { useEffect } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
-import { Spinner } from '@/components/ui/feedback'
 
 // Sets the browser-tab title from the current route.
 const TITLES: Array<[RegExp, string]> = [
@@ -17,7 +16,6 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/oyun/, 'Gol Düellosu'],
   [/^\/kadro-kur/, 'Kadro Kur'],
   [/^\/kim-bu/, 'Kim Bu?'],
-  [/^\/stats/, 'İstatistik'],
   [/^\/admin/, 'Admin'],
   [/^\/settings/, 'Ayarlar'],
   [/^\/login/, 'Giriş'],
@@ -51,9 +49,6 @@ import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
-// Charts (Recharts) are heavy, so the stats page is code-split into its own chunk.
-const StatsPage = lazy(() => import('@/pages/StatsPage').then((m) => ({ default: m.StatsPage })))
-
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -78,20 +73,7 @@ export function App() {
                 <Route path="/oyun" element={<MiniGamePage />} />
                 <Route path="/kadro-kur" element={<LineupBuilderPage />} />
                 <Route path="/kim-bu" element={<GuessPlayerPage />} />
-                <Route
-                  path="/stats"
-                  element={
-                    <Suspense
-                      fallback={
-                        <div className="grid place-items-center py-20">
-                          <Spinner className="h-8 w-8" />
-                        </div>
-                      }
-                    >
-                      <StatsPage />
-                    </Suspense>
-                  }
-                />
+                <Route path="/stats" element={<Navigate to="/" replace />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
