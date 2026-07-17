@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X, Trash2, Users, Sparkles } from 'lucide-react'
 import { useSearch, useTeamSquad } from '@/features/football/hooks'
 import type { SquadPlayer } from '@/features/football/types'
@@ -87,6 +87,10 @@ const ROLE_SHORT: Record<Role, string> = { GK: 'KAL', DEF: 'DEF', MID: 'OS', ATT
 
 const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
+// A free position (percent of the pitch) that overrides a player's formation slot.
+type Pos = { x: number; y: number }
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
+
 const STORAGE_KEY = 'extratime:lineup:v1'
 
 interface SavedState {
@@ -94,6 +98,7 @@ interface SavedState {
   title: string
   players: (Placed | null)[]
   captain: number | null
+  positions: (Pos | null)[]
 }
 
 function loadSaved(): SavedState {
@@ -102,6 +107,7 @@ function loadSaved(): SavedState {
     title: "Benim 11'im",
     players: Array(11).fill(null),
     captain: null,
+    positions: Array(11).fill(null),
   }
   try {
     const raw = safeGetItem(STORAGE_KEY)
@@ -110,11 +116,14 @@ function loadSaved(): SavedState {
     if (!parsed.formation || !FORMATIONS[parsed.formation]) return fallback
     const players = Array.isArray(parsed.players) ? parsed.players.slice(0, 11) : []
     while (players.length < 11) players.push(null)
+    const positions = Array.isArray(parsed.positions) ? parsed.positions.slice(0, 11) : []
+    while (positions.length < 11) positions.push(null)
     return {
       formation: parsed.formation as FormationKey,
       title: parsed.title || fallback.title,
       players: players as (Placed | null)[],
       captain: typeof parsed.captain === 'number' ? parsed.captain : null,
+      positions: positions as (Pos | null)[],
     }
   } catch {
     return fallback
@@ -182,6 +191,7 @@ export function LineupBuilderPage() {
   const [title, setTitle] = useState(initial.title)
   const [players, setPlayers] = useState<(Placed | null)[]>(initial.players)
   const [captain, setCaptain] = useState<number | null>(() => initial.captain)
+  const [positions, setPositions] = useState<(Pos | null)[]>(() => initial.positions)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
 
@@ -190,8 +200,28 @@ export function LineupBuilderPage() {
 
   // Persist on every change so a refresh keeps the same team.
   useEffect(() => {
-    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players, captain }))
-  }, [formation, title, players, captain])
+    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players, captain, positions }))
+  }, [formation, title, players, captain, positions])
+
+  // Effective on-pitch position: a freely-dragged override, else the formation slot.
+  const placedSlots = slots.map((s, i) => (positions[i] ? { ...s, ...positions[i]! } : s))
+
+  // Changing the formation snaps everyone back to that shape.
+  function chooseFormation(key: FormationKey) {
+    setFormation(key)
+    setPositions(Array(11).fill(null))
+  }
+
+  // Drop a dragged player at an arbitrary point on the pitch (free positioning).
+  function dropAt(x: number, y: number) {
+    if (dragFrom == null) return
+    setPositions((prev) => {
+      const next = [...prev]
+      next[dragFrom] = { x: clamp(x, 5, 95), y: clamp(y, 6, 94) }
+      return next
+    })
+    setDragFrom(null)
+  }
 
   // Load a team's current squad onto the pitch (best player per slot role).
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
@@ -224,30 +254,14 @@ export function LineupBuilderPage() {
     })
   }
 
-  // Drag a player onto another slot to move or swap them.
-  function moveOrSwap(from: number, to: number) {
-    if (from === to) return
-    setPlayers((prev) => {
-      const next = [...prev]
-      const tmp = next[to]
-      next[to] = next[from]
-      next[from] = tmp
-      return next
-    })
-  }
-
   function toggleCaptain(idx: number) {
     setCaptain((c) => (c === idx ? null : idx))
-  }
-
-  function handleDrop(to: number) {
-    if (dragFrom != null) moveOrSwap(dragFrom, to)
-    setDragFrom(null)
   }
 
   function reset() {
     setPlayers(Array(11).fill(null))
     setCaptain(null)
+    setPositions(Array(11).fill(null))
   }
 
   return (
@@ -271,17 +285,17 @@ export function LineupBuilderPage() {
         {/* Pitch */}
         <Card className="overflow-hidden p-3 sm:p-4">
           <Pitch
-            slots={slots}
+            slots={placedSlots}
             players={players}
             captain={captain}
             onSlot={setActiveSlot}
             onRemove={remove}
             onCaptain={toggleCaptain}
             onDragStart={setDragFrom}
-            onDrop={handleDrop}
+            onDropAt={dropAt}
           />
           <p className="mt-2 text-center text-[11px] text-ink-500">
-            Sürükle-bırak ile yer değiştir · kaptan için 👑 simgesine dokun
+            Oyuncuyu sahada istediğin yere sürükle · kaptan için 👑 simgesine dokun
           </p>
         </Card>
 
@@ -302,7 +316,7 @@ export function LineupBuilderPage() {
               {(Object.keys(FORMATIONS) as FormationKey[]).map((key) => (
                 <button
                   key={key}
-                  onClick={() => setFormation(key)}
+                  onClick={() => chooseFormation(key)}
                   className={cn(
                     'rounded-lg border px-2 py-2 text-sm font-semibold tabular-nums transition',
                     key === formation
@@ -389,7 +403,7 @@ function Pitch({
   onRemove,
   onCaptain,
   onDragStart,
-  onDrop,
+  onDropAt,
 }: {
   slots: Slot[]
   players: (Placed | null)[]
@@ -398,10 +412,23 @@ function Pitch({
   onRemove: (i: number) => void
   onCaptain: (i: number) => void
   onDragStart: (i: number) => void
-  onDrop: (i: number) => void
+  onDropAt: (x: number, y: number) => void
 }) {
+  const ref = useRef<HTMLDivElement>(null)
   return (
     <div
+      ref={ref}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault()
+        const el = ref.current
+        if (!el) return
+        const rect = el.getBoundingClientRect()
+        onDropAt(
+          ((e.clientX - rect.left) / rect.width) * 100,
+          ((e.clientY - rect.top) / rect.height) * 100,
+        )
+      }}
       className="relative mx-auto aspect-[3/4] w-full max-w-[560px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60"
       style={{
         backgroundImage:
@@ -427,12 +454,12 @@ function Pitch({
           key={i}
           slot={slot}
           player={players[i]}
+          number={players[i]?.jerseyNumber ?? i + 1}
           isCaptain={captain === i}
           onClick={() => onSlot(i)}
           onRemove={() => onRemove(i)}
           onCaptain={() => onCaptain(i)}
           onDragStart={() => onDragStart(i)}
-          onDrop={() => onDrop(i)}
         />
       ))}
     </div>
@@ -442,28 +469,26 @@ function Pitch({
 function SlotChip({
   slot,
   player,
+  number,
   isCaptain,
   onClick,
   onRemove,
   onCaptain,
   onDragStart,
-  onDrop,
 }: {
   slot: Slot
   player: Placed | null
+  number: number
   isCaptain: boolean
   onClick: () => void
   onRemove: () => void
   onCaptain: () => void
   onDragStart: () => void
-  onDrop: () => void
 }) {
   return (
     <div
-      className="absolute flex w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+      className="absolute flex w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-[left,top] duration-200"
       style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
     >
       {player ? (
         <div className="group relative flex flex-col items-center">
@@ -482,16 +507,14 @@ function SlotChip({
             >
               <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={52} />
             </div>
-            {player.jerseyNumber != null && (
-              <span
-                className={cn(
-                  'absolute -bottom-1 -left-1 grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-[10px] font-black tabular-nums shadow ring-2 ring-ink-950/70',
-                  ROLE_BADGE[slot.role],
-                )}
-              >
-                {player.jerseyNumber}
-              </span>
-            )}
+            <span
+              className={cn(
+                'absolute -bottom-1 -left-1 grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-[10px] font-black tabular-nums shadow ring-2 ring-ink-950/70',
+                ROLE_BADGE[slot.role],
+              )}
+            >
+              {number}
+            </span>
           </button>
           <button
             onClick={onRemove}
