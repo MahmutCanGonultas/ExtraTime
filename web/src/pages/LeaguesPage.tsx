@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Trophy } from 'lucide-react'
 import { useLeagues } from '@/features/football/hooks'
 import type { League } from '@/features/football/types'
-import { Card, CardBody } from '@/components/ui/Card'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
@@ -13,6 +12,17 @@ function seasonLabel(season: number): string {
 
 // Competition groupings, in the order they should appear.
 const MAIN = [39, 140, 78, 135, 61, 203] // Premier, La Liga, Bundesliga, Serie A, Ligue 1, Süper Lig
+
+// Each main league gets its own signature colour, so the featured cards read as
+// six distinct, vivid identities rather than a uniform grid.
+const LEAGUE_COLOR: Record<number, string> = {
+  39: '#8b5cf6', // Premier League — purple
+  140: '#f97316', // La Liga — orange
+  78: '#ef4444', // Bundesliga — red
+  135: '#3b82f6', // Serie A — blue
+  61: '#14b8a6', // Ligue 1 — teal
+  203: '#f43f5e', // Süper Lig — rose
+}
 const CUPS = [2, 3, 848, 1] // Champions, Europa, Conference, World Cup
 const OTHER = [94, 88, 71, 307, 253] // Portugal, Netherlands, Brazil, Saudi, MLS
 const SECOND = [40, 141, 136, 79, 62, 95, 89, 72, 204, 308] // second divisions
@@ -72,7 +82,7 @@ export function LeaguesPage() {
     <div className="space-y-8">
       <section>
         <SectionHeader title="Ana Ligler" hint="En popüler altı lig" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {main.map((c) => (
             <FeaturedLeagueCard key={c.apiId} c={c} />
           ))}
@@ -127,46 +137,64 @@ function SectionHeader({ title, hint, icon }: { title: string; hint?: string; ic
 }
 
 function FeaturedLeagueCard({ c }: { c: Comp }) {
+  const color = LEAGUE_COLOR[c.apiId] ?? '#c2f542'
   return (
-    <Card className="transition hover:border-ink-700">
-      <CardBody>
-        <div className="flex items-center gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-ink-950/40 ring-1 ring-ink-800">
-            <TeamLogo apiId={c.head.apiFootballId} kind="league" size={40} />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-lg font-bold text-ink-100">{c.head.name}</div>
-            <div className="truncate text-xs text-ink-400">{c.head.country}</div>
-          </div>
-        </div>
+    <div
+      className="group relative overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 p-5 transition duration-300 hover:-translate-y-0.5 hover:border-ink-700 hover:shadow-xl hover:shadow-ink-950/50"
+      style={{
+        backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${color}2e 0%, transparent 55%)`,
+      }}
+    >
+      {/* Oversized crest as a brand watermark */}
+      <div className="pointer-events-none absolute -bottom-8 -right-6 opacity-[0.07] transition-transform duration-500 group-hover:scale-110">
+        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={150} />
+      </div>
+      {/* Colour spine */}
+      <div
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: `linear-gradient(${color}, transparent)` }}
+      />
 
-        <Link
-          to={`/leagues/${c.current.id}`}
-          className="mt-4 flex items-center justify-between rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2.5 transition hover:bg-brand-500/20"
+      <div className="relative flex items-center gap-3.5">
+        <div
+          className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl ring-1 ring-white/10"
+          style={{ background: `${color}1f` }}
         >
-          <span className="text-sm font-semibold text-ink-100">
-            {seasonLabel(c.current.season)} sezonu
-          </span>
-          <span className="rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-950">
-            Güncel
-          </span>
-        </Link>
-
-        {c.past.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {c.past.slice(0, 5).map((s) => (
-              <Link
-                key={s.id}
-                to={`/leagues/${s.id}`}
-                className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 transition hover:border-brand-500 hover:text-brand-300"
-              >
-                {seasonLabel(s.season)}
-              </Link>
-            ))}
+          <TeamLogo apiId={c.head.apiFootballId} kind="league" size={44} />
+        </div>
+        <div className="min-w-0">
+          <div className="truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide text-ink-100">
+            {c.head.name}
           </div>
-        )}
-      </CardBody>
-    </Card>
+          <div className="truncate text-xs font-medium text-ink-400">{c.head.country}</div>
+        </div>
+      </div>
+
+      <Link
+        to={`/leagues/${c.current.id}`}
+        className="relative mt-5 flex items-center justify-between rounded-xl px-3.5 py-3 font-semibold text-ink-950 transition hover:brightness-110"
+        style={{ background: color }}
+      >
+        <span className="text-sm">{seasonLabel(c.current.season)} sezonu</span>
+        <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
+          Güncel <ChevronRight className="h-4 w-4" />
+        </span>
+      </Link>
+
+      {c.past.length > 0 && (
+        <div className="relative mt-2.5 flex flex-wrap gap-1.5">
+          {c.past.slice(0, 5).map((s) => (
+            <Link
+              key={s.id}
+              to={`/leagues/${s.id}`}
+              className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 transition hover:border-ink-500 hover:text-ink-100"
+            >
+              {seasonLabel(s.season)}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
