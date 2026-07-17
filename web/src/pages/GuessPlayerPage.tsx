@@ -143,7 +143,7 @@ export function GuessPlayerPage() {
     return <EmptyState title="Oyun havuzu boş" description="Oyuncu verisi henüz hazır değil." />
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="section-label text-brand-300">Kim Bu Oyuncu?</div>
@@ -168,68 +168,86 @@ export function GuessPlayerPage() {
         </div>
       </header>
 
-      {/* Censored photo of the mystery player — no name/initial leaks. */}
-      <Card className="flex flex-col items-center gap-3 p-6">
-        <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
-        {finished ? (
-          <div className="animate-pop-in text-center">
-            <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-ink-100">
-              {won && <Check className="h-5 w-5 text-emerald-400" />}
-              {secret?.name}
-            </div>
-            <div className="text-sm text-ink-400">
-              {secret ? `${secret.teamName ?? '—'} · ${secret.leagueName}` : ''}
-            </div>
-            <div className="mt-1 text-sm font-medium text-brand-300">
-              {won
-                ? `${guesses.length} tahminde bildin! 🎉`
-                : outOfGuesses
-                  ? 'Hakların bitti — cevap buydu.'
-                  : 'Cevap buydu.'}
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-sm text-ink-400">
-            <span className="font-semibold text-ink-200 tabular-nums">{remaining}</span> tahmin
-            hakkın kaldı · fotoğraf her yanlışta biraz daha açılıyor
-          </div>
-        )}
-      </Card>
+      {/* Photo + controls on the left, guesses on the right — so many guesses
+          stay visible at once. Stacks to a single column on small screens. */}
+      <div className="grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start">
+        <div className="space-y-4 lg:sticky lg:top-20">
+          {/* Censored photo of the mystery player — no name/initial leaks. */}
+          <Card className="flex flex-col items-center gap-3 p-6">
+            <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
+            {finished ? (
+              <div className="animate-pop-in text-center">
+                <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-ink-100">
+                  {won && <Check className="h-5 w-5 text-emerald-400" />}
+                  {secret?.name}
+                </div>
+                <div className="text-sm text-ink-400">
+                  {secret ? `${secret.teamName ?? '—'} · ${secret.leagueName}` : ''}
+                </div>
+                <div className="mt-1 text-sm font-medium text-brand-300">
+                  {won
+                    ? `${guesses.length} tahminde bildin! 🎉`
+                    : outOfGuesses
+                      ? 'Hakların bitti — cevap buydu.'
+                      : 'Cevap buydu.'}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-sm text-ink-400">
+                <span className="font-semibold text-ink-200 tabular-nums">{remaining}</span> tahmin
+                hakkın kaldı · fotoğraf her yanlışta biraz daha açılıyor
+              </div>
+            )}
+          </Card>
 
-      {/* Guess input + autocomplete (searches ALL players) */}
-      {!finished && <GuessInput term={term} setTerm={setTerm} onPick={submit} guessedIds={guessedIds} />}
+          {/* Guess input + autocomplete (searches ALL players) */}
+          {!finished && (
+            <GuessInput term={term} setTerm={setTerm} onPick={submit} guessedIds={guessedIds} />
+          )}
 
-      {!finished && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setRevealed(true)} disabled={won}>
-            <Eye className="h-4 w-4" />
-            Pes et
-          </Button>
+          {!finished && (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setRevealed(true)} disabled={won}>
+                <Eye className="h-4 w-4" />
+                Pes et
+              </Button>
+            </div>
+          )}
+
+          {finished && (
+            <Button className="w-full" onClick={newGame}>
+              <RotateCcw className="h-4 w-4" />
+              Yeni oyuncuyla oyna
+            </Button>
+          )}
         </div>
-      )}
 
-      {finished && (
-        <Button className="w-full" onClick={newGame}>
-          <RotateCcw className="h-4 w-4" />
-          Yeni oyuncuyla oyna
-        </Button>
-      )}
-
-      {/* Guess history */}
-      {guesses.length > 0 && secret && (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="min-w-180">
-              <GuessHeader />
-              <ul className="divide-y divide-ink-850">
-                {guesses.map((g) => (
-                  <GuessRow key={g.playerApiId} guess={g} secret={secret} />
-                ))}
-              </ul>
-            </div>
-          </div>
-        </Card>
-      )}
+        {/* Guess history */}
+        <div className="min-w-0">
+          {guesses.length > 0 && secret ? (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <div className="min-w-180">
+                  <GuessHeader />
+                  <ul className="divide-y divide-ink-850">
+                    {guesses.map((g) => (
+                      <GuessRow key={g.playerApiId} guess={g} secret={secret} />
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <Card className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 p-8 text-center">
+              <User className="h-9 w-9 text-ink-700" />
+              <p className="text-sm text-ink-500">
+                Tahminlerin burada listelenecek — her satır uyruk, mevki, takım, lig, yaş ve forma
+                numarasını karşılaştırır.
+              </p>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -308,7 +326,7 @@ function MysteryPhoto({
   useEffect(() => setFailed(false), [player?.playerApiId])
 
   return (
-    <div className="relative h-44 w-44 overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
+    <div className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
       {player?.photoUrl && !failed ? (
         <img
           src={player.photoUrl}
@@ -321,11 +339,11 @@ function MysteryPhoto({
         />
       ) : (
         <div className="grid h-full w-full place-items-center text-ink-600">
-          <User className="h-16 w-16" />
+          <User className="h-20 w-20" />
         </div>
       )}
       {!revealed && (
-        <span className="absolute bottom-1 right-1 rounded bg-ink-950/70 px-1.5 py-0.5 text-lg font-bold text-white">
+        <span className="absolute bottom-1.5 right-1.5 rounded-lg bg-ink-950/70 px-2 py-0.5 text-xl font-bold text-white">
           ?
         </span>
       )}
