@@ -170,7 +170,7 @@ export function GuessPlayerPage() {
 
       {/* Photo + controls on the left, guesses on the right — so many guesses
           stay visible at once. Stacks to a single column on small screens. */}
-      <div className="grid gap-5 lg:grid-cols-[440px_1fr] lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-20">
           {/* Censored photo of the mystery player — no name/initial leaks. */}
           <Card className="relative flex flex-col items-center gap-3 overflow-hidden p-6">
@@ -181,7 +181,7 @@ export function GuessPlayerPage() {
                   'radial-gradient(100% 55% at 50% 0%, rgba(194,245,66,0.10), transparent 62%)',
               }}
             />
-            <div className="relative mx-auto w-full max-w-[340px] rounded-[20px] bg-gradient-to-br from-brand-500/50 via-emerald-500/25 to-sky-500/30 p-[3px] shadow-lg shadow-brand-950/20">
+            <div className="relative mx-auto w-full max-w-[290px] rounded-[20px] bg-gradient-to-br from-brand-500/50 via-emerald-500/25 to-sky-500/30 p-[3px] shadow-lg shadow-brand-950/20">
               <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
             </div>
             {finished ? (
@@ -352,6 +352,9 @@ function MysteryPhoto({
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
       {player?.photoUrl && !failed ? (
         <img
+          // Remount per player so a new round's photo paints already-blurred
+          // instead of transitioning from clear (which briefly revealed the face).
+          key={player.playerApiId}
           src={player.photoUrl}
           alt="Gizli oyuncu"
           onError={() => setFailed(true)}
