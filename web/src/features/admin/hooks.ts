@@ -136,6 +136,184 @@ export function useAdminSetPrediction(groupId: number) {
   })
 }
 
+// ---- Platform overview ----
+
+export interface AdminStats {
+  users: number
+  admins: number
+  newUsers7d: number
+  groups: number
+  games: number
+  activeGames: number
+  predictions: number
+  fixtures: number
+  players: number
+  leagues: number
+  apiRequestsToday: number
+}
+
+export function useAdminStats() {
+  return useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: () => api.get<AdminStats>('/admin/stats'),
+  })
+}
+
+// ---- User management ----
+
+export interface AdminUser {
+  id: number
+  email: string
+  displayName: string
+  isAdmin: boolean
+  isEnvAdmin: boolean
+  createdAt: string
+  groupCount: number
+  ownedGroups: number
+  predictionCount: number
+}
+export interface AdminUserGroup {
+  id: number
+  name: string
+  isOwner: boolean
+  memberCount: number
+}
+export interface AdminUserDetail extends AdminUser {
+  groups: AdminUserGroup[]
+}
+
+export function useAdminUsers(search: string) {
+  return useQuery({
+    queryKey: ['admin-users', search],
+    queryFn: () => api.get<{ users: AdminUser[] }>(`/admin/users?search=${encodeURIComponent(search)}`),
+    select: (d) => d.users,
+  })
+}
+
+export function useAdminUserDetail(userId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin-user', userId],
+    queryFn: () => api.get<AdminUserDetail>(`/admin/users/${userId}`),
+    enabled: enabled && userId > 0,
+  })
+}
+
+export function useAdminResetUserPassword() {
+  return useMutation({
+    mutationFn: (userId: number) =>
+      api.post<{ temporaryPassword: string }>(`/admin/users/${userId}/reset-password`),
+  })
+}
+
+export function useAdminUpdateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { userId: number; displayName?: string; email?: string }) =>
+      api.patch(`/admin/users/${input.userId}`, {
+        displayName: input.displayName,
+        email: input.email,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+  })
+}
+
+export function useAdminSetUserAdmin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { userId: number; isAdmin: boolean }) =>
+      api.post(`/admin/users/${input.userId}/admin`, { isAdmin: input.isAdmin }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+  })
+}
+
+export function useAdminDeleteUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: number) => api.del(`/admin/users/${userId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      qc.invalidateQueries({ queryKey: ['admin-stats'] })
+    },
+  })
+}
+
+// ---- Group management ----
+
+export interface AdminGroup {
+  id: number
+  name: string
+  inviteCode: string
+  ownerId: number
+  ownerName: string | null
+  createdAt: string
+  memberCount: number
+  gameCount: number
+}
+
+export function useAdminAllGroups() {
+  return useQuery({
+    queryKey: ['admin-all-groups'],
+    queryFn: () => api.get<{ groups: AdminGroup[] }>('/admin/all-groups'),
+    select: (d) => d.groups,
+  })
+}
+
+function useGroupsInvalidator() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['admin-all-groups'] })
+    qc.invalidateQueries({ queryKey: ['admin-groups'] })
+  }
+}
+
+export function useAdminRenameGroup() {
+  const invalidate = useGroupsInvalidator()
+  return useMutation({
+    mutationFn: (input: { groupId: number; name: string }) =>
+      api.patch(`/admin/groups/${input.groupId}`, { name: input.name }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAdminDeleteGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: number) => api.del(`/admin/groups/${groupId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-all-groups'] })
+      qc.invalidateQueries({ queryKey: ['admin-groups'] })
+      qc.invalidateQueries({ queryKey: ['admin-stats'] })
+    },
+  })
+}
+
+export function useAdminTransferGroup() {
+  const invalidate = useGroupsInvalidator()
+  return useMutation({
+    mutationFn: (input: { groupId: number; email: string }) =>
+      api.post(`/admin/groups/${input.groupId}/transfer`, { email: input.email }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAdminRegenerateInvite() {
+  const invalidate = useGroupsInvalidator()
+  return useMutation({
+    mutationFn: (groupId: number) =>
+      api.post<{ inviteCode: string }>(`/admin/groups/${groupId}/regenerate-invite`),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAdminAddMember() {
+  const invalidate = useGroupsInvalidator()
+  return useMutation({
+    mutationFn: (input: { groupId: number; email: string }) =>
+      api.post(`/admin/groups/${input.groupId}/add-member`, { email: input.email }),
+    onSuccess: invalidate,
+  })
+}
+
 export function useSyncStatus() {
   return useQuery({
     queryKey: ['sync-status'],
