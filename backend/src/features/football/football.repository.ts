@@ -338,16 +338,24 @@ export interface GuessPoolPlayer {
 // plus the three Istanbul giants. Season 2026 = the 2026-27 campaign, seeded
 // from live squads so a player's team is where they play NOW.
 const GUESS_SEASON = 2026
-const GUESS_FULL_LEAGUES = [
-  39, // Premier League
-  140, // La Liga
-  78, // Bundesliga
-  61, // Ligue 1
-  135, // Serie A
-  94, // Primeira Liga (Portugal)
-  88, // Eredivisie (Netherlands)
-  71, // Brasileirão (Brazil)
-  307, // Saudi Pro League
+// The answer is drawn only from established top divisions so it stays
+// recognisable...
+const GUESS_POOL_LEAGUES = [39, 140, 78, 61, 135, 94, 88, 71, 307]
+// ...but a guess can be ANY player across those plus the second divisions and
+// MLS, so the dictionary is comprehensive.
+const GUESS_SEARCH_LEAGUES = [
+  ...GUESS_POOL_LEAGUES,
+  253, // MLS
+  40, // Championship (England)
+  141, // La Liga 2 (Spain)
+  136, // Serie B (Italy)
+  79, // 2. Bundesliga (Germany)
+  62, // Ligue 2 (France)
+  95, // Liga Portugal 2
+  89, // Eerste Divisie (Netherlands 2)
+  72, // Serie B (Brazil)
+  204, // TFF 1. Lig (Turkey)
+  308, // Saudi First Division
 ]
 const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the three clubs below
 const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşiktaş
@@ -384,7 +392,7 @@ export async function getGuessPool(): Promise<GuessPoolPlayer[]> {
      ) q
      ORDER BY q.appearances DESC NULLS LAST
      LIMIT 800`,
-    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
+    [GUESS_SEASON, GUESS_POOL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
   )
   return rows
 }
@@ -424,7 +432,7 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
      LIMIT 20`,
     [
       GUESS_SEASON,
-      GUESS_FULL_LEAGUES,
+      GUESS_SEARCH_LEAGUES,
       GUESS_EXTRA_LEAGUE,
       GUESS_EXTRA_CLUBS,
       like,
