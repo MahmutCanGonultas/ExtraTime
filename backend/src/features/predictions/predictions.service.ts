@@ -4,7 +4,6 @@ import { getCurrentSeasonId, isMember } from '../groups/groups.service'
 import { provisionalLeaderboard, seasonLeaderboard, type LeaderboardEntry } from './leaderboard'
 import { outcomeOf, type MatchOutcome } from './scoring'
 import { settleFixture } from './settle'
-import { isLocked } from './lock'
 
 export interface SavedPrediction {
   id: number
@@ -166,14 +165,16 @@ export async function getFixturePredictions(groupId: number, fixtureId: number, 
   if (!(await isMember(groupId, requesterId))) {
     throw AppError.forbidden('You are not a member of this group')
   }
-  const fixtureRes = await query<{ kickoff_at: Date }>(
-    `SELECT kickoff_at FROM fixtures WHERE id = $1`,
+  const fixtureRes = await query<{ locked: boolean }>(
+    // Decide the reveal against DB time (not the app-server clock) so it matches
+    // the write-lock gate exactly and can't be skewed open by clock drift.
+    `SELECT (kickoff_at <= now()) AS locked FROM fixtures WHERE id = $1`,
     [fixtureId],
   )
   const fixture = fixtureRes.rows[0]
   if (!fixture) throw AppError.notFound('Fixture not found')
 
-  const locked = isLocked(fixture.kickoff_at, new Date())
+  const locked = fixture.locked
   const { rows } = await query<{
     userId: number
     displayName: string

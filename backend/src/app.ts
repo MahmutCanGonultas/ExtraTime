@@ -11,6 +11,9 @@ import { errorHandler, notFoundHandler } from './lib/middleware/error'
 export function createApp() {
   const app = express()
 
+  // Behind Render's single reverse proxy: trust one hop so req.ip is the real
+  // client IP (otherwise the auth rate-limiter buckets every user together).
+  app.set('trust proxy', 1)
   app.disable('x-powered-by')
   app.use(helmet())
   app.use(
