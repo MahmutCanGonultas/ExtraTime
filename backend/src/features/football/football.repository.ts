@@ -334,10 +334,11 @@ export interface GuessPoolPlayer {
   appearances: number
 }
 
-// The "guess the player" universe: current squads of the covered full leagues
-// plus the three Istanbul giants. Season 2026 = the 2026-27 campaign, seeded
-// from live squads so a player's team is where they play NOW.
-const GUESS_SEASON = 2026
+// The "guess the player" universe: each player's most recent CLUB row from this
+// season on (so we prefer their current 2026-27 club, but a well-known player
+// whose current club squad we lack — e.g. Modrić, whose only 2026 row is the
+// national team — still appears via his last club rather than vanishing).
+const GUESS_MIN_SEASON = 2025
 // The answer is drawn only from established top divisions so it stays
 // recognisable...
 const GUESS_POOL_LEAGUES = [39, 140, 78, 61, 135, 94, 88, 71, 307]
@@ -367,14 +368,16 @@ const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşikta�
 const GUESS_COLS = `p.player_api_id AS "playerApiId", p.name, p.photo_url AS "photoUrl",
     p.nationality, p.position, p.age, p.team_api_id AS "teamApiId", p.team_name AS "teamName",
     l.api_football_id AS "leagueApiId", l.name AS "leagueName", p.jersey_number AS "jerseyNumber",
-    (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances`
-// Every guessable player must have a photo, a nationality (for the flag) and a
-// shirt number, so no tile is ever blank. This drops a few hundred obscure
-// reserves the API has no nationality for — the ~4.4k that remain are the ones
-// anyone would actually guess.
+    -- Total career appearances across every competition — a better fame proxy
+    -- than a single peak season, so a superstar (club + CL + country) outranks a
+    -- lower-league journeyman with one high-minutes season.
+    (SELECT SUM(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances`
+// A guessable player needs a photo and a nationality (for the flag); the shirt
+// number is optional (shown as "?" when unknown) so recognisable players without
+// a number in our data still appear. $1 = min season, so the DISTINCT ON below
+// can pick each player's most recent club row.
 const GUESS_UNIVERSE = `players p JOIN leagues l ON l.id = p.league_id
-   WHERE p.season = $1 AND p.photo_url IS NOT NULL
-     AND p.nationality IS NOT NULL AND p.jersey_number IS NOT NULL
+   WHERE p.season >= $1 AND p.photo_url IS NOT NULL AND p.nationality IS NOT NULL
      AND (l.api_football_id = ANY($2) OR (l.api_football_id = $3 AND p.team_api_id = ANY($4)))`
 
 /**
@@ -388,11 +391,11 @@ export async function getGuessPool(): Promise<GuessPoolPlayer[]> {
     `SELECT * FROM (
        SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
        FROM ${GUESS_UNIVERSE}
-       ORDER BY p.player_api_id
+       ORDER BY p.player_api_id, p.season DESC, p.appearances DESC NULLS LAST
      ) q
      ORDER BY q.appearances DESC NULLS LAST
      LIMIT 800`,
-    [GUESS_SEASON, GUESS_POOL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
+    [GUESS_MIN_SEASON, GUESS_POOL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
   )
   return rows
 }
@@ -417,7 +420,7 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
            OR unaccent(p.firstname) ILIKE unaccent($5)
            OR unaccent(p.lastname) ILIKE unaccent($5)
            OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
-       ORDER BY p.player_api_id
+       ORDER BY p.player_api_id, p.season DESC, p.appearances DESC NULLS LAST
      ) s
      -- Rank most-relevant, best-known first: exact whole-surname matches, then
      -- prefix/word matches, each by prominence — so a superstar surfaces above
@@ -431,7 +434,7 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
        s.name
      LIMIT 20`,
     [
-      GUESS_SEASON,
+      GUESS_MIN_SEASON,
       GUESS_SEARCH_LEAGUES,
       GUESS_EXTRA_LEAGUE,
       GUESS_EXTRA_CLUBS,
@@ -623,10 +626,10 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
          SELECT DISTINCT ON (p.player_api_id)
            p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.photo_url AS "photoUrl",
            p.team_name AS "teamName", p.team_api_id AS "teamApiId",
-           -- Career-peak appearances rank prominence; the picked row's own
-           -- appearances are 0 for a current preseason squad, which would sink
-           -- the biggest names below journeymen.
-           (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances
+           -- Total career appearances rank prominence (the picked row's own are
+           -- 0 for a current preseason squad, and a single peak season would let
+           -- a journeyman outrank a superstar).
+           (SELECT SUM(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances
          FROM players p JOIN leagues l ON l.id = p.league_id
          WHERE unaccent(p.name) ILIKE unaccent($1)
             OR unaccent(p.firstname) ILIKE unaccent($1)
