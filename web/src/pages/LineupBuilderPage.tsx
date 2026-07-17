@@ -419,7 +419,7 @@ export function LineupBuilderPage() {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={dropOnBench}
-                className="w-full shrink-0 rounded-xl border border-ink-800 bg-ink-950/40 p-2 sm:w-56"
+                className="w-full shrink-0 rounded-xl border border-ink-800 bg-ink-950/40 p-2.5 sm:w-64"
               >
                 <div className="section-label px-1 pb-2 text-[11px] text-ink-400">
                   Yedekler · {bench.length}

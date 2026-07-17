@@ -23,7 +23,7 @@ export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
   return (
     <th
       className={cn(
-        'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-400',
+        'border-b border-ink-800 bg-ink-900/40 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-400',
         !hasAlign && 'text-left',
         className,
       )}
@@ -33,9 +33,19 @@ export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
 }
 
 export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('border-t border-ink-800 px-3 py-2 text-ink-200', className)} {...props} />
+  return <td className={cn('px-3 py-2.5 align-middle text-ink-200', className)} {...props} />
 }
 
+// Zebra-striped, soft-bordered rows that lift on hover — much calmer to scan than
+// a flat grid of lines.
 export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('hover:bg-ink-850/60', className)} {...props} />
+  return (
+    <tr
+      className={cn(
+        'border-b border-ink-850/50 transition-colors even:bg-ink-900/25 hover:bg-ink-800/40',
+        className,
+      )}
+      {...props}
+    />
+  )
 }

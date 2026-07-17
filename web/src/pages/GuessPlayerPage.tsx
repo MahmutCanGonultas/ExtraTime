@@ -3,6 +3,7 @@ import { ArrowUp, ArrowDown, RotateCcw, Eye, Trophy, User, Check } from 'lucide-
 import { useGuessPool, useGuessSearch } from '@/features/football/hooks'
 import type { GuessPoolPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
+import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -278,8 +279,9 @@ function GuessInput({
                     <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={30} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm text-ink-100">{p.name}</span>
-                      <span className="block truncate text-xs text-ink-400">
-                        {p.teamName ?? '—'}
+                      <span className="flex items-center gap-1 truncate text-xs text-ink-400">
+                        {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={14} />}
+                        <span className="truncate">{p.teamName ?? '—'}</span>
                       </span>
                     </span>
                   </button>
@@ -408,6 +410,36 @@ function NationalityTile({
   )
 }
 
+// Team shows the club crest with its name beneath it.
+function TeamTile({
+  state,
+  teamName,
+  teamApiId,
+}: {
+  state: TileState
+  teamName: string | null
+  teamApiId: number | null
+}) {
+  return (
+    <div
+      className={cn(
+        'flex h-14 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg px-1 text-center ring-1',
+        TILE_BG[state],
+      )}
+      title={teamName ?? undefined}
+    >
+      {teamApiId != null ? (
+        <TeamLogo apiId={teamApiId} size={20} />
+      ) : (
+        <span className="text-base leading-none">⚽</span>
+      )}
+      <span className="w-full min-w-0 truncate text-[10px] font-semibold leading-tight">
+        {teamName ?? '—'}
+      </span>
+    </div>
+  )
+}
+
 function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPoolPlayer }) {
   const nat = cmpText(guess.nationality, secret.nationality)
   const pos = cmpText(guess.position, secret.position)
@@ -426,9 +458,7 @@ function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPool
       <Tile state={pos} title={posLabel(guess.position)}>
         {posLabel(guess.position)}
       </Tile>
-      <Tile state={team} title={guess.teamName ?? '—'}>
-        {guess.teamName ?? '—'}
-      </Tile>
+      <TeamTile state={team} teamName={guess.teamName} teamApiId={guess.teamApiId} />
       <Tile state={league} title={guess.leagueName}>
         {guess.leagueName}
       </Tile>
