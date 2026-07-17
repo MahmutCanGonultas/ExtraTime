@@ -168,6 +168,13 @@ export interface TeamDetail {
   squad: SquadPlayer[]
 }
 
+export interface TeamSquadHistory {
+  team: Team
+  seasons: number[]
+  season: number | null
+  squad: SquadPlayer[]
+}
+
 export interface BracketTeam {
   teamId: number
   apiId: number
@@ -267,6 +274,21 @@ export interface PlayerProfile {
   birthPlace: string | null
   photoUrl: string | null
   seasons: PlayerSeason[]
+}
+
+export interface GuessPoolPlayer {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  nationality: string | null
+  position: string | null
+  age: number | null
+  teamApiId: number | null
+  teamName: string | null
+  leagueApiId: number
+  leagueName: string
+  jerseyNumber: number | null
+  appearances: number
 }
 
 export interface GamePoolPlayer {

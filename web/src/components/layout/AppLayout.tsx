@@ -11,6 +11,8 @@ const baseNav = [
   { to: '/leagues', label: 'Ligler' },
   { to: '/group', label: 'Grup' },
   { to: '/oyun', label: 'Oyun' },
+  { to: '/kadro-kur', label: 'Kadro Kur' },
+  { to: '/kim-bu', label: 'Kim Bu?' },
   { to: '/stats', label: 'İstatistik' },
 ]
 
@@ -93,10 +95,10 @@ function SiteFooter() {
           <div className="max-w-3xl">
             <div className="flex items-center gap-2 text-brand-300">
               <BallMark size={18} />
-              <span className="text-sm font-bold uppercase tracking-[0.2em] text-ink-200">ExtraTime</span>
+              <span className="text-sm font-bold uppercase tracking-[0.2em] text-ink-200">EXTRATIME</span>
             </div>
             <p className="mt-3 text-xs leading-relaxed text-ink-500">
-              ExtraTime, yazılım geliştirme yetkinliklerini sergilemek amacıyla hazırlanmış kişisel
+              EXTRATIME, yazılım geliştirme yetkinliklerini sergilemek amacıyla hazırlanmış kişisel
               bir portföy projesidir. Herhangi bir ticari amaç taşımaz; bahis, kumar ya da her türlü
               maddi kazanç unsuru içermez ve kullanıcılarından hiçbir finansal beklentisi yoktur.
               Tahmin oyunu yalnızca arkadaş grupları arasında, tamamen eğlence amacıyla oynanır.
@@ -107,7 +109,7 @@ function SiteFooter() {
           <div className="text-xs text-ink-600 md:text-right">
             <div className="font-medium text-ink-400">Portföy Projesi</div>
             <div className="mt-1">Ticari amaç güdülmez</div>
-            <div className="mt-3 text-ink-600">© {year} ExtraTime</div>
+            <div className="mt-3 text-ink-600">© {year} EXTRATIME</div>
           </div>
         </div>
       </div>

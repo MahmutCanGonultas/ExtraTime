@@ -127,6 +127,14 @@ export function TeamPage() {
           <Card className="overflow-hidden">
             <CardHeader
               title={`Kadro${squadSeason ? ` · ${seasonLabel(squadSeason)}` : ''}${squad.length ? ` · ${squad.length}` : ''}`}
+              action={
+                <Link
+                  to={`/teams/${team.id}/squad`}
+                  className="text-xs font-medium text-brand-300 hover:underline"
+                >
+                  Detaylı kadro →
+                </Link>
+              }
             />
             {squad.length === 0 ? (
               <CardBody className="py-6 text-center text-sm text-ink-500">Kadro verisi yok.</CardBody>

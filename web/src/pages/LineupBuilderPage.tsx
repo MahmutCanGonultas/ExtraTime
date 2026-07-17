@@ -1,0 +1,393 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, X, Trash2, Users } from 'lucide-react'
+import { useSearch } from '@/features/football/hooks'
+import { PlayerAvatar } from '@/components/PlayerAvatar'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { safeGetItem, safeSetItem } from '@/lib/storage'
+import { cn } from '@/lib/cn'
+
+// A placed player only needs enough to draw the chip; the rest lives on the
+// player's own page. Kept minimal so the whole line-up fits in localStorage.
+interface Placed {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+}
+
+type Role = 'GK' | 'DEF' | 'MID' | 'ATT'
+interface Slot {
+  x: number // 0-100, left→right
+  y: number // 0-100, top (attack) → bottom (own goal)
+  role: Role
+}
+
+// Each formation is a set of lines (outfield only); the GK is added implicitly.
+// Slots are emitted GK-first, then each line left→right, so a saved line-up
+// keeps its players by index when the formation changes.
+const FORMATIONS: Record<string, { y: number; n: number }[]> = {
+  '4-3-3': [{ y: 73, n: 4 }, { y: 50, n: 3 }, { y: 17, n: 3 }],
+  '4-4-2': [{ y: 73, n: 4 }, { y: 50, n: 4 }, { y: 18, n: 2 }],
+  '4-2-3-1': [{ y: 74, n: 4 }, { y: 58, n: 2 }, { y: 37, n: 3 }, { y: 16, n: 1 }],
+  '3-5-2': [{ y: 74, n: 3 }, { y: 50, n: 5 }, { y: 18, n: 2 }],
+  '3-4-3': [{ y: 74, n: 3 }, { y: 52, n: 4 }, { y: 20, n: 3 }],
+  '5-3-2': [{ y: 75, n: 5 }, { y: 50, n: 3 }, { y: 20, n: 2 }],
+}
+type FormationKey = keyof typeof FORMATIONS
+
+// Evenly spaced x positions across the pitch width for a line of n players.
+function xPositions(n: number): number[] {
+  switch (n) {
+    case 1:
+      return [50]
+    case 2:
+      return [34, 66]
+    case 3:
+      return [22, 50, 78]
+    case 4:
+      return [14, 38, 62, 86]
+    case 5:
+      return [10, 30, 50, 70, 90]
+    default: {
+      const m = 12
+      const step = (100 - 2 * m) / (n - 1)
+      return Array.from({ length: n }, (_, i) => m + step * i)
+    }
+  }
+}
+
+function buildSlots(key: FormationKey): Slot[] {
+  const slots: Slot[] = [{ x: 50, y: 91, role: 'GK' }]
+  for (const line of FORMATIONS[key]) {
+    const role: Role = line.y > 64 ? 'DEF' : line.y < 30 ? 'ATT' : 'MID'
+    for (const x of xPositions(line.n)) slots.push({ x, y: line.y, role })
+  }
+  return slots
+}
+
+const ROLE_RING: Record<Role, string> = {
+  GK: 'ring-amber-400/70',
+  DEF: 'ring-sky-400/70',
+  MID: 'ring-brand-400/80',
+  ATT: 'ring-rose-400/70',
+}
+
+const STORAGE_KEY = 'extratime:lineup:v1'
+
+interface SavedState {
+  formation: FormationKey
+  title: string
+  players: (Placed | null)[]
+}
+
+function loadSaved(): SavedState {
+  const fallback: SavedState = {
+    formation: '4-3-3',
+    title: "Benim 11'im",
+    players: Array(11).fill(null),
+  }
+  try {
+    const raw = safeGetItem(STORAGE_KEY)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw) as Partial<SavedState>
+    if (!parsed.formation || !FORMATIONS[parsed.formation]) return fallback
+    const players = Array.isArray(parsed.players) ? parsed.players.slice(0, 11) : []
+    while (players.length < 11) players.push(null)
+    return {
+      formation: parsed.formation as FormationKey,
+      title: parsed.title || fallback.title,
+      players: players as (Placed | null)[],
+    }
+  } catch {
+    return fallback
+  }
+}
+
+export function LineupBuilderPage() {
+  const initial = useMemo(loadSaved, [])
+  const [formation, setFormation] = useState<FormationKey>(initial.formation)
+  const [title, setTitle] = useState(initial.title)
+  const [players, setPlayers] = useState<(Placed | null)[]>(initial.players)
+  const [activeSlot, setActiveSlot] = useState<number | null>(null)
+
+  const slots = useMemo(() => buildSlots(formation), [formation])
+  const filled = players.filter(Boolean).length
+
+  // Persist on every change so a refresh keeps the same team.
+  useEffect(() => {
+    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players }))
+  }, [formation, title, players])
+
+  function assign(idx: number, p: Placed) {
+    setPlayers((prev) => {
+      const next = [...prev]
+      // If the player is already on the pitch elsewhere, move them (no clones).
+      const existing = next.findIndex((x) => x?.playerApiId === p.playerApiId)
+      if (existing >= 0 && existing !== idx) next[existing] = null
+      next[idx] = p
+      return next
+    })
+    setActiveSlot(null)
+  }
+
+  function remove(idx: number) {
+    setPlayers((prev) => {
+      const next = [...prev]
+      next[idx] = null
+      return next
+    })
+  }
+
+  function reset() {
+    setPlayers(Array(11).fill(null))
+  }
+
+  return (
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="section-label text-brand-300">Kadro Kur</div>
+          <h1 className="mt-1 text-2xl font-bold text-ink-100">İlk 11'ini kur</h1>
+          <p className="mt-1 max-w-xl text-sm text-ink-400">
+            Dizilişini seç, boş oyuncuya dokun ve tüm liglerden dilediğin futbolcuyu ara.
+            Kadron tarayıcında saklanır.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-sm text-ink-300">
+          <Users className="h-4 w-4 text-brand-300" />
+          <span className="tabular-nums">{filled}/11</span>
+        </div>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        {/* Pitch */}
+        <Card className="overflow-hidden p-3 sm:p-4">
+          <Pitch slots={slots} players={players} onSlot={setActiveSlot} onRemove={remove} />
+        </Card>
+
+        {/* Controls */}
+        <div className="space-y-4">
+          <Card className="space-y-3 p-4">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-ink-200">Kadro adı</span>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} />
+            </label>
+          </Card>
+
+          <Card className="space-y-3 p-4">
+            <div className="section-label text-ink-400">Diziliş</div>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(FORMATIONS) as FormationKey[]).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setFormation(key)}
+                  className={cn(
+                    'rounded-lg border px-2 py-2 text-sm font-semibold tabular-nums transition',
+                    key === formation
+                      ? 'border-brand-500 bg-brand-500 text-ink-950'
+                      : 'border-ink-700 bg-ink-850 text-ink-200 hover:border-ink-600 hover:bg-ink-800',
+                  )}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Button variant="secondary" className="w-full" onClick={reset} disabled={filled === 0}>
+            <Trash2 className="h-4 w-4" />
+            Kadroyu temizle
+          </Button>
+        </div>
+      </div>
+
+      {activeSlot !== null && (
+        <PlayerPicker
+          role={slots[activeSlot].role}
+          onClose={() => setActiveSlot(null)}
+          onPick={(p) => assign(activeSlot, p)}
+        />
+      )}
+    </div>
+  )
+}
+
+const ROLE_LABEL: Record<Role, string> = {
+  GK: 'Kaleci',
+  DEF: 'Defans',
+  MID: 'Orta saha',
+  ATT: 'Forvet',
+}
+
+function Pitch({
+  slots,
+  players,
+  onSlot,
+  onRemove,
+}: {
+  slots: Slot[]
+  players: (Placed | null)[]
+  onSlot: (i: number) => void
+  onRemove: (i: number) => void
+}) {
+  return (
+    <div
+      className="relative mx-auto aspect-[3/4] w-full max-w-[540px] overflow-hidden rounded-xl ring-1 ring-emerald-900/40"
+      style={{
+        backgroundImage:
+          'repeating-linear-gradient(180deg, #0f3d29 0 11%, #0d3624 11% 22%), radial-gradient(120% 80% at 50% -10%, rgba(194,245,66,0.12), transparent 60%)',
+      }}
+    >
+      {/* Field markings */}
+      <div className="pointer-events-none absolute inset-3 rounded-lg border border-white/25" />
+      <div className="pointer-events-none absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-white/25" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
+      {/* penalty boxes */}
+      <div className="pointer-events-none absolute left-1/2 top-3 h-[15%] w-[46%] -translate-x-1/2 border border-t-0 border-white/25" />
+      <div className="pointer-events-none absolute bottom-3 left-1/2 h-[15%] w-[46%] -translate-x-1/2 border border-b-0 border-white/25" />
+
+      {slots.map((slot, i) => (
+        <SlotChip
+          key={i}
+          slot={slot}
+          player={players[i]}
+          onClick={() => onSlot(i)}
+          onRemove={() => onRemove(i)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function SlotChip({
+  slot,
+  player,
+  onClick,
+  onRemove,
+}: {
+  slot: Slot
+  player: Placed | null
+  onClick: () => void
+  onRemove: () => void
+}) {
+  return (
+    <div
+      className="absolute flex w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+      style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+    >
+      {player ? (
+        <div className="group relative flex flex-col items-center">
+          <button
+            onClick={onClick}
+            className={cn(
+              'grid place-items-center rounded-full bg-ink-950/70 ring-2 transition hover:scale-105',
+              ROLE_RING[slot.role],
+            )}
+            title="Değiştir"
+          >
+            <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={44} />
+          </button>
+          <button
+            onClick={onRemove}
+            className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-loss text-white opacity-0 shadow transition group-hover:opacity-100"
+            title="Kaldır"
+            aria-label="Oyuncuyu kaldır"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          <span className="mt-1 max-w-[92px] truncate rounded bg-ink-950/70 px-1.5 py-0.5 text-[11px] font-medium text-white">
+            {player.name}
+          </span>
+        </div>
+      ) : (
+        <button
+          onClick={onClick}
+          className={cn(
+            'grid h-11 w-11 place-items-center rounded-full border-2 border-dashed bg-ink-950/40 text-white/70 transition hover:scale-105 hover:bg-ink-950/60',
+            'border-white/40',
+          )}
+          title={`${ROLE_LABEL[slot.role]} ekle`}
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function PlayerPicker({
+  role,
+  onClose,
+  onPick,
+}: {
+  role: Role
+  onClose: () => void
+  onPick: (p: Placed) => void
+}) {
+  const [term, setTerm] = useState('')
+  const { data, isFetching } = useSearch(term)
+  const results = data?.players ?? []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-ink-950/70 p-4 pt-[12vh] backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-ink-700 bg-ink-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-ink-800 px-4 py-3">
+          <span className="text-sm font-semibold text-ink-100">
+            {ROLE_LABEL[role]} için oyuncu ara
+          </span>
+          <button onClick={onClose} className="text-ink-400 hover:text-ink-100" aria-label="Kapat">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-3">
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <Input
+            autoFocus
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Oyuncu adı (ör. Haaland)"
+          />
+          <div className="mt-2 max-h-[46vh] overflow-y-auto">
+            {term.trim().length < 2 ? (
+              <p className="px-1 py-6 text-center text-sm text-ink-500">
+                Aramak için en az 2 harf yaz.
+              </p>
+            ) : results.length === 0 ? (
+              <p className="px-1 py-6 text-center text-sm text-ink-500">
+                {isFetching ? 'Aranıyor…' : 'Sonuç bulunamadı.'}
+              </p>
+            ) : (
+              <ul className="divide-y divide-ink-850">
+                {results.map((p) => (
+                  <li key={p.playerApiId}>
+                    <button
+                      onClick={() =>
+                        onPick({ playerApiId: p.playerApiId, name: p.name, photoUrl: p.photoUrl })
+                      }
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-ink-800"
+                    >
+                      <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={34} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm text-ink-100">{p.name}</span>
+                        {p.teamName && (
+                          <span className="block truncate text-xs text-ink-400">{p.teamName}</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

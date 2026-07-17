@@ -5,6 +5,7 @@ import type {
   Fixture,
   FixtureGoal,
   GamePoolPlayer,
+  GuessPoolPlayer,
   League,
   MatchEvent,
   MatchStat,
@@ -13,6 +14,7 @@ import type {
   SearchResults,
   StandingRow,
   TeamDetail,
+  TeamSquadHistory,
   TopAssist,
   TopScorer,
 } from './types'
@@ -85,6 +87,26 @@ export function useGamePool() {
   })
 }
 
+export function useGuessPool() {
+  return useQuery({
+    queryKey: ['guess-pool'],
+    queryFn: () => api.get<{ players: GuessPoolPlayer[] }>('/players/guess/pool'),
+    select: (d) => d.players,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useGuessSearch(term: string) {
+  const q = term.trim()
+  return useQuery({
+    queryKey: ['guess-search', q],
+    queryFn: () => api.get<{ players: GuessPoolPlayer[] }>(`/players/guess/search?q=${encodeURIComponent(q)}`),
+    select: (d) => d.players,
+    enabled: q.length >= 2,
+    staleTime: 30_000,
+  })
+}
+
 export function usePlayer(playerApiId: number) {
   return useQuery({
     queryKey: ['player', playerApiId],
@@ -98,6 +120,15 @@ export function useTeam(teamId: number) {
   return useQuery({
     queryKey: ['team', teamId],
     queryFn: () => api.get<TeamDetail>(`/teams/${teamId}`),
+  })
+}
+
+export function useTeamSquad(teamId: number, season?: number) {
+  return useQuery({
+    queryKey: ['team-squad', teamId, season ?? 'latest'],
+    queryFn: () =>
+      api.get<TeamSquadHistory>(`/teams/${teamId}/squad${season ? `?season=${season}` : ''}`),
+    enabled: teamId > 0,
   })
 }
 

@@ -15,6 +15,8 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/group/, 'Grup'],
   [/^\/predictions/, 'Tahminler'],
   [/^\/oyun/, 'Gol Düellosu'],
+  [/^\/kadro-kur/, 'Kadro Kur'],
+  [/^\/kim-bu/, 'Kim Bu?'],
   [/^\/stats/, 'İstatistik'],
   [/^\/admin/, 'Admin'],
   [/^\/settings/, 'Ayarlar'],
@@ -26,7 +28,7 @@ function RouteTitle() {
   const { pathname } = useLocation()
   useEffect(() => {
     const match = TITLES.find(([re]) => re.test(pathname))
-    document.title = match ? `${match[1]} · ExtraTime` : 'ExtraTime'
+    document.title = match ? `${match[1]} · EXTRATIME` : 'EXTRATIME'
   }, [pathname])
   return null
 }
@@ -39,9 +41,12 @@ import { HomePage } from '@/pages/HomePage'
 import { LeaguesPage } from '@/pages/LeaguesPage'
 import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { SquadPage } from '@/pages/SquadPage'
 import { PlayerDetailPage } from '@/pages/PlayerDetailPage'
 import { GroupHubPage } from '@/pages/GroupHubPage'
 import { MiniGamePage } from '@/pages/MiniGamePage'
+import { LineupBuilderPage } from '@/pages/LineupBuilderPage'
+import { GuessPlayerPage } from '@/pages/GuessPlayerPage'
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -65,11 +70,14 @@ export function App() {
                 <Route path="/leagues" element={<LeaguesPage />} />
                 <Route path="/leagues/:id" element={<LeagueDetailPage />} />
                 <Route path="/teams/:id" element={<TeamPage />} />
+                <Route path="/teams/:id/squad" element={<SquadPage />} />
                 <Route path="/players/:apiId" element={<PlayerDetailPage />} />
                 <Route path="/matches/:id" element={<MatchPage />} />
                 <Route path="/group" element={<GroupHubPage />} />
                 <Route path="/predictions" element={<Navigate to="/group" replace />} />
                 <Route path="/oyun" element={<MiniGamePage />} />
+                <Route path="/kadro-kur" element={<LineupBuilderPage />} />
+                <Route path="/kim-bu" element={<GuessPlayerPage />} />
                 <Route
                   path="/stats"
                   element={
