@@ -93,6 +93,7 @@ interface SavedState {
   formation: FormationKey
   title: string
   players: (Placed | null)[]
+  captain: number | null
 }
 
 function loadSaved(): SavedState {
@@ -100,6 +101,7 @@ function loadSaved(): SavedState {
     formation: '4-3-3',
     title: "Benim 11'im",
     players: Array(11).fill(null),
+    captain: null,
   }
   try {
     const raw = safeGetItem(STORAGE_KEY)
@@ -112,6 +114,7 @@ function loadSaved(): SavedState {
       formation: parsed.formation as FormationKey,
       title: parsed.title || fallback.title,
       players: players as (Placed | null)[],
+      captain: typeof parsed.captain === 'number' ? parsed.captain : null,
     }
   } catch {
     return fallback
@@ -178,15 +181,17 @@ export function LineupBuilderPage() {
   const [formation, setFormation] = useState<FormationKey>(initial.formation)
   const [title, setTitle] = useState(initial.title)
   const [players, setPlayers] = useState<(Placed | null)[]>(initial.players)
+  const [captain, setCaptain] = useState<number | null>(() => initial.captain)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
 
   const slots = useMemo(() => buildSlots(formation), [formation])
   const filled = players.filter(Boolean).length
 
   // Persist on every change so a refresh keeps the same team.
   useEffect(() => {
-    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players }))
-  }, [formation, title, players])
+    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players, captain }))
+  }, [formation, title, players, captain])
 
   // Load a team's current squad onto the pitch (best player per slot role).
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
@@ -219,8 +224,30 @@ export function LineupBuilderPage() {
     })
   }
 
+  // Drag a player onto another slot to move or swap them.
+  function moveOrSwap(from: number, to: number) {
+    if (from === to) return
+    setPlayers((prev) => {
+      const next = [...prev]
+      const tmp = next[to]
+      next[to] = next[from]
+      next[from] = tmp
+      return next
+    })
+  }
+
+  function toggleCaptain(idx: number) {
+    setCaptain((c) => (c === idx ? null : idx))
+  }
+
+  function handleDrop(to: number) {
+    if (dragFrom != null) moveOrSwap(dragFrom, to)
+    setDragFrom(null)
+  }
+
   function reset() {
     setPlayers(Array(11).fill(null))
+    setCaptain(null)
   }
 
   return (
@@ -243,7 +270,19 @@ export function LineupBuilderPage() {
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         {/* Pitch */}
         <Card className="overflow-hidden p-3 sm:p-4">
-          <Pitch slots={slots} players={players} onSlot={setActiveSlot} onRemove={remove} />
+          <Pitch
+            slots={slots}
+            players={players}
+            captain={captain}
+            onSlot={setActiveSlot}
+            onRemove={remove}
+            onCaptain={toggleCaptain}
+            onDragStart={setDragFrom}
+            onDrop={handleDrop}
+          />
+          <p className="mt-2 text-center text-[11px] text-ink-500">
+            Sürükle-bırak ile yer değiştir · kaptan için 👑 simgesine dokun
+          </p>
         </Card>
 
         {/* Controls */}
@@ -345,13 +384,21 @@ const ROLE_LABEL: Record<Role, string> = {
 function Pitch({
   slots,
   players,
+  captain,
   onSlot,
   onRemove,
+  onCaptain,
+  onDragStart,
+  onDrop,
 }: {
   slots: Slot[]
   players: (Placed | null)[]
+  captain: number | null
   onSlot: (i: number) => void
   onRemove: (i: number) => void
+  onCaptain: (i: number) => void
+  onDragStart: (i: number) => void
+  onDrop: (i: number) => void
 }) {
   return (
     <div
@@ -380,8 +427,12 @@ function Pitch({
           key={i}
           slot={slot}
           player={players[i]}
+          isCaptain={captain === i}
           onClick={() => onSlot(i)}
           onRemove={() => onRemove(i)}
+          onCaptain={() => onCaptain(i)}
+          onDragStart={() => onDragStart(i)}
+          onDrop={() => onDrop(i)}
         />
       ))}
     </div>
@@ -391,22 +442,38 @@ function Pitch({
 function SlotChip({
   slot,
   player,
+  isCaptain,
   onClick,
   onRemove,
+  onCaptain,
+  onDragStart,
+  onDrop,
 }: {
   slot: Slot
   player: Placed | null
+  isCaptain: boolean
   onClick: () => void
   onRemove: () => void
+  onCaptain: () => void
+  onDragStart: () => void
+  onDrop: () => void
 }) {
   return (
     <div
       className="absolute flex w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center"
       style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDrop}
     >
       {player ? (
         <div className="group relative flex flex-col items-center">
-          <button onClick={onClick} className="relative transition hover:scale-105" title="Değiştir">
+          <button
+            onClick={onClick}
+            draggable
+            onDragStart={onDragStart}
+            className="relative cursor-grab transition hover:scale-105 active:cursor-grabbing"
+            title="Değiştir · sürükleyerek taşı"
+          >
             <div
               className={cn(
                 'grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
@@ -434,8 +501,22 @@ function SlotChip({
           >
             <X className="h-3 w-3" />
           </button>
-          <span className="mt-1.5 max-w-[96px] truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10">
-            {surname(player.name)}
+          <button
+            onClick={onCaptain}
+            className={cn(
+              'absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full text-[11px] shadow transition',
+              isCaptain
+                ? 'bg-amber-400 opacity-100'
+                : 'bg-ink-950/70 opacity-0 group-hover:opacity-100',
+            )}
+            title={isCaptain ? 'Kaptanlığı kaldır' : 'Kaptan yap'}
+            aria-label="Kaptan"
+          >
+            👑
+          </button>
+          <span className="mt-1.5 flex max-w-[96px] items-center gap-1 truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10">
+            {isCaptain && <span className="text-amber-300">©</span>}
+            <span className="truncate">{surname(player.name)}</span>
           </span>
         </div>
       ) : (
