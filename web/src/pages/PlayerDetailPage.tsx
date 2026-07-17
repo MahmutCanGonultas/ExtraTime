@@ -76,13 +76,13 @@ export function PlayerDetailPage() {
                 </div>
               ))}
             </div>
-            {primary?.teamName && (
+            {data.currentTeamName && (
               <Link
-                to={primary.teamId ? `/teams/${primary.teamId}` : '#'}
+                to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
                 className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1 text-xs font-medium text-ink-200 transition hover:text-brand-300"
               >
-                {primary.teamApiId != null && <TeamLogo apiId={primary.teamApiId} size={16} />}
-                {primary.teamName}
+                {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={16} />}
+                {data.currentTeamName}
               </Link>
             )}
           </div>

@@ -397,9 +397,13 @@ export async function getGuessPool(): Promise<GuessPoolPlayer[]> {
 export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> {
   const like = `%${q}%`
   const prefix = `${q}%`
+  const wordStart = `% ${q}%` // term starting a later word, e.g. "ronaldo" in "Cristiano Ronaldo"
   const { rows } = await query<GuessPoolPlayer>(
-    `SELECT * FROM (
-       SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
+    `SELECT s."playerApiId", s.name, s."photoUrl", s.nationality, s.position, s.age,
+            s."teamApiId", s."teamName", s."leagueApiId", s."leagueName",
+            s."jerseyNumber", s.appearances
+     FROM (
+       SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}, p.lastname AS "lastname"
        FROM ${GUESS_UNIVERSE}
          AND (unaccent(p.name) ILIKE unaccent($5)
            OR unaccent(p.firstname) ILIKE unaccent($5)
@@ -407,9 +411,17 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
            OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
        ORDER BY p.player_api_id
      ) s
-     ORDER BY (unaccent(s.name) ILIKE unaccent($6)) DESC, s.appearances DESC NULLS LAST, s.name
-     LIMIT 12`,
-    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS, like, prefix],
+     -- Players whose name/surname begins with the term (incl. a later word like
+     -- a surname) rank first; within that, most-capped (best-known) first — so a
+     -- superstar surfaces above obscure namesakes.
+     ORDER BY
+       (unaccent(s.name) ILIKE unaccent($6)
+        OR unaccent(s.name) ILIKE unaccent($7)
+        OR unaccent(COALESCE(s."lastname", '')) ILIKE unaccent($6)) DESC,
+       s.appearances DESC NULLS LAST,
+       s.name
+     LIMIT 20`,
+    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS, like, prefix, wordStart],
   )
   return rows
 }
@@ -427,6 +439,11 @@ export interface PlayerProfile {
   birthDate: string | null
   birthPlace: string | null
   photoUrl: string | null
+  // The player's current club (their most recent non-national-team row), so the
+  // header shows where they play now rather than their most-capped old club.
+  currentTeamId: number | null
+  currentTeamApiId: number | null
+  currentTeamName: string | null
   seasons: Array<{
     leagueId: number
     leagueName: string
@@ -448,6 +465,19 @@ export interface PlayerProfile {
 }
 
 // One player's profile plus every league-season of theirs we hold, newest first.
+// Current age from a YYYY-MM-DD birth date — the API's per-season `age` goes
+// stale (a player who left our leagues keeps their last-seen age).
+function ageFromBirthDate(birthDate: string | null): number | null {
+  if (!birthDate) return null
+  const b = new Date(birthDate)
+  if (Number.isNaN(b.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - b.getFullYear()
+  const monthDiff = now.getMonth() - b.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < b.getDate())) age -= 1
+  return age
+}
+
 export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfile | null> {
   const { rows } = await query<{
     playerApiId: number
@@ -495,19 +525,26 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
   )
   if (rows.length === 0) return null
   const head = rows[0]
+  const birthDate = rows.find((r) => r.birthDate)?.birthDate ?? null
+  // Rows are season-DESC; the first non-national-team row is the current club.
+  const currentClub = rows.find((r) => r.leagueApiId !== 1) ?? head
   return {
     playerApiId: head.playerApiId,
     name: head.name,
     firstname: head.firstname,
     lastname: head.lastname,
-    age: head.age,
+    // Age from birth date is always current; fall back to the API's stored age.
+    age: ageFromBirthDate(birthDate) ?? head.age,
     nationality: head.nationality,
     position: head.position,
     height: rows.find((r) => r.height)?.height ?? head.height,
     weight: rows.find((r) => r.weight)?.weight ?? head.weight,
-    birthDate: rows.find((r) => r.birthDate)?.birthDate ?? null,
+    birthDate,
     birthPlace: rows.find((r) => r.birthPlace)?.birthPlace ?? null,
     photoUrl: head.photoUrl,
+    currentTeamId: currentClub.teamId,
+    currentTeamApiId: currentClub.teamApiId,
+    currentTeamName: currentClub.teamName,
     seasons: rows.map((r) => ({
       leagueId: r.leagueId,
       leagueName: r.leagueName,
@@ -618,6 +655,7 @@ export interface SquadPlayer {
   position: string | null
   nationality: string | null
   age: number | null
+  jerseyNumber: number | null
   goals: number | null
   assists: number | null
   appearances: number | null
@@ -633,7 +671,7 @@ export interface SquadPlayer {
 export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
   const { rows } = await query<SquadPlayer>(
     `SELECT DISTINCT ON (player_api_id)
-       player_api_id AS "playerApiId", name, position, nationality, age,
+       player_api_id AS "playerApiId", name, position, nationality, age, jersey_number AS "jerseyNumber",
        goals, assists, appearances, minutes, rating::float8 AS rating,
        photo_url AS "photoUrl", season
      FROM players
@@ -669,7 +707,7 @@ export async function getTeamSquadHistory(
   const target = season != null && seasons.includes(season) ? season : seasons[0]
   const { rows } = await query<SquadPlayer>(
     `SELECT DISTINCT ON (player_api_id)
-       player_api_id AS "playerApiId", name, position, nationality, age,
+       player_api_id AS "playerApiId", name, position, nationality, age, jersey_number AS "jerseyNumber",
        goals, assists, appearances, minutes, rating::float8 AS rating, photo_url AS "photoUrl", season
      FROM players WHERE team_api_id = $1 AND season = $2
      ORDER BY player_api_id, appearances DESC NULLS LAST`,

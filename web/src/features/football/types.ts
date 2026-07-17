@@ -152,6 +152,7 @@ export interface SquadPlayer {
   position: string | null
   nationality: string | null
   age: number | null
+  jerseyNumber: number | null
   goals: number | null
   assists: number | null
   appearances: number | null
@@ -273,6 +274,9 @@ export interface PlayerProfile {
   birthDate: string | null
   birthPlace: string | null
   photoUrl: string | null
+  currentTeamId: number | null
+  currentTeamApiId: number | null
+  currentTeamName: string | null
   seasons: PlayerSeason[]
 }
 
