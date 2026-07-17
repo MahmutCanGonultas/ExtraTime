@@ -145,9 +145,11 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
         backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${color}2e 0%, transparent 55%)`,
       }}
     >
-      {/* Oversized crest as a brand watermark */}
-      <div className="pointer-events-none absolute -bottom-8 -right-6 opacity-[0.07] transition-transform duration-500 group-hover:scale-110">
-        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={150} />
+      {/* Oversized crest as a brand watermark — anchored to the right and
+          vertically centred so it sits inside the card instead of bleeding off
+          a corner. */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex w-1/2 items-center justify-end overflow-hidden pr-3 opacity-[0.08] transition-transform duration-500 group-hover:scale-105">
+        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={168} />
       </div>
       {/* Colour spine */}
       <div
