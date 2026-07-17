@@ -58,13 +58,34 @@ function NoGroup() {
   }
 
   return (
-    <div>
-      <h1 className="mb-1 text-2xl font-bold text-ink-100">Grup</h1>
-      <p className="mb-4 text-sm text-ink-400">Bir grup kur ya da davet koduyla katıl.</p>
+    <div className="space-y-5">
+      {/* Hero — a welcoming pitch banner instead of a bare heading. */}
+      <section
+        className="relative overflow-hidden rounded-card border border-ink-800"
+        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
+      >
+        <div className="absolute inset-0 mow-stripes" />
+        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
+        <BallMark size={190} className="pointer-events-none absolute -bottom-12 -left-8 text-brand-400/[0.04]" />
+        <div className="relative px-6 py-8 sm:px-8">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
+            <Users className="h-3.5 w-3.5" /> Grup
+          </div>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink-100">
+            Arkadaşlarınla oyna
+          </h1>
+          <p className="mt-2 max-w-md text-sm text-ink-300">
+            Bir grup kur, davet kodunu paylaş; maç sonuçlarını tahmin edip haftanın şampiyonunu
+            belirleyin.
+          </p>
+        </div>
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader title="Grup kur" />
           <CardBody>
+            <p className="mb-3 text-xs text-ink-400">Yeni bir grup aç ve başkanı ol.</p>
             <form onSubmit={onCreate} className="space-y-3">
               <Field label="Grup adı">
                 <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
@@ -78,6 +99,7 @@ function NoGroup() {
         <Card>
           <CardHeader title="Gruba katıl" />
           <CardBody>
+            <p className="mb-3 text-xs text-ink-400">Arkadaşının paylaştığı davet koduyla gir.</p>
             <form onSubmit={onJoin} className="space-y-3">
               <Field label="Davet kodu">
                 <Input
@@ -95,7 +117,7 @@ function NoGroup() {
           </CardBody>
         </Card>
       </div>
-      {error && <p className="mt-3 text-sm text-loss">{error}</p>}
+      {error && <p className="text-sm text-loss">{error}</p>}
     </div>
   )
 }

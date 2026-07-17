@@ -110,7 +110,7 @@ export function GamePredictCard({
   )
 
   return (
-    <Card>
+    <Card className="transition duration-200 hover:border-ink-700">
       <CardBody className="space-y-3">
         {/* header */}
         <div className="flex items-center justify-between text-xs">
@@ -308,10 +308,10 @@ function OutcomeButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition ${
+      className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-semibold transition ${
         active
-          ? 'border-brand-500 bg-brand-500/15 text-brand-200'
-          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:text-ink-100'
+          ? 'border-brand-400 bg-brand-500 text-ink-950 shadow-sm shadow-brand-950/40'
+          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:bg-ink-800 hover:text-ink-100'
       }`}
     >
       {children}
