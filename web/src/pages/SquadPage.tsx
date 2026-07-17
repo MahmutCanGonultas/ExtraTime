@@ -16,11 +16,13 @@ function seasonLabel(s: number): string {
 
 type Accent = 'amber' | 'sky' | 'brand' | 'rose' | 'ink'
 
-const POSITION_GROUPS: { key: string; label: string; accent: Accent }[] = [
-  { key: 'Goalkeeper', label: 'Kaleciler', accent: 'amber' },
-  { key: 'Defender', label: 'Defans', accent: 'sky' },
-  { key: 'Midfielder', label: 'Orta Saha', accent: 'brand' },
-  { key: 'Attacker', label: 'Forvetler', accent: 'rose' },
+// API-Football only classifies players into four broad roles (it gives no
+// separate winger label), and tags attackers as either "Attacker" or "Forward".
+const POSITION_GROUPS: { keys: string[]; label: string; accent: Accent }[] = [
+  { keys: ['Goalkeeper'], label: 'Kaleciler', accent: 'amber' },
+  { keys: ['Defender'], label: 'Defans', accent: 'sky' },
+  { keys: ['Midfielder'], label: 'Orta Saha', accent: 'brand' },
+  { keys: ['Attacker', 'Forward'], label: 'Forvetler', accent: 'rose' },
 ]
 
 const ACCENT_BAR: Record<Accent, string> = {
@@ -44,10 +46,11 @@ export function SquadPage() {
   const squad = data.squad
   const groups = POSITION_GROUPS.map((g) => ({
     ...g,
-    players: squad.filter((p) => p.position === g.key),
+    players: squad.filter((p) => p.position != null && g.keys.includes(p.position)),
   }))
-  const other = squad.filter((p) => !POSITION_GROUPS.some((g) => g.key === p.position))
-  if (other.length) groups.push({ key: 'other', label: 'Diğer', accent: 'ink', players: other })
+  const grouped = new Set(POSITION_GROUPS.flatMap((g) => g.keys))
+  const other = squad.filter((p) => p.position == null || !grouped.has(p.position))
+  if (other.length) groups.push({ keys: ['other'], label: 'Diğer', accent: 'ink', players: other })
 
   return (
     <div className="space-y-6">
@@ -85,7 +88,7 @@ export function SquadPage() {
         groups
           .filter((g) => g.players.length > 0)
           .map((g) => (
-            <section key={g.key} className="space-y-3">
+            <section key={g.label} className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className={cn('h-4 w-1 rounded-full', ACCENT_BAR[g.accent])} />
                 <h2 className="text-sm font-bold uppercase tracking-wide text-ink-200">{g.label}</h2>
