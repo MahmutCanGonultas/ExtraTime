@@ -15,10 +15,16 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 }
 
 export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+  // cn() is a plain joiner, not tailwind-merge, so a default `text-left` would
+  // sit alongside a caller's `text-center` and CSS source-order (not intent)
+  // would decide the winner — leaving numeric headers off their columns. Only
+  // apply the left default when the caller passes no explicit text-align.
+  const hasAlign = /(?:^|\s)text-(?:left|center|right|justify)(?:\s|$)/.test(className ?? '')
   return (
     <th
       className={cn(
-        'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-400',
+        'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-400',
+        !hasAlign && 'text-left',
         className,
       )}
       {...props}

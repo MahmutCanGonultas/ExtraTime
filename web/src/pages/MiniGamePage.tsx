@@ -6,6 +6,7 @@ import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton, ErrorState } from '@/components/ui/feedback'
+import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { cn } from '@/lib/cn'
 
 const DAILY_COUNT = 10
@@ -74,13 +75,13 @@ export function MiniGamePage() {
 
   const [done, setDone] = useState<{ date: string; score: number } | null>(() => {
     try {
-      const d = JSON.parse(localStorage.getItem(DAILY_KEY) || 'null')
+      const d = JSON.parse(safeGetItem(DAILY_KEY) || 'null')
       return d && d.date === day ? d : null
     } catch {
       return null
     }
   })
-  const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY) || 0))
+  const [best, setBest] = useState(() => Number(safeGetItem(BEST_KEY) || 0))
 
   const [questions, setQuestions] = useState<Question[]>([])
   const [index, setIndex] = useState(0)
@@ -113,9 +114,9 @@ export function MiniGamePage() {
       if (index + 1 >= questions.length) {
         // finish the daily challenge
         const rec = { date: day, score: nextScore }
-        localStorage.setItem(DAILY_KEY, JSON.stringify(rec))
+        safeSetItem(DAILY_KEY, JSON.stringify(rec))
         const nb = Math.max(best, nextScore)
-        localStorage.setItem(BEST_KEY, String(nb))
+        safeSetItem(BEST_KEY, String(nb))
         setBest(nb)
         setScore(nextScore)
         setDone(rec)
