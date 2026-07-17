@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronRight, CalendarClock } from 'lucide-react'
 import {
   useLeagues,
   useLiveFixtures,
   useRecentFixtures,
   useUpcomingFixtures,
 } from '@/features/football/hooks'
-import type { League } from '@/features/football/types'
+import type { Fixture, League } from '@/features/football/types'
 import { LiveMatches } from '@/features/football/LiveMatches'
 import { FixtureList } from '@/features/football/FixtureList'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
@@ -19,6 +19,24 @@ import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/feedback'
+import { formatDateTime } from '@/lib/format'
+
+// The home feed only surfaces Europe's big five, the Süper Lig and the two main
+// UEFA club competitions — the matches this group actually cares about.
+const HOME_LEAGUES = [39, 140, 78, 135, 61, 203, 2, 3]
+const HOME_LEAGUE_SET = new Set(HOME_LEAGUES)
+
+// Signature colours for the featured-league cards (shared with the Leagues page).
+const LEAGUE_COLOR: Record<number, string> = {
+  39: '#8b5cf6', // Premier League
+  140: '#f97316', // La Liga
+  78: '#ef4444', // Bundesliga
+  135: '#3b82f6', // Serie A
+  61: '#14b8a6', // Ligue 1
+  203: '#f43f5e', // Süper Lig
+  2: '#22d3ee', // Champions League
+  3: '#f59e0b', // Europa League
+}
 
 export function HomePage() {
   const { user } = useAuth()
@@ -26,8 +44,9 @@ export function HomePage() {
   const groupId = active?.id ?? 0
 
   const live = useLiveFixtures()
-  const upcoming = useUpcomingFixtures(12)
-  const recent = useRecentFixtures(10)
+  // Fetch generously, then keep only the leagues we feature on the home page.
+  const upcoming = useUpcomingFixtures(50)
+  const recent = useRecentFixtures(50)
   const leaguesQ = useLeagues(false)
   const leaderboard = useLeaderboard(groupId)
 
@@ -39,10 +58,15 @@ export function HomePage() {
     ? { label: 'Gruba katıl', href: '/group' }
     : { label: 'Tahminlere gir', href: '/predictions' }
 
-  // One card per competition — its current season.
-  const currentLeagues: League[] = (leaguesQ.data ?? [])
-    .filter((l) => l.isCurrent)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const inHome = (f: Fixture) => HOME_LEAGUE_SET.has(f.leagueApiId)
+  const upcomingShown = (upcoming.data ?? []).filter(inHome)
+  const recentShown = (recent.data ?? []).filter(inHome)
+  const spotlight = upcomingShown[0] ?? null
+
+  // The eight featured competitions, current season, in our preferred order.
+  const featured = HOME_LEAGUES.map((id) =>
+    (leaguesQ.data ?? []).find((l) => l.apiFootballId === id && l.isCurrent),
+  ).filter((l): l is League => Boolean(l))
 
   return (
     <div className="space-y-6">
@@ -100,7 +124,29 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Dashboard: matches on the left, standings + leagues on the right */}
+      {/* Featured league quick-nav — vivid, colour-coded */}
+      {featured.length > 0 && (
+        <section>
+          <SectionTitle>Öne çıkan ligler</SectionTitle>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {featured.map((l) => (
+              <FeaturedLeagueChip key={l.id} league={l} color={LEAGUE_COLOR[l.apiFootballId] ?? '#c2f542'} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Match of the day */}
+      {spotlight && (
+        <section>
+          <SectionTitle>Günün maçı</SectionTitle>
+          <div className="mt-3">
+            <MatchSpotlight fixture={spotlight} />
+          </div>
+        </section>
+      )}
+
+      {/* Dashboard: matches on the left, standings on the right */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {liveCount > 0 && (
@@ -117,8 +163,8 @@ export function HomePage() {
             <Card className="mt-3 overflow-hidden">
               {upcoming.isLoading ? (
                 <Skeleton className="m-4 h-40" />
-              ) : upcoming.data?.length ? (
-                <FixtureList fixtures={upcoming.data} showLeague />
+              ) : upcomingShown.length ? (
+                <FixtureList fixtures={upcomingShown.slice(0, 12)} showLeague />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Yaklaşan maç yok.</CardBody>
               )}
@@ -130,8 +176,8 @@ export function HomePage() {
             <Card className="mt-3 overflow-hidden">
               {recent.isLoading ? (
                 <Skeleton className="m-4 h-40" />
-              ) : recent.data?.length ? (
-                <FixtureList fixtures={recent.data} showLeague />
+              ) : recentShown.length ? (
+                <FixtureList fixtures={recentShown.slice(0, 10)} showLeague />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Sonuç yok.</CardBody>
               )}
@@ -163,13 +209,18 @@ export function HomePage() {
           )}
 
           <section>
-            <SectionTitle>Ligler</SectionTitle>
+            <div className="flex items-center justify-between">
+              <SectionTitle>Tüm ligler</SectionTitle>
+              <Link to="/leagues" className="text-xs font-medium text-brand-300 hover:underline">
+                Ligler →
+              </Link>
+            </div>
             <Card className="mt-3 overflow-hidden">
               {leaguesQ.isLoading ? (
                 <Skeleton className="m-4 h-40" />
               ) : (
                 <ul className="divide-y divide-ink-850">
-                  {currentLeagues.map((l) => (
+                  {featured.map((l) => (
                     <li key={l.id}>
                       <Link
                         to={`/leagues/${l.id}`}
@@ -191,6 +242,60 @@ export function HomePage() {
   )
 }
 
+function FeaturedLeagueChip({ league, color }: { league: League; color: string }) {
+  return (
+    <Link
+      to={`/leagues/${league.id}`}
+      className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-ink-800 bg-ink-900 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-ink-700"
+      style={{ backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${color}2b 0%, transparent 60%)` }}
+    >
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: color }} />
+      <span
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg ring-1 ring-white/10"
+        style={{ background: `${color}1f` }}
+      >
+        <TeamLogo apiId={league.apiFootballId} kind="league" size={28} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-bold text-ink-100">{league.name}</span>
+        <span className="block truncate text-[11px] text-ink-400">{league.country}</span>
+      </span>
+    </Link>
+  )
+}
+
+function MatchSpotlight({ fixture }: { fixture: Fixture }) {
+  return (
+    <Link
+      to={`/matches/${fixture.id}`}
+      className="group relative block overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 p-5 transition hover:border-brand-500/40"
+      style={{ backgroundImage: 'radial-gradient(120% 90% at 50% 0%, rgba(194,245,66,0.08), transparent 60%)' }}
+    >
+      <div className="mb-4 flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-300">
+        <TeamLogo apiId={fixture.leagueApiId} kind="league" size={16} />
+        {fixture.leagueName}
+      </div>
+      <div className="flex items-center justify-center gap-4 sm:gap-8">
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+          <TeamLogo apiId={fixture.home.apiFootballId} size={56} />
+          <span className="truncate text-sm font-semibold text-ink-100">{fixture.home.name}</span>
+        </div>
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <span className="text-xl font-black text-ink-500">VS</span>
+          <span className="flex items-center gap-1 rounded-full bg-ink-850 px-2.5 py-1 text-[11px] font-medium text-ink-300">
+            <CalendarClock className="h-3 w-3" />
+            {formatDateTime(fixture.kickoffAt)}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+          <TeamLogo apiId={fixture.away.apiFootballId} size={56} />
+          <span className="truncate text-sm font-semibold text-ink-100">{fixture.away.name}</span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
 function LiveDot() {
   return (
     <span className="relative flex h-2 w-2">
@@ -203,9 +308,9 @@ function LiveDot() {
 function SectionTitle({ children, live }: { children: React.ReactNode; live?: boolean }) {
   return (
     <h2
-      className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide ${live ? 'text-loss' : 'text-ink-300'}`}
+      className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide ${live ? 'text-loss' : 'text-ink-200'}`}
     >
-      {live && <LiveDot />}
+      {live ? <LiveDot /> : <span className="h-4 w-1 rounded-full bg-brand-500" />}
       {children}
     </h2>
   )
