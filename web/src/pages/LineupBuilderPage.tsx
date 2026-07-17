@@ -11,13 +11,17 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { flagEmoji } from '@/lib/flags'
 import { cn } from '@/lib/cn'
 
-// A placed player only needs enough to draw the chip; the rest lives on the
-// player's own page. Kept minimal so the whole line-up fits in localStorage.
+// A placed player needs enough to draw the chip and its info/actions menu. Kept
+// small so the whole line-up still fits in localStorage.
 interface Placed {
   playerApiId: number
   name: string
   photoUrl: string | null
   jerseyNumber?: number | null
+  position?: string | null
+  age?: number | null
+  nationality?: string | null
+  value?: number | null // career appearances, used as a playful "değer"
 }
 
 type Role = 'GK' | 'DEF' | 'MID' | 'ATT'
@@ -85,6 +89,20 @@ const ROLE_BADGE: Record<Role, string> = {
 }
 
 const ROLE_SHORT: Record<Role, string> = { GK: 'KAL', DEF: 'DEF', MID: 'OS', ATT: 'FOR' }
+const ROLE_DOT: Record<Role, string> = {
+  GK: 'bg-amber-400',
+  DEF: 'bg-sky-400',
+  MID: 'bg-brand-400',
+  ATT: 'bg-rose-400',
+}
+const ROLE_ACCENT: Record<Role, string> = {
+  GK: 'border-l-amber-400',
+  DEF: 'border-l-sky-400',
+  MID: 'border-l-brand-400',
+  ATT: 'border-l-rose-400',
+}
+// Bench groups run forwards → midfielders → defenders → keepers.
+const BENCH_ROLES: Role[] = ['ATT', 'MID', 'DEF', 'GK']
 
 const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
@@ -155,6 +173,20 @@ function roleForPosition(pos: string | null): Role | null {
   }
 }
 
+// Full player card kept on the chip so the actions menu has position/age/value.
+function squadToPlaced(p: SquadPlayer): Placed {
+  return {
+    playerApiId: p.playerApiId,
+    name: p.name,
+    photoUrl: p.photoUrl,
+    jerseyNumber: p.jerseyNumber,
+    position: p.position,
+    age: p.age,
+    nationality: p.nationality,
+    value: p.careerApps,
+  }
+}
+
 // Auto-fill the formation from a team's squad: the best (most-played) player for
 // each slot's role, then any leftovers into still-empty slots.
 function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
@@ -168,12 +200,7 @@ function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
     if (r) byRole[r].push(p)
   }
   const used = new Set<number>()
-  const toPlaced = (p: SquadPlayer): Placed => ({
-    playerApiId: p.playerApiId,
-    name: p.name,
-    photoUrl: p.photoUrl,
-    jerseyNumber: p.jerseyNumber,
-  })
+  const toPlaced = squadToPlaced
   const next: (Placed | null)[] = slots.map((slot) => {
     const list = byRole[slot.role]
     while (list.length && used.has(list[0].playerApiId)) list.shift()
@@ -204,6 +231,10 @@ export function LineupBuilderPage() {
   const [positions, setPositions] = useState<(Pos | null)[]>(() => initial.positions)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [dragSource, setDragSource] = useState<DragSource | null>(null)
+  // The open player actions menu (which slot + where on screen).
+  const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null)
+  // Players sent away for squad planning, so they leave the bench pool.
+  const [released, setReleased] = useState<{ player: Placed; kind: 'sold' | 'loaned' }[]>([])
 
   const slots = useMemo(() => buildSlots(formation), [formation])
   const filled = players.filter(Boolean).length
@@ -247,12 +278,7 @@ export function LineupBuilderPage() {
         nearest = i
       }
     })
-    assign(nearest, {
-      playerApiId: src.player.playerApiId,
-      name: src.player.name,
-      photoUrl: src.player.photoUrl,
-      jerseyNumber: src.player.jerseyNumber,
-    })
+    assign(nearest, squadToPlaced(src.player))
     setPositions((prev) => {
       const next = [...prev]
       next[nearest] = { x: px, y: py }
@@ -281,12 +307,18 @@ export function LineupBuilderPage() {
     }
   }, [loadTeam, squadData, slots])
 
-  // Bench = the loaded squad's players who aren't in the XI, most prominent first.
+  // Bench = the loaded squad's players who aren't in the XI or sent away.
   const onPitch = new Set(players.map((p) => p?.playerApiId).filter(Boolean))
+  const gone = new Set(released.map((r) => r.player.playerApiId))
   const bench = loadedSquad
-    .filter((p) => !onPitch.has(p.playerApiId))
+    .filter((p) => !onPitch.has(p.playerApiId) && !gone.has(p.playerApiId))
     .sort((a, b) => (b.careerApps ?? 0) - (a.careerApps ?? 0))
   const xiFull = players.every(Boolean)
+
+  // Squad-planning summary: average age of the XI.
+  const xi = players.filter((p): p is Placed => p != null)
+  const ages = xi.map((p) => p.age).filter((a): a is number => a != null)
+  const avgAge = ages.length ? Math.round(ages.reduce((s, a) => s + a, 0) / ages.length) : null
 
   function assign(idx: number, p: Placed) {
     setPlayers((prev) => {
@@ -304,12 +336,7 @@ export function LineupBuilderPage() {
   function addFromBench(p: SquadPlayer) {
     const empty = players.findIndex((x) => x == null)
     if (empty < 0) return
-    assign(empty, {
-      playerApiId: p.playerApiId,
-      name: p.name,
-      photoUrl: p.photoUrl,
-      jerseyNumber: p.jerseyNumber,
-    })
+    assign(empty, squadToPlaced(p))
   }
 
   function remove(idx: number) {
@@ -324,10 +351,23 @@ export function LineupBuilderPage() {
     setCaptain((c) => (c === idx ? null : idx))
   }
 
+  // Sell / loan out a player: they leave the XI and the bench pool.
+  function sendAway(idx: number, kind: 'sold' | 'loaned') {
+    const p = players[idx]
+    if (p) setReleased((prev) => [...prev, { player: p, kind }])
+    remove(idx)
+    setMenu(null)
+  }
+  function recall(id: number) {
+    setReleased((prev) => prev.filter((r) => r.player.playerApiId !== id))
+  }
+
   function reset() {
     setPlayers(Array(11).fill(null))
     setCaptain(null)
     setPositions(Array(11).fill(null))
+    setReleased([])
+    setMenu(null)
   }
 
   return (
@@ -341,9 +381,16 @@ export function LineupBuilderPage() {
             Kadron tarayıcında saklanır.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-sm text-ink-300">
-          <Users className="h-4 w-4 text-brand-300" />
-          <span className="tabular-nums">{filled}/11</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-sm text-ink-300">
+            <Users className="h-4 w-4 text-brand-300" />
+            <span className="tabular-nums">{filled}/11</span>
+          </span>
+          {avgAge != null && (
+            <span className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-sm text-ink-300">
+              Yaş ort. <span className="font-bold text-ink-100 tabular-nums">{avgAge}</span>
+            </span>
+          )}
         </div>
       </header>
 
@@ -357,13 +404,14 @@ export function LineupBuilderPage() {
                 players={players}
                 captain={captain}
                 onSlot={setActiveSlot}
+                onMenu={(i, e) => setMenu({ idx: i, x: e.clientX, y: e.clientY })}
                 onRemove={remove}
                 onCaptain={toggleCaptain}
                 onDragStart={(i) => setDragSource({ kind: 'slot', index: i })}
                 onDropAt={dropAt}
               />
               <p className="mt-2 text-center text-[11px] text-ink-500">
-                Oyuncuyu sahada sürükle · yedeğe sürükleyerek çıkar · kaptan için 👑
+                Oyuncuya tıkla → işlemler · sahada sürükle · yedeğe sürükleyerek çıkar
               </p>
             </div>
 
@@ -376,18 +424,35 @@ export function LineupBuilderPage() {
                 <div className="section-label px-1 pb-2 text-[11px] text-ink-400">
                   Yedekler · {bench.length}
                 </div>
-                <div className="grid max-h-[560px] grid-cols-2 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-1">
-                  {bench.map((p) => (
-                    <BenchChip
-                      key={p.playerApiId}
-                      player={p}
-                      onDragStart={() => setDragSource({ kind: 'bench', player: p })}
-                      onClick={() => addFromBench(p)}
-                      disabled={xiFull}
-                    />
-                  ))}
+                <div className="max-h-[560px] space-y-3 overflow-y-auto pr-0.5">
+                  {BENCH_ROLES.map((role) => {
+                    const group = bench.filter((p) => roleForPosition(p.position) === role)
+                    if (group.length === 0) return null
+                    return (
+                      <div key={role}>
+                        <div className="mb-1 flex items-center gap-1.5 px-0.5">
+                          <span className={cn('h-2 w-2 rounded-full', ROLE_DOT[role])} />
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-ink-300">
+                            {ROLE_LABEL[role]}
+                          </span>
+                          <span className="text-[10px] text-ink-600">{group.length}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+                          {group.map((p) => (
+                            <BenchChip
+                              key={p.playerApiId}
+                              player={p}
+                              onDragStart={() => setDragSource({ kind: 'bench', player: p })}
+                              onClick={() => addFromBench(p)}
+                              disabled={xiFull}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
                   {bench.length === 0 && (
-                    <p className="col-span-full px-1 py-2 text-center text-[11px] text-ink-600">
+                    <p className="px-1 py-2 text-center text-[11px] text-ink-600">
                       Herkes sahada
                     </p>
                   )}
@@ -407,6 +472,35 @@ export function LineupBuilderPage() {
           </Card>
 
           <TeamLoader onLoad={setLoadTeam} />
+
+          {released.length > 0 && (
+            <Card className="space-y-2 p-4">
+              <div className="section-label text-ink-400">Gönderilenler · {released.length}</div>
+              <div className="space-y-1.5">
+                {released.map(({ player, kind }) => (
+                  <div
+                    key={player.playerApiId}
+                    className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5"
+                  >
+                    <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={26} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-ink-100">{player.name}</span>
+                      <span className="text-[10px] font-semibold text-ink-500">
+                        {kind === 'sold' ? '💰 Satıldı' : '🔄 Kiralık'}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => recall(player.playerApiId)}
+                      className="rounded-md border border-ink-700 px-2 py-1 text-[11px] text-ink-300 transition hover:bg-ink-800"
+                      title="Geri al"
+                    >
+                      Geri al
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <Card className="space-y-3 p-4">
             <div className="section-label text-ink-400">Diziliş</div>
@@ -435,6 +529,30 @@ export function LineupBuilderPage() {
         </div>
       </div>
 
+      {menu !== null && players[menu.idx] && (
+        <PlayerActionMenu
+          player={players[menu.idx]!}
+          isCaptain={captain === menu.idx}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onChange={() => {
+            setActiveSlot(menu.idx)
+            setMenu(null)
+          }}
+          onCaptain={() => {
+            toggleCaptain(menu.idx)
+            setMenu(null)
+          }}
+          onBench={() => {
+            remove(menu.idx)
+            setMenu(null)
+          }}
+          onSell={() => sendAway(menu.idx, 'sold')}
+          onLoan={() => sendAway(menu.idx, 'loaned')}
+        />
+      )}
+
       {activeSlot !== null && (
         <PlayerPicker
           role={slots[activeSlot].role}
@@ -442,6 +560,73 @@ export function LineupBuilderPage() {
           onPick={(p) => assign(activeSlot, p)}
         />
       )}
+    </div>
+  )
+}
+
+function PlayerActionMenu({
+  player,
+  isCaptain,
+  x,
+  y,
+  onClose,
+  onChange,
+  onCaptain,
+  onBench,
+  onSell,
+  onLoan,
+}: {
+  player: Placed
+  isCaptain: boolean
+  x: number
+  y: number
+  onClose: () => void
+  onChange: () => void
+  onCaptain: () => void
+  onBench: () => void
+  onSell: () => void
+  onLoan: () => void
+}) {
+  const flag = flagEmoji(player.nationality ?? null)
+  const left = Math.max(8, Math.min(x, window.innerWidth - 236))
+  const top = Math.max(8, Math.min(y, window.innerHeight - 320))
+  const items = [
+    { icon: '🔁', label: 'Oyuncuyu değiştir', onClick: onChange },
+    { icon: '👑', label: isCaptain ? 'Kaptanlığı al' : 'Kaptan yap', onClick: onCaptain },
+    { icon: '🔻', label: 'Yedeğe al', onClick: onBench },
+    { icon: '💰', label: 'Sat', onClick: onSell },
+    { icon: '🔄', label: 'Kirala', onClick: onLoan },
+  ]
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ left, top }}
+        className="fixed w-56 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-2xl"
+      >
+        <div className="flex items-center gap-2.5 border-b border-ink-800 bg-ink-950/40 px-3 py-2.5">
+          <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={38} />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-ink-100">{player.name}</div>
+            <div className="truncate text-[11px] text-ink-400">
+              {flag} {benchRole(player.position ?? null)}
+              {player.age != null ? ` · ${player.age} yaş` : ''}
+            </div>
+          </div>
+        </div>
+        <div className="p-1.5">
+          {items.map((it) => (
+            <button
+              key={it.label}
+              onClick={it.onClick}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-ink-200 transition hover:bg-ink-800"
+            >
+              <span className="w-5 text-center">{it.icon}</span>
+              {it.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -498,15 +683,19 @@ function BenchChip({
   disabled: boolean
 }) {
   const flag = flagEmoji(player.nationality)
-  const role = benchRole(player.position)
+  const roleKind = roleForPosition(player.position)
+  const roleLabel = benchRole(player.position)
   return (
     <button
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
       disabled={disabled}
-      title={`${player.name} · ${role}${player.age != null ? ` · ${player.age} yaş` : ''}\nSahaya sürükle veya dokun`}
-      className="flex w-full cursor-grab items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60"
+      title={`${player.name} · ${roleLabel}${player.age != null ? ` · ${player.age} yaş` : ''}\nSahaya sürükle veya dokun`}
+      className={cn(
+        'flex w-full cursor-grab items-center gap-2 rounded-lg border border-l-[3px] border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60',
+        roleKind ? ROLE_ACCENT[roleKind] : 'border-l-ink-600',
+      )}
     >
       <div className="relative shrink-0">
         <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={34} />
@@ -514,9 +703,21 @@ function BenchChip({
       </div>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-ink-100">{player.name}</span>
-        <span className="block truncate text-[10px] text-ink-500">
-          {role}
-          {player.jerseyNumber != null ? ` · ${player.jerseyNumber}` : ''}
+        <span className="mt-0.5 flex items-center gap-1">
+          {roleKind && (
+            <span
+              className={cn(
+                'rounded px-1 text-[9px] font-black leading-tight text-ink-950',
+                ROLE_DOT[roleKind],
+              )}
+            >
+              {ROLE_SHORT[roleKind]}
+            </span>
+          )}
+          <span className="truncate text-[10px] text-ink-400">
+            {roleLabel}
+            {player.jerseyNumber != null ? ` · #${player.jerseyNumber}` : ''}
+          </span>
         </span>
       </span>
     </button>
@@ -535,6 +736,7 @@ function Pitch({
   players,
   captain,
   onSlot,
+  onMenu,
   onRemove,
   onCaptain,
   onDragStart,
@@ -544,6 +746,7 @@ function Pitch({
   players: (Placed | null)[]
   captain: number | null
   onSlot: (i: number) => void
+  onMenu: (i: number, e: React.MouseEvent) => void
   onRemove: (i: number) => void
   onCaptain: (i: number) => void
   onDragStart: (i: number) => void
@@ -592,6 +795,7 @@ function Pitch({
           number={players[i]?.jerseyNumber ?? i + 1}
           isCaptain={captain === i}
           onClick={() => onSlot(i)}
+          onMenu={(e) => onMenu(i, e)}
           onRemove={() => onRemove(i)}
           onCaptain={() => onCaptain(i)}
           onDragStart={() => onDragStart(i)}
@@ -607,6 +811,7 @@ function SlotChip({
   number,
   isCaptain,
   onClick,
+  onMenu,
   onRemove,
   onCaptain,
   onDragStart,
@@ -616,6 +821,7 @@ function SlotChip({
   number: number
   isCaptain: boolean
   onClick: () => void
+  onMenu: (e: React.MouseEvent) => void
   onRemove: () => void
   onCaptain: () => void
   onDragStart: () => void
@@ -628,11 +834,11 @@ function SlotChip({
       {player ? (
         <div className="group relative flex flex-col items-center">
           <button
-            onClick={onClick}
+            onClick={onMenu}
             draggable
             onDragStart={onDragStart}
             className="relative cursor-grab transition hover:scale-105 active:cursor-grabbing"
-            title="Değiştir · sürükleyerek taşı"
+            title="Tıkla: işlemler · sürükle: taşı"
           >
             <div
               className={cn(
