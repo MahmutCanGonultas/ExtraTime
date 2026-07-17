@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUp, ArrowDown, RotateCcw, Eye, Trophy, User, Check } from 'lucide-react'
+import { ArrowUp, ArrowDown, RotateCcw, Eye, Trophy, User, Check, Search } from 'lucide-react'
 import { useGuessPool, useGuessSearch } from '@/features/football/hooks'
 import type { GuessPoolPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -173,10 +173,19 @@ export function GuessPlayerPage() {
       <div className="grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-20">
           {/* Censored photo of the mystery player — no name/initial leaks. */}
-          <Card className="flex flex-col items-center gap-3 p-6">
-            <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
+          <Card className="relative flex flex-col items-center gap-3 overflow-hidden p-6">
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  'radial-gradient(100% 55% at 50% 0%, rgba(194,245,66,0.10), transparent 62%)',
+              }}
+            />
+            <div className="relative rounded-[20px] bg-gradient-to-br from-brand-500/50 via-emerald-500/25 to-sky-500/30 p-[3px] shadow-lg shadow-brand-950/20">
+              <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
+            </div>
             {finished ? (
-              <div className="animate-pop-in text-center">
+              <div className="relative animate-pop-in text-center">
                 <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-ink-100">
                   {won && <Check className="h-5 w-5 text-emerald-400" />}
                   {secret?.name}
@@ -193,17 +202,25 @@ export function GuessPlayerPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center text-sm text-ink-400">
-                <span className="font-semibold text-ink-200 tabular-nums">{remaining}</span> tahmin
-                hakkın kaldı · fotoğraf her yanlışta biraz daha açılıyor
+              <div className="relative flex flex-col items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: MAX_GUESSES }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        'h-2 w-2 rounded-full transition-colors',
+                        i < guesses.length ? 'bg-amber-400' : 'bg-ink-700',
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="text-center text-sm text-ink-400">
+                  <span className="font-semibold tabular-nums text-brand-300">{remaining}</span>{' '}
+                  tahmin hakkın kaldı
+                </div>
               </div>
             )}
           </Card>
-
-          {/* Guess input + autocomplete (searches ALL players) */}
-          {!finished && (
-            <GuessInput term={term} setTerm={setTerm} onPick={submit} guessedIds={guessedIds} />
-          )}
 
           {!finished && (
             <div className="flex justify-end">
@@ -222,8 +239,11 @@ export function GuessPlayerPage() {
           )}
         </div>
 
-        {/* Guess history */}
-        <div className="min-w-0">
+        {/* Guess input above the history, so you type right where results land. */}
+        <div className="min-w-0 space-y-4">
+          {!finished && (
+            <GuessInput term={term} setTerm={setTerm} onPick={submit} guessedIds={guessedIds} />
+          )}
           {guesses.length > 0 && secret ? (
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
@@ -274,7 +294,10 @@ function GuessInput({
   const suggestions = (data ?? []).filter((p) => !guessedIds.has(p.playerApiId)).slice(0, 10)
 
   return (
-    <Card className="p-4">
+    <Card className="space-y-2 p-4 ring-1 ring-brand-500/20">
+      <div className="section-label flex items-center gap-1.5 text-brand-300">
+        <Search className="h-3.5 w-3.5" /> Tahminini yaz
+      </div>
       <div className="relative">
         <Input
           value={term}
