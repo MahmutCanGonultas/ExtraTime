@@ -562,9 +562,9 @@ export function LineupBuilderPage() {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        {/* Pitch + bench strip */}
+        {/* Pitch + bench strip — stacked on phones, side by side from sm up. */}
         <Card className="overflow-hidden p-3 sm:p-4">
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <div className="min-w-0 flex-1">
               <Pitch
                 slots={placedSlots}
