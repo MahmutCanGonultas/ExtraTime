@@ -804,7 +804,7 @@ function Pitch({
 
       {/* Loaded team's crest as a faint translucent watermark behind the players */}
       {teamApiId != null && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.13]">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.10]">
           <TeamLogo apiId={teamApiId} size={300} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]" />
         </div>
       )}
