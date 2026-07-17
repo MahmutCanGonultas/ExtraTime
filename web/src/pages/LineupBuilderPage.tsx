@@ -427,7 +427,7 @@ export function LineupBuilderPage() {
                 <div className="section-label px-1 pb-2 text-[11px] text-ink-400">
                   Yedekler · {bench.length}
                 </div>
-                <div className="max-h-[560px] space-y-3 overflow-y-auto pr-0.5">
+                <div className="max-h-[520px] space-y-3 overflow-y-auto pr-0.5">
                   {BENCH_ROLES.map((role) => {
                     const group = bench.filter((p) => roleForPosition(p.position) === role)
                     if (group.length === 0) return null
@@ -782,7 +782,7 @@ function Pitch({
           ((e.clientY - rect.top) / rect.height) * 100,
         )
       }}
-      className="relative mx-auto aspect-[3/4] w-full max-w-[560px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60"
+      className="relative mx-auto aspect-[3/4] w-full max-w-[480px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60"
       style={{
         backgroundImage:
           'repeating-linear-gradient(180deg, #124d33 0 8.33%, #0e4229 8.33% 16.66%), radial-gradient(130% 90% at 50% 0%, rgba(194,245,66,0.10), transparent 55%)',
@@ -802,9 +802,9 @@ function Pitch({
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[16%] w-[54%] -translate-x-1/2 border border-b-0 border-white/30" />
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[7%] w-[28%] -translate-x-1/2 border border-b-0 border-white/30" />
 
-      {/* Loaded team's crest as a translucent watermark behind the players */}
+      {/* Loaded team's crest as a faint translucent watermark behind the players */}
       {teamApiId != null && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-20">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.13]">
           <TeamLogo apiId={teamApiId} size={300} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]" />
         </div>
       )}
