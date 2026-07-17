@@ -87,6 +87,12 @@ const ROLE_SHORT: Record<Role, string> = { GK: 'KAL', DEF: 'DEF', MID: 'OS', ATT
 
 const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
+// Turkish role label for a bench player's API position.
+function benchRole(pos: string | null): string {
+  const r = roleForPosition(pos)
+  return r ? ROLE_LABEL[r] : (pos ?? '')
+}
+
 // A free position (percent of the pitch) that overrides a player's formation slot.
 type Pos = { x: number; y: number }
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
@@ -223,16 +229,26 @@ export function LineupBuilderPage() {
     setDragFrom(null)
   }
 
-  // Load a team's current squad onto the pitch (best player per slot role).
+  // Load a team's current squad onto the pitch (best player per slot role); the
+  // rest of the squad becomes the bench.
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
+  const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>([])
   const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
   useEffect(() => {
     if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
       setPlayers(fillFromSquad(squadData.squad, slots))
+      setLoadedSquad(squadData.squad)
       setTitle(loadTeam.name)
       setLoadTeam(null)
     }
   }, [loadTeam, squadData, slots])
+
+  // Bench = the loaded squad's players who aren't in the XI, most prominent first.
+  const onPitch = new Set(players.map((p) => p?.playerApiId).filter(Boolean))
+  const bench = loadedSquad
+    .filter((p) => !onPitch.has(p.playerApiId))
+    .sort((a, b) => (b.careerApps ?? 0) - (a.careerApps ?? 0))
+  const xiFull = players.every(Boolean)
 
   function assign(idx: number, p: Placed) {
     setPlayers((prev) => {
@@ -244,6 +260,18 @@ export function LineupBuilderPage() {
       return next
     })
     setActiveSlot(null)
+  }
+
+  // Send a bench player into the first empty slot.
+  function addFromBench(p: SquadPlayer) {
+    const empty = players.findIndex((x) => x == null)
+    if (empty < 0) return
+    assign(empty, {
+      playerApiId: p.playerApiId,
+      name: p.name,
+      photoUrl: p.photoUrl,
+      jerseyNumber: p.jerseyNumber,
+    })
   }
 
   function remove(idx: number) {
@@ -282,22 +310,54 @@ export function LineupBuilderPage() {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        {/* Pitch */}
-        <Card className="overflow-hidden p-3 sm:p-4">
-          <Pitch
-            slots={placedSlots}
-            players={players}
-            captain={captain}
-            onSlot={setActiveSlot}
-            onRemove={remove}
-            onCaptain={toggleCaptain}
-            onDragStart={setDragFrom}
-            onDropAt={dropAt}
-          />
-          <p className="mt-2 text-center text-[11px] text-ink-500">
-            Oyuncuyu sahada istediğin yere sürükle · kaptan için 👑 simgesine dokun
-          </p>
-        </Card>
+        {/* Pitch + bench */}
+        <div className="space-y-4">
+          <Card className="overflow-hidden p-3 sm:p-4">
+            <Pitch
+              slots={placedSlots}
+              players={players}
+              captain={captain}
+              onSlot={setActiveSlot}
+              onRemove={remove}
+              onCaptain={toggleCaptain}
+              onDragStart={setDragFrom}
+              onDropAt={dropAt}
+            />
+            <p className="mt-2 text-center text-[11px] text-ink-500">
+              Oyuncuyu sahada istediğin yere sürükle · kaptan için 👑 simgesine dokun
+            </p>
+          </Card>
+
+          {bench.length > 0 && (
+            <Card className="p-4">
+              <div className="section-label mb-2 text-ink-400">Yedekler · {bench.length}</div>
+              <div className="flex flex-wrap gap-2">
+                {bench.map((p) => (
+                  <button
+                    key={p.playerApiId}
+                    onClick={() => addFromBench(p)}
+                    disabled={xiFull}
+                    title={
+                      xiFull ? 'İlk 11 dolu — önce birini çıkar' : `${p.name} → ilk boş mevkiye ekle`
+                    }
+                    className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-ink-600 hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={26} />
+                    <span className="min-w-0">
+                      <span className="block max-w-[130px] truncate text-sm text-ink-100">
+                        {p.name}
+                      </span>
+                      <span className="block truncate text-[10px] text-ink-500">
+                        {benchRole(p.position)}
+                        {p.jerseyNumber != null ? ` · ${p.jerseyNumber}` : ''}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
 
         {/* Controls */}
         <div className="space-y-4">
