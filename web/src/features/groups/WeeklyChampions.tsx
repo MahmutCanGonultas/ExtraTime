@@ -4,13 +4,10 @@ import type { GameWeek } from './types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
 
-function weekLabel(weekStart: string): string {
-  const start = new Date(`${weekStart}T12:00:00`)
-  const end = new Date(start)
-  end.setDate(end.getDate() + 6)
-  const fmt = (d: Date) =>
-    new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', timeZone: 'Europe/Istanbul' }).format(d)
-  return `${fmt(start)} – ${fmt(end)}`
+// A round's headline label — the Süper Lig-style gameweek number ("2. Hafta"),
+// falling back to the raw round name for cups/knockouts.
+function weekTitle(week: GameWeek): string {
+  return week.weekNo != null ? `${week.weekNo}. Hafta` : week.roundKey
 }
 
 function Initials({ name }: { name: string }) {
@@ -27,9 +24,9 @@ function Initials({ name }: { name: string }) {
   )
 }
 
-// Weekly breakdown of a game. Each calendar week has its own champion once its
-// matches are done; the OVERALL champion (shown in the leaderboard) is the sum of
-// every week.
+// Round-by-round breakdown of a game, aligned to the league gameweeks (Süper Lig
+// "2. Hafta"). Each round crowns its own champion once its matches are done; the
+// OVERALL champion (shown in the leaderboard) is the sum of every round.
 export function WeeklyChampions({
   weeks,
   overallLeader,
@@ -62,13 +59,12 @@ export function WeeklyChampions({
           const isOpen = open === i
           const leader = w.standings[0]
           return (
-            <div key={w.weekStart} className="rounded-lg bg-ink-850">
+            <div key={w.roundKey} className="rounded-lg bg-ink-850">
               <button
                 onClick={() => setOpen(isOpen ? null : i)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left"
               >
-                <span className="section-label shrink-0 text-[10px] text-ink-500">Hafta {i + 1}</span>
-                <span className="hidden shrink-0 text-xs text-ink-500 sm:inline">{weekLabel(w.weekStart)}</span>
+                <span className="section-label shrink-0 text-[11px] text-brand-300">{weekTitle(w)}</span>
                 <span className="ml-1 min-w-0 flex-1 truncate">
                   {w.champion ? (
                     <span className="flex items-center gap-1.5 text-sm">

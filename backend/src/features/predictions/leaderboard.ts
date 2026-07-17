@@ -100,41 +100,51 @@ export interface WeekStanding {
 }
 
 export interface GameWeek {
-  weekStart: string // ISO date of the week's Monday (Europe/Istanbul)
+  roundKey: string // stable bucket identity (the league round, e.g. "Regular Season - 2")
+  weekNo: number | null // the league round number parsed from it, if any
   matchCount: number
   settledCount: number
-  settled: boolean // every match of the week is final
+  settled: boolean // every match of the round is final
   standings: WeekStanding[]
-  champion: WeekStanding | null // crowned once the week is settled
+  champion: WeekStanding | null // crowned once the round is settled
 }
 
 /**
- * Per-week breakdown of a game: fixtures are bucketed by their (Istanbul) calendar
- * week, and each week gets its own standings + champion. The OVERALL champion is
- * still the season total (seasonLeaderboard) — i.e. the sum of every week.
+ * Per-round breakdown of a game: fixtures are bucketed by their LEAGUE round
+ * (Süper Lig "Regular Season - 2" → week 2), not the calendar week, so a group's
+ * weekly champions line up with the actual gameweeks. Rounds are ordered by their
+ * earliest kickoff. The OVERALL champion is still the season total.
  */
 export async function seasonWeeks(groupId: number, seasonId: number | null): Promise<GameWeek[]> {
   if (seasonId === null) return []
-  const WEEK = `date_trunc('week', f.kickoff_at AT TIME ZONE 'Europe/Istanbul')`
+  // The league round, with its trailing number pulled out ("Regular Season - 2" → 2).
+  const ROUND = `COALESCE(f.round, 'Maçlar')`
+  const WEEK_NO = `(regexp_match(f.round, '(\\d+)\\s*$'))[1]::int`
 
-  const fixtures = await query<{ weekStart: string; matchCount: number; settledCount: number }>(
-    `SELECT to_char(${WEEK}, 'YYYY-MM-DD') AS "weekStart",
+  const fixtures = await query<{
+    roundKey: string
+    weekNo: number | null
+    matchCount: number
+    settledCount: number
+  }>(
+    `SELECT ${ROUND} AS "roundKey",
+            MAX(${WEEK_NO}) AS "weekNo",
             COUNT(*)::int AS "matchCount",
             COUNT(*) FILTER (WHERE f.status IN ('FT','AET','PEN'))::int AS "settledCount"
      FROM group_fixtures gf JOIN fixtures f ON f.id = gf.fixture_id
      WHERE gf.season_id = $1
-     GROUP BY 1 ORDER BY 1`,
+     GROUP BY ${ROUND} ORDER BY MIN(f.kickoff_at)`,
     [seasonId],
   )
 
   const rows = await query<{
-    weekStart: string
+    roundKey: string
     userId: number
     displayName: string
     points: number
     exactCount: number
   }>(
-    `SELECT to_char(${WEEK}, 'YYYY-MM-DD') AS "weekStart",
+    `SELECT ${ROUND} AS "roundKey",
             u.id AS "userId", u.display_name AS "displayName",
             COALESCE(SUM(p.points_awarded), 0)::int AS points,
             COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount"
@@ -145,16 +155,17 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
      LEFT JOIN predictions p ON p.group_id = gf.group_id AND p.user_id = gm.user_id
        AND p.fixture_id = gf.fixture_id AND p.settled_at IS NOT NULL
      WHERE gf.season_id = $1 AND gf.group_id = $2
-     GROUP BY 1, u.id, u.display_name`,
+     GROUP BY ${ROUND}, u.id, u.display_name`,
     [seasonId, groupId],
   )
 
-  const byWeek = new Map<number, WeekStanding[]>()
-  const dummyIndex = new Map<string, number>()
+  const byRound = new Map<string, WeekStanding[]>()
+  const roundIndex = new Map<string, number>()
   const weeks: GameWeek[] = fixtures.rows.map((f, i) => {
-    dummyIndex.set(f.weekStart, i)
+    roundIndex.set(f.roundKey, i)
     return {
-      weekStart: f.weekStart,
+      roundKey: f.roundKey,
+      weekNo: f.weekNo,
       matchCount: f.matchCount,
       settledCount: f.settledCount,
       settled: f.settledCount === f.matchCount && f.matchCount > 0,
@@ -164,14 +175,16 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
   })
 
   for (const r of rows.rows) {
-    const idx = dummyIndex.get(r.weekStart)
+    const idx = roundIndex.get(r.roundKey)
     if (idx == null) continue
-    const list = byWeek.get(idx) ?? []
+    const list = byRound.get(r.roundKey) ?? []
     list.push({ userId: r.userId, displayName: r.displayName, points: r.points, exactCount: r.exactCount })
-    byWeek.set(idx, list)
+    byRound.set(r.roundKey, list)
   }
 
-  for (const [idx, list] of byWeek) {
+  for (const [key, list] of byRound) {
+    const idx = roundIndex.get(key)
+    if (idx == null) continue
     list.sort(
       (a, b) =>
         b.points - a.points || b.exactCount - a.exactCount || a.displayName.localeCompare(b.displayName, 'tr'),

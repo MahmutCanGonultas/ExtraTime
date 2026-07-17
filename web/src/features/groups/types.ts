@@ -83,7 +83,8 @@ export interface WeekStanding {
 }
 
 export interface GameWeek {
-  weekStart: string
+  roundKey: string
+  weekNo: number | null
   matchCount: number
   settledCount: number
   settled: boolean
