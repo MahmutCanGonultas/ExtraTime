@@ -102,6 +102,22 @@ export interface RawPlayer {
   }>
 }
 
+// players/squads response: the CURRENT squad of a team (works in preseason too,
+// unlike season-stat endpoints), each member with shirt number, position and
+// age. Used to seed current-season (2026-27) player rows so the guess game and
+// team pages reflect where a player actually plays now.
+export interface RawSquad {
+  team: { id: number; name: string | null }
+  players: Array<{
+    id: number
+    name: string | null
+    age: number | null
+    number: number | null
+    position: string | null
+    photo: string | null
+  }>
+}
+
 // A single in-match event (goal, card, substitution).
 export interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null }

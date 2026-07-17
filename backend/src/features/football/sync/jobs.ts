@@ -12,6 +12,7 @@ import type {
   RawFixtureEvent,
   RawFixtureStatistic,
   RawPlayer,
+  RawSquad,
   RawStandingsLeague,
   RawTopScorer,
 } from '../types'
@@ -363,6 +364,159 @@ export async function syncPlayersFor(
     client.release()
   }
   return n
+}
+
+// The season key for the current (2026-27) campaign.
+export const CURRENT_SQUAD_SEASON = 2026
+
+const sleepMs = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Retry a DB call on transient connection drops. Neon closes idle connections,
+// so after a slow API call the pooled connection can be dead for the next query
+// ("Connection terminated unexpectedly"); a retry gets a fresh one.
+async function withDbRetry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastErr = err
+      if (attempt < tries) await sleepMs(300 * attempt)
+    }
+  }
+  throw lastErr
+}
+
+/**
+ * Seed CURRENT-season (2026-27) player rows from each team's live squad. The
+ * players/squads endpoint returns the roster that is registered right now — so
+ * it reflects where a player actually plays this season, even in preseason when
+ * the per-season stats endpoint is still empty. Each member is upserted as a
+ * (player_api_id, league_id, CURRENT_SQUAD_SEASON) row carrying the current
+ * team, shirt number, position, age and photo. Nationality is left for
+ * backfillCurrentSquadNationality to copy from the player's historical rows.
+ *
+ * Uses pooled queries (never one held connection across slow API calls) and is
+ * resilient: a failed team is logged and skipped. Returns rows upserted.
+ */
+export async function syncCurrentSquads(
+  entries: { teamApiId: number; leagueId: number }[],
+): Promise<number> {
+  let upserted = 0
+  for (const { teamApiId, leagueId } of entries) {
+    let squads: RawSquad[] = []
+    try {
+      squads = await apiFootballGet<RawSquad[]>('players/squads', { team: teamApiId })
+    } catch (err) {
+      logger.warn({ teamApiId, err }, 'squad fetch failed; skipping team')
+      continue
+    }
+    const squad = squads[0]
+    if (!squad) continue
+    const teamName = squad.team?.name ?? null
+    try {
+      for (const m of squad.players) {
+        const res = await withDbRetry(() =>
+          query(
+            `INSERT INTO players
+               (player_api_id, league_id, season, team_api_id, team_name, name, age,
+                position, photo_url, jersey_number, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+             ON CONFLICT (player_api_id, league_id, season) DO UPDATE SET
+               team_api_id = EXCLUDED.team_api_id,
+               team_name = EXCLUDED.team_name,
+               name = EXCLUDED.name,
+               age = COALESCE(EXCLUDED.age, players.age),
+               position = COALESCE(EXCLUDED.position, players.position),
+               photo_url = COALESCE(EXCLUDED.photo_url, players.photo_url),
+               jersey_number = EXCLUDED.jersey_number,
+               updated_at = now()`,
+            [
+              m.id,
+              leagueId,
+              CURRENT_SQUAD_SEASON,
+              teamApiId,
+              teamName,
+              m.name,
+              m.age ?? null,
+              m.position ?? null,
+              m.photo ?? null,
+              m.number ?? null,
+            ],
+          ),
+        )
+        upserted += res.rowCount ?? 0
+      }
+    } catch (err) {
+      logger.warn({ teamApiId, err }, 'squad upsert failed after retries; skipping team')
+    }
+  }
+  return upserted
+}
+
+/**
+ * The squads endpoint carries only a name, so copy nationality + firstname +
+ * lastname onto each current-season row from that player's most recent
+ * historical row that has them. Fills nationality (for the flag) and the name
+ * parts (so first-name search works). Returns rows updated.
+ */
+export async function backfillCurrentSquadProfiles(): Promise<number> {
+  const res = await withDbRetry(() =>
+    query(
+      `UPDATE players tgt SET
+         nationality = COALESCE(tgt.nationality, src.nationality),
+         firstname = COALESCE(tgt.firstname, src.firstname),
+         lastname = COALESCE(tgt.lastname, src.lastname),
+         updated_at = now()
+       FROM (
+         SELECT DISTINCT ON (player_api_id) player_api_id, nationality, firstname, lastname
+         FROM players
+         WHERE nationality IS NOT NULL
+         ORDER BY player_api_id, season DESC
+       ) src
+       WHERE tgt.player_api_id = src.player_api_id
+         AND tgt.season = $1
+         AND (tgt.nationality IS NULL OR tgt.firstname IS NULL OR tgt.lastname IS NULL)`,
+      [CURRENT_SQUAD_SEASON],
+    ),
+  )
+  return res.rowCount ?? 0
+}
+
+/**
+ * Fill nationality + name parts on current-season rows from the players/profiles
+ * endpoint — for players who have no historical row to copy from (new signings,
+ * youth). One request per player; resilient and retry-wrapped. Returns rows
+ * updated.
+ */
+export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number> {
+  let updated = 0
+  for (const id of playerApiIds) {
+    let player: { firstname: string | null; lastname: string | null; nationality: string | null } | undefined
+    try {
+      const resp = await apiFootballGet<
+        Array<{ player: { firstname: string | null; lastname: string | null; nationality: string | null } }>
+      >('players/profiles', { player: id })
+      player = resp[0]?.player
+    } catch (err) {
+      logger.warn({ id, err }, 'profile fetch failed; skipping player')
+      continue
+    }
+    if (!player) continue
+    const res = await withDbRetry(() =>
+      query(
+        `UPDATE players SET
+           nationality = COALESCE(nationality, $2),
+           firstname = COALESCE(firstname, $3),
+           lastname = COALESCE(lastname, $4),
+           updated_at = now()
+         WHERE player_api_id = $1 AND season = $5`,
+        [id, player.nationality ?? null, player.firstname ?? null, player.lastname ?? null, CURRENT_SQUAD_SEASON],
+      ),
+    )
+    updated += res.rowCount ?? 0
+  }
+  return updated
 }
 
 /**

@@ -319,6 +319,101 @@ export async function getPlayerGamePool(): Promise<GamePoolPlayer[]> {
   return rows
 }
 
+export interface GuessPoolPlayer {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  nationality: string | null
+  position: string | null
+  age: number | null
+  teamApiId: number | null
+  teamName: string | null
+  leagueApiId: number
+  leagueName: string
+  jerseyNumber: number | null
+  appearances: number
+}
+
+// The "guess the player" universe: current squads of the covered full leagues
+// plus the three Istanbul giants. Season 2026 = the 2026-27 campaign, seeded
+// from live squads so a player's team is where they play NOW.
+const GUESS_SEASON = 2026
+const GUESS_FULL_LEAGUES = [
+  39, // Premier League
+  140, // La Liga
+  78, // Bundesliga
+  61, // Ligue 1
+  135, // Serie A
+  94, // Primeira Liga (Portugal)
+  88, // Eredivisie (Netherlands)
+  71, // Brasileirão (Brazil)
+  307, // Saudi Pro League
+]
+const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the three clubs below
+const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşiktaş
+
+// Shared column list + FROM/WHERE so the pool and the autocomplete stay in
+// lockstep (same universe, same current-season rows). $1=season, $2=big5 ids,
+// $3=extra league id, $4=extra club ids. "appearances" is the player's career
+// peak, used purely to rank prominence (current preseason rows have none).
+const GUESS_COLS = `p.player_api_id AS "playerApiId", p.name, p.photo_url AS "photoUrl",
+    p.nationality, p.position, p.age, p.team_api_id AS "teamApiId", p.team_name AS "teamName",
+    l.api_football_id AS "leagueApiId", l.name AS "leagueName", p.jersey_number AS "jerseyNumber",
+    (SELECT MAX(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances`
+// Every guessable player must have a photo, a nationality (for the flag) and a
+// shirt number, so no tile is ever blank. This drops a few hundred obscure
+// reserves the API has no nationality for — the ~4.4k that remain are the ones
+// anyone would actually guess.
+const GUESS_UNIVERSE = `players p JOIN leagues l ON l.id = p.league_id
+   WHERE p.season = $1 AND p.photo_url IS NOT NULL
+     AND p.nationality IS NOT NULL AND p.jersey_number IS NOT NULL
+     AND (l.api_football_id = ANY($2) OR (l.api_football_id = $3 AND p.team_api_id = ANY($4)))`
+
+/**
+ * Pool for the "guess the player" game: the current (2026-27) squads of the big
+ * five leagues + Galatasaray/Fenerbahçe/Beşiktaş, one row per player, ordered by
+ * career prominence so the answer stays recognisable. Team/age/number come from
+ * the live squad, so a transferred-out player (e.g. Messi) never appears here.
+ */
+export async function getGuessPool(): Promise<GuessPoolPlayer[]> {
+  const { rows } = await query<GuessPoolPlayer>(
+    `SELECT * FROM (
+       SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
+       FROM ${GUESS_UNIVERSE}
+       ORDER BY p.player_api_id
+     ) q
+     ORDER BY q.appearances DESC NULLS LAST
+     LIMIT 800`,
+    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
+  )
+  return rows
+}
+
+/**
+ * Autocomplete for a guess: matches players in the SAME current-season universe
+ * as the pool (so a guess can be scored on its current team), by name and
+ * accent-insensitively. Ordered by prominence.
+ */
+export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> {
+  const like = `%${q}%`
+  const prefix = `${q}%`
+  const { rows } = await query<GuessPoolPlayer>(
+    `SELECT * FROM (
+       SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
+       FROM ${GUESS_UNIVERSE}
+         AND (unaccent(p.name) ILIKE unaccent($5)
+           OR unaccent(p.firstname) ILIKE unaccent($5)
+           OR unaccent(p.lastname) ILIKE unaccent($5)
+           OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
+       ORDER BY p.player_api_id
+     ) s
+     ORDER BY (unaccent(s.name) ILIKE unaccent($6)) DESC, s.appearances DESC NULLS LAST, s.name
+     LIMIT 12`,
+    [GUESS_SEASON, GUESS_FULL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS, like, prefix],
+  )
+  return rows
+}
+
 export interface PlayerProfile {
   playerApiId: number
   name: string
@@ -550,6 +645,40 @@ export async function getTeamSquad(teamApiId: number): Promise<SquadPlayer[]> {
   return rows.sort(
     (a, b) => (b.goals ?? 0) - (a.goals ?? 0) || (b.appearances ?? 0) - (a.appearances ?? 0),
   )
+}
+
+export interface TeamSquadHistory {
+  seasons: number[]
+  season: number | null
+  squad: SquadPlayer[]
+}
+
+// A team's squad for a chosen season, plus every season we hold for that team —
+// so the detailed squad page can walk 10+ years of past rosters.
+export async function getTeamSquadHistory(
+  teamApiId: number,
+  season?: number,
+): Promise<TeamSquadHistory> {
+  const seasons = (
+    await query<{ season: number }>(
+      `SELECT DISTINCT season FROM players WHERE team_api_id = $1 ORDER BY season DESC`,
+      [teamApiId],
+    )
+  ).rows.map((r) => r.season)
+  if (seasons.length === 0) return { seasons: [], season: null, squad: [] }
+  const target = season != null && seasons.includes(season) ? season : seasons[0]
+  const { rows } = await query<SquadPlayer>(
+    `SELECT DISTINCT ON (player_api_id)
+       player_api_id AS "playerApiId", name, position, nationality, age,
+       goals, assists, appearances, minutes, rating::float8 AS rating, photo_url AS "photoUrl", season
+     FROM players WHERE team_api_id = $1 AND season = $2
+     ORDER BY player_api_id, appearances DESC NULLS LAST`,
+    [teamApiId, target],
+  )
+  const squad = rows.sort(
+    (a, b) => (b.goals ?? 0) - (a.goals ?? 0) || (b.appearances ?? 0) - (a.appearances ?? 0),
+  )
+  return { seasons, season: target, squad }
 }
 
 export async function getTeam(teamId: number) {

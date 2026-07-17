@@ -81,6 +81,25 @@ footballRouter.get(
 )
 
 footballRouter.get(
+  '/players/guess/pool',
+  asyncHandler(async (_req, res) => {
+    res.json({ players: await repo.getGuessPool() })
+  }),
+)
+
+footballRouter.get(
+  '/players/guess/search',
+  asyncHandler(async (req, res) => {
+    const { q } = searchQuerySchema.parse(req.query)
+    if (!q || q.length < 2) {
+      res.json({ players: [] })
+      return
+    }
+    res.json({ players: await repo.searchGuessPlayers(q) })
+  }),
+)
+
+footballRouter.get(
   '/players/:apiId',
   asyncHandler(async (req, res) => {
     const player = await repo.getPlayerProfile(parseId(req.params.apiId))
@@ -100,6 +119,21 @@ footballRouter.get(
       return
     }
     res.json(await repo.search(q))
+  }),
+)
+
+footballRouter.get(
+  '/teams/:id/squad',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id)
+    const team = await repo.getTeam(id)
+    if (!team) throw AppError.notFound('Team not found')
+    const season = req.query.season ? Number(req.query.season) : undefined
+    const data = await repo.getTeamSquadHistory(
+      team.apiFootballId,
+      Number.isFinite(season) ? season : undefined,
+    )
+    res.json({ team, ...data })
   }),
 )
 
