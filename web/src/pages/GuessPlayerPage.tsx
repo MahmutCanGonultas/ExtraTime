@@ -352,26 +352,31 @@ function GuessHeader() {
   )
 }
 
+// Every tile is a fixed 56px box; text that doesn't fit is truncated to one line
+// and the full value shows as a hover tooltip (title), so boxes never resize.
 function Tile({
   state,
   children,
   arrow,
   big,
+  title,
 }: {
   state: TileState
   children: React.ReactNode
   arrow?: Arrow
   big?: boolean
+  title?: string
 }) {
   return (
     <div
       className={cn(
-        'flex min-h-[58px] items-center justify-center gap-1 rounded-lg px-1.5 text-center ring-1',
+        'flex h-14 items-center justify-center gap-1 overflow-hidden rounded-lg px-1.5 text-center ring-1',
         big ? 'text-xl font-bold' : 'text-sm font-semibold',
         TILE_BG[state],
       )}
+      title={title}
     >
-      <span className={big ? 'tabular-nums' : 'line-clamp-2 leading-tight'}>{children}</span>
+      <span className={cn('min-w-0', big ? 'tabular-nums' : 'truncate')}>{children}</span>
       {arrow === 'up' && <ArrowUp className="h-5 w-5 shrink-0" />}
       {arrow === 'down' && <ArrowDown className="h-5 w-5 shrink-0" />}
     </div>
@@ -390,13 +395,13 @@ function NationalityTile({
   return (
     <div
       className={cn(
-        'flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-center ring-1',
+        'flex h-14 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg px-1 text-center ring-1',
         TILE_BG[state],
       )}
       title={nationality ?? undefined}
     >
       <span className="text-2xl leading-none">{flag || '🏳️'}</span>
-      <span className="w-full truncate text-[11px] font-semibold leading-tight">
+      <span className="w-full min-w-0 truncate text-[10px] font-semibold leading-tight">
         {nationality ?? '—'}
       </span>
     </div>
@@ -412,15 +417,21 @@ function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPool
   const jersey = cmpNum(guess.jerseyNumber, secret.jerseyNumber)
 
   return (
-    <li className={cn(COLS, 'items-stretch px-3 py-2.5')}>
-      <span className="flex items-center gap-2.5">
+    <li className={cn(COLS, 'items-center px-3 py-2.5')}>
+      <span className="flex min-w-0 items-center gap-2.5" title={guess.name}>
         <PlayerAvatar playerApiId={guess.playerApiId} name={guess.name} size={38} />
-        <span className="truncate text-base font-semibold text-ink-100">{guess.name}</span>
+        <span className="min-w-0 truncate text-base font-semibold text-ink-100">{guess.name}</span>
       </span>
       <NationalityTile state={nat} nationality={guess.nationality} />
-      <Tile state={pos}>{posLabel(guess.position)}</Tile>
-      <Tile state={team}>{guess.teamName ?? '—'}</Tile>
-      <Tile state={league}>{guess.leagueName}</Tile>
+      <Tile state={pos} title={posLabel(guess.position)}>
+        {posLabel(guess.position)}
+      </Tile>
+      <Tile state={team} title={guess.teamName ?? '—'}>
+        {guess.teamName ?? '—'}
+      </Tile>
+      <Tile state={league} title={guess.leagueName}>
+        {guess.leagueName}
+      </Tile>
       <Tile state={age.state} arrow={age.arrow} big>
         {guess.age ?? '—'}
       </Tile>
