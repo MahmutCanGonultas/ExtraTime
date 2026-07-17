@@ -802,10 +802,10 @@ function Pitch({
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[16%] w-[54%] -translate-x-1/2 border border-b-0 border-white/30" />
       <div className="pointer-events-none absolute bottom-3 left-1/2 h-[7%] w-[28%] -translate-x-1/2 border border-b-0 border-white/30" />
 
-      {/* Loaded team's crest as a faint centre-circle watermark */}
+      {/* Loaded team's crest as a translucent watermark behind the players */}
       {teamApiId != null && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.09] drop-shadow">
-          <TeamLogo apiId={teamApiId} size={240} />
+        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-20">
+          <TeamLogo apiId={teamApiId} size={300} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]" />
         </div>
       )}
 
