@@ -106,6 +106,10 @@ const BENCH_ROLES: Role[] = ['ATT', 'MID', 'DEF', 'GK']
 
 const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
+// The dataset spells Turkish nationality both ways, so treat both as "yerli".
+const TR_NATIONALITY = new Set(['Turkey', 'Türkiye'])
+const isTurkish = (nat: string | null | undefined): boolean => nat != null && TR_NATIONALITY.has(nat)
+
 // Turkish role label for a bench player's API position.
 function benchRole(pos: string | null): string {
   const r = roleForPosition(pos)
@@ -317,6 +321,7 @@ export function LineupBuilderPage() {
   const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>([])
   const [loadedTeamApiId, setLoadedTeamApiId] = useState<number | null>(null)
   const [loadedTeamName, setLoadedTeamName] = useState<string | null>(null)
+  const [loadedTeamCountry, setLoadedTeamCountry] = useState<string | null>(null)
   const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
   useEffect(() => {
     if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
@@ -324,6 +329,7 @@ export function LineupBuilderPage() {
       setLoadedSquad(squadData.squad)
       setLoadedTeamApiId(squadData.team.apiFootballId)
       setLoadedTeamName(loadTeam.name)
+      setLoadedTeamCountry(squadData.team.country ?? null)
       setTitle(loadTeam.name)
       setLoadTeam(null)
     }
@@ -341,6 +347,14 @@ export function LineupBuilderPage() {
   const xi = players.filter((p): p is Placed => p != null)
   const ages = xi.map((p) => p.age).filter((a): a is number => a != null)
   const avgAge = ages.length ? Math.round(ages.reduce((s, a) => s + a, 0) / ages.length) : null
+
+  // Turkish clubs get a yerli/yabancı (domestic/foreign) squad breakdown. Counts
+  // run over the whole current roster (XI + bench, minus anyone sent away), so
+  // selling or loaning a player — or signing one — moves the numbers.
+  const isTurkishTeam = loadedTeamCountry === 'Turkey'
+  const roster: { nationality?: string | null }[] = [...xi, ...bench]
+  const turkCount = roster.filter((p) => isTurkish(p.nationality)).length
+  const foreignCount = roster.filter((p) => p.nationality != null && !isTurkish(p.nationality)).length
 
   function assign(idx: number, p: Placed) {
     setPlayers((prev) => {
@@ -520,6 +534,27 @@ export function LineupBuilderPage() {
               <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} />
             </label>
           </Card>
+
+          {isTurkishTeam && (
+            <Card className="space-y-2.5 p-4">
+              <div className="section-label flex items-center gap-1.5 text-ink-400">
+                <span aria-hidden>🇹🇷</span> Kadro yapısı
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl border border-brand-500/30 bg-brand-500/[0.06] p-3 text-center">
+                  <div className="text-2xl font-black tabular-nums text-brand-300">{turkCount}</div>
+                  <div className="mt-0.5 text-[11px] font-semibold text-ink-300">Türk</div>
+                </div>
+                <div className="rounded-xl border border-ink-700 bg-ink-850 p-3 text-center">
+                  <div className="text-2xl font-black tabular-nums text-ink-100">{foreignCount}</div>
+                  <div className="mt-0.5 text-[11px] font-semibold text-ink-400">Yabancı</div>
+                </div>
+              </div>
+              <p className="text-[11px] leading-relaxed text-ink-500">
+                Tüm kadro (ilk 11 + yedekler). Sattığın ya da kiraya verdiğin oyuncu sayıdan düşer.
+              </p>
+            </Card>
+          )}
 
           <TeamLoader onLoad={setLoadTeam} />
 
