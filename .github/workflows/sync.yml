@@ -1,29 +1,55 @@
 name: Scheduled Sync
 
-# Wakes the (possibly sleeping) free-tier backend and triggers data syncs from
-# outside. Configure two repository secrets: API_BASE_URL (e.g.
-# https://extratime-api.onrender.com) and SYNC_SECRET (same as the backend).
+# Keeps the deployed backend's data fresh from OUTSIDE the app, so it works even
+# on a free-tier host that sleeps (the internal node-cron stops while asleep).
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   API_BASE_URL  e.g. https://extratime-api.onrender.com   (no trailing slash)
+#   SYNC_SECRET   the same value as the backend's SYNC_SECRET
+#
+# API budget: sync/live is a FREE no-op unless a match is actually live, so it is
+# safe to run often. sync/results and sync/squads each cost many API requests, so
+# they run only hourly / daily. GitHub's cron is best-effort (can lag 5-15 min);
+# for truly live scores keep the host awake (paid tier, or a cron-job.org
+# keep-alive ping to /health every ~10 min) so the internal 2-minute cron runs.
 
 on:
   schedule:
-    - cron: '0 6 * * *' # daily data: fixtures, standings, scorers, assists
-    - cron: '5 18-22 * * *' # results, hourly through the evening
+    - cron: '*/5 10-23 * * *' # live scores — cheap, every 5 min during match hours (also wakes the host)
+    - cron: '3 11-23 * * *' # results + settle predictions — hourly (this one is API-heavy)
+    - cron: '0 6 * * *' # daily: fixtures, standings, scorers, assists, squads (transfers)
   workflow_dispatch: {}
 
+concurrency:
+  group: extratime-sync
+  cancel-in-progress: false
+
 jobs:
-  sync:
+  live:
+    name: Live scores
+    if: github.event.schedule == '*/5 10-23 * * *'
     runs-on: ubuntu-latest
     steps:
-      - name: Daily data sync
-        if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
-        run: |
-          for job in fixtures standings topscorers topassists; do
-            curl -fsS -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/$job" \
+      - run: |
+          curl -fsS -m 90 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/live" \
+            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
+
+  results:
+    name: Results + settle
+    if: github.event.schedule == '3 11-23 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS -m 120 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/results" \
+            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
+
+  daily:
+    name: Daily data
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for job in fixtures standings topscorers topassists squads; do
+            curl -fsS -m 300 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/$job" \
               -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
           done
-
-      - name: Results sync
-        if: github.event.schedule == '5 18-22 * * *'
-        run: |
-          curl -fsS -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/results" \
-            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
