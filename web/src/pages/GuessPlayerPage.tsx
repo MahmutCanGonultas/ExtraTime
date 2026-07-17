@@ -34,6 +34,7 @@ const posLabel = (p: string | null) => (p ? (POS_TR[p] ?? p) : '—')
 
 // How censored the photo is: fully blurred at the start, opening a little with
 // each wrong guess, fully clear once the round is over.
+const MAX_GUESSES = 8
 const BASE_BLUR = 18
 const BLUR_STEP = 1.3
 const MIN_BLUR = 5 // never fully clears during play — only when solved / given up
@@ -86,7 +87,9 @@ export function GuessPlayerPage() {
   const startedRef = useRef(false)
 
   const won = secret != null && guesses.some((g) => g.playerApiId === secret.playerApiId)
-  const finished = won || revealed
+  const outOfGuesses = guesses.length >= MAX_GUESSES && !won
+  const finished = won || revealed || outOfGuesses
+  const remaining = Math.max(0, MAX_GUESSES - guesses.length)
   // Guesses that were not the answer — drives how far the photo has opened.
   const wrongCount = secret ? guesses.filter((g) => g.playerApiId !== secret.playerApiId).length : 0
 
@@ -177,13 +180,17 @@ export function GuessPlayerPage() {
               {secret ? `${secret.teamName ?? '—'} · ${secret.leagueName}` : ''}
             </div>
             <div className="mt-1 text-sm font-medium text-brand-300">
-              {won ? `${guesses.length} tahminde bildin! 🎉` : 'Cevap buydu.'}
+              {won
+                ? `${guesses.length} tahminde bildin! 🎉`
+                : outOfGuesses
+                  ? 'Hakların bitti — cevap buydu.'
+                  : 'Cevap buydu.'}
             </div>
           </div>
         ) : (
           <div className="text-center text-sm text-ink-400">
-            <span className="tabular-nums">{guesses.length}</span> tahmin yaptın · fotoğraf her
-            yanlışta biraz daha açılıyor
+            <span className="font-semibold text-ink-200 tabular-nums">{remaining}</span> tahmin
+            hakkın kaldı · fotoğraf her yanlışta biraz daha açılıyor
           </div>
         )}
       </Card>
