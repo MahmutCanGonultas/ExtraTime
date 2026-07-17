@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X, Trash2, Users, Sparkles, ArrowLeftRight } from 'lucide-react'
+import { Plus, X, Trash2, Users, Sparkles, ArrowLeftRight, Save, FolderOpen } from 'lucide-react'
 import { useSearch, useTeamSquad } from '@/features/football/hooks'
 import type { SquadPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -113,10 +113,6 @@ const BENCH_ROLES: Role[] = ['ATT', 'MID', 'DEF', 'GK']
 
 const surname = (name: string): string => name.trim().split(/\s+/).pop() ?? name
 
-// The dataset spells Turkish nationality both ways, so treat both as "yerli".
-const TR_NATIONALITY = new Set(['Turkey', 'Türkiye'])
-const isTurkish = (nat: string | null | undefined): boolean => nat != null && TR_NATIONALITY.has(nat)
-
 // Turkish role label for a bench player's API position.
 function benchRole(pos: string | null): string {
   const r = roleForPosition(pos)
@@ -131,41 +127,94 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 type DragSource = { kind: 'slot'; index: number } | { kind: 'bench'; player: SquadPlayer }
 
 const STORAGE_KEY = 'extratime:lineup:v1'
+const SLOTS_KEY = 'extratime:lineup:slots:v1'
+const MAX_SLOTS = 3
 
+type Released = { player: Placed; kind: 'sold' | 'loaned' }
+
+// The whole editable state — the XI plus the loaded squad's bench and sent-away
+// list — so a lineup survives navigating away and can be saved to a named slot.
 interface SavedState {
   formation: FormationKey
   title: string
   players: (Placed | null)[]
   captain: number | null
   positions: (Pos | null)[]
+  loadedSquad: SquadPlayer[]
+  loadedTeamApiId: number | null
+  loadedTeamName: string | null
+  released: Released[]
 }
 
-function loadSaved(): SavedState {
-  const fallback: SavedState = {
+// A named save slot (max MAX_SLOTS), persisted separately from the live state.
+interface SavedSlot {
+  name: string
+  savedAt: number
+  state: SavedState
+}
+
+function emptyState(): SavedState {
+  return {
     formation: '4-3-3',
     title: "Benim 11'im",
     players: Array(11).fill(null),
     captain: null,
     positions: Array(11).fill(null),
+    loadedSquad: [],
+    loadedTeamApiId: null,
+    loadedTeamName: null,
+    released: [],
   }
+}
+
+// Coerce an unknown parsed blob into a valid SavedState (used for both the live
+// state and each save slot), padding the fixed-length arrays.
+function normalizeState(parsed: Partial<SavedState> | null | undefined): SavedState | null {
+  if (!parsed || !parsed.formation || !FORMATIONS[parsed.formation]) return null
+  const fallback = emptyState()
+  const players = Array.isArray(parsed.players) ? parsed.players.slice(0, 11) : []
+  while (players.length < 11) players.push(null)
+  const positions = Array.isArray(parsed.positions) ? parsed.positions.slice(0, 11) : []
+  while (positions.length < 11) positions.push(null)
+  return {
+    formation: parsed.formation as FormationKey,
+    title: parsed.title || fallback.title,
+    players: players as (Placed | null)[],
+    captain: typeof parsed.captain === 'number' ? parsed.captain : null,
+    positions: positions as (Pos | null)[],
+    loadedSquad: Array.isArray(parsed.loadedSquad) ? (parsed.loadedSquad as SquadPlayer[]) : [],
+    loadedTeamApiId: typeof parsed.loadedTeamApiId === 'number' ? parsed.loadedTeamApiId : null,
+    loadedTeamName: typeof parsed.loadedTeamName === 'string' ? parsed.loadedTeamName : null,
+    released: Array.isArray(parsed.released) ? (parsed.released as Released[]) : [],
+  }
+}
+
+function loadSaved(): SavedState {
   try {
     const raw = safeGetItem(STORAGE_KEY)
-    if (!raw) return fallback
-    const parsed = JSON.parse(raw) as Partial<SavedState>
-    if (!parsed.formation || !FORMATIONS[parsed.formation]) return fallback
-    const players = Array.isArray(parsed.players) ? parsed.players.slice(0, 11) : []
-    while (players.length < 11) players.push(null)
-    const positions = Array.isArray(parsed.positions) ? parsed.positions.slice(0, 11) : []
-    while (positions.length < 11) positions.push(null)
-    return {
-      formation: parsed.formation as FormationKey,
-      title: parsed.title || fallback.title,
-      players: players as (Placed | null)[],
-      captain: typeof parsed.captain === 'number' ? parsed.captain : null,
-      positions: positions as (Pos | null)[],
-    }
+    if (!raw) return emptyState()
+    return normalizeState(JSON.parse(raw) as Partial<SavedState>) ?? emptyState()
   } catch {
-    return fallback
+    return emptyState()
+  }
+}
+
+function loadSlots(): SavedSlot[] {
+  try {
+    const raw = safeGetItem(SLOTS_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw)
+    if (!Array.isArray(arr)) return []
+    return arr
+      .map((s): SavedSlot | null => {
+        const state = normalizeState(s?.state)
+        if (!state) return null
+        return { name: String(s?.name ?? state.title), savedAt: Number(s?.savedAt ?? 0), state }
+      })
+      .filter((s): s is SavedSlot => s != null)
+      .slice(0, MAX_SLOTS)
+  } catch {
+    return []
   }
 }
 
@@ -247,15 +296,38 @@ export function LineupBuilderPage() {
   // When set, the next player tapped swaps places with this slot ("yer değiştir").
   const [swapFrom, setSwapFrom] = useState<number | null>(null)
   // Players sent away for squad planning, so they leave the bench pool.
-  const [released, setReleased] = useState<{ player: Placed; kind: 'sold' | 'loaned' }[]>([])
+  const [released, setReleased] = useState<Released[]>(() => initial.released)
+  // The loaded team's roster (drives the bench) + its identity, persisted too so
+  // the bench and team badge survive navigating away and back.
+  const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>(() => initial.loadedSquad)
+  const [loadedTeamApiId, setLoadedTeamApiId] = useState<number | null>(() => initial.loadedTeamApiId)
+  const [loadedTeamName, setLoadedTeamName] = useState<string | null>(() => initial.loadedTeamName)
+  // Up to MAX_SLOTS named saved lineups.
+  const [savedSlots, setSavedSlots] = useState<SavedSlot[]>(loadSlots)
 
   const slots = useMemo(() => buildSlots(formation), [formation])
   const filled = players.filter(Boolean).length
 
-  // Persist on every change so a refresh keeps the same team.
+  // Persist the whole live state on every change, so a refresh or a trip through
+  // the nav keeps the exact same team, bench and sent-away list.
   useEffect(() => {
-    safeSetItem(STORAGE_KEY, JSON.stringify({ formation, title, players, captain, positions }))
-  }, [formation, title, players, captain, positions])
+    const state: SavedState = {
+      formation,
+      title,
+      players,
+      captain,
+      positions,
+      loadedSquad,
+      loadedTeamApiId,
+      loadedTeamName,
+      released,
+    }
+    safeSetItem(STORAGE_KEY, JSON.stringify(state))
+  }, [formation, title, players, captain, positions, loadedSquad, loadedTeamApiId, loadedTeamName, released])
+
+  useEffect(() => {
+    safeSetItem(SLOTS_KEY, JSON.stringify(savedSlots))
+  }, [savedSlots])
 
   // Effective on-pitch position: a freely-dragged override, else the formation slot.
   const placedSlots = slots.map((s, i) => (positions[i] ? { ...s, ...positions[i]! } : s))
@@ -325,10 +397,6 @@ export function LineupBuilderPage() {
   // Load a team's current squad onto the pitch (best player per slot role); the
   // rest of the squad becomes the bench.
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
-  const [loadedSquad, setLoadedSquad] = useState<SquadPlayer[]>([])
-  const [loadedTeamApiId, setLoadedTeamApiId] = useState<number | null>(null)
-  const [loadedTeamName, setLoadedTeamName] = useState<string | null>(null)
-  const [loadedTeamCountry, setLoadedTeamCountry] = useState<string | null>(null)
   const { data: squadData } = useTeamSquad(loadTeam?.id ?? 0)
   useEffect(() => {
     if (loadTeam && squadData && squadData.team.id === loadTeam.id && squadData.squad.length) {
@@ -336,7 +404,7 @@ export function LineupBuilderPage() {
       setLoadedSquad(squadData.squad)
       setLoadedTeamApiId(squadData.team.apiFootballId)
       setLoadedTeamName(loadTeam.name)
-      setLoadedTeamCountry(squadData.team.country ?? null)
+      setReleased([])
       setTitle(loadTeam.name)
       setLoadTeam(null)
     }
@@ -355,13 +423,52 @@ export function LineupBuilderPage() {
   const ages = xi.map((p) => p.age).filter((a): a is number => a != null)
   const avgAge = ages.length ? Math.round(ages.reduce((s, a) => s + a, 0) / ages.length) : null
 
-  // Turkish clubs get a yerli/yabancı (domestic/foreign) squad breakdown. Counts
-  // run over the whole current roster (XI + bench, minus anyone sent away), so
-  // selling or loaning a player — or signing one — moves the numbers.
-  const isTurkishTeam = loadedTeamCountry === 'Turkey'
-  const roster: { nationality?: string | null }[] = [...xi, ...bench]
-  const turkCount = roster.filter((p) => isTurkish(p.nationality)).length
-  const foreignCount = roster.filter((p) => p.nationality != null && !isTurkish(p.nationality)).length
+  function currentSlot(): SavedSlot {
+    const state: SavedState = {
+      formation,
+      title,
+      players,
+      captain,
+      positions,
+      loadedSquad,
+      loadedTeamApiId,
+      loadedTeamName,
+      released,
+    }
+    return { name: title.trim() || `Kadro ${savedSlots.length + 1}`, savedAt: Date.now(), state }
+  }
+
+  // Save the current lineup as a new named slot (up to MAX_SLOTS).
+  function saveNewSlot() {
+    setSavedSlots((prev) => (prev.length >= MAX_SLOTS ? prev : [...prev, currentSlot()]))
+  }
+  // Overwrite an existing slot with the current lineup.
+  function overwriteSlot(index: number) {
+    setSavedSlots((prev) => prev.map((s, i) => (i === index ? currentSlot() : s)))
+  }
+
+  // Load a saved slot back into the live editor.
+  function loadSlot(index: number) {
+    const slot = savedSlots[index]
+    if (!slot) return
+    const s = slot.state
+    setFormation(s.formation)
+    setTitle(s.title)
+    setPlayers(s.players)
+    setCaptain(s.captain)
+    setPositions(s.positions)
+    setLoadedSquad(s.loadedSquad)
+    setLoadedTeamApiId(s.loadedTeamApiId)
+    setLoadedTeamName(s.loadedTeamName)
+    setReleased(s.released)
+    setMenu(null)
+    setSwapFrom(null)
+    setActiveSlot(null)
+  }
+
+  function deleteSlot(index: number) {
+    setSavedSlots((prev) => prev.filter((_, i) => i !== index))
+  }
 
   function assign(idx: number, p: Placed) {
     setPlayers((prev) => {
@@ -542,26 +649,13 @@ export function LineupBuilderPage() {
             </label>
           </Card>
 
-          {isTurkishTeam && (
-            <Card className="space-y-2.5 p-4">
-              <div className="section-label flex items-center gap-1.5 text-ink-400">
-                <span aria-hidden>🇹🇷</span> Kadro yapısı
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-xl border border-brand-500/30 bg-brand-500/[0.06] p-3 text-center">
-                  <div className="text-2xl font-black tabular-nums text-brand-300">{turkCount}</div>
-                  <div className="mt-0.5 text-[11px] font-semibold text-ink-300">Türk</div>
-                </div>
-                <div className="rounded-xl border border-ink-700 bg-ink-850 p-3 text-center">
-                  <div className="text-2xl font-black tabular-nums text-ink-100">{foreignCount}</div>
-                  <div className="mt-0.5 text-[11px] font-semibold text-ink-400">Yabancı</div>
-                </div>
-              </div>
-              <p className="text-[11px] leading-relaxed text-ink-500">
-                Tüm kadro (ilk 11 + yedekler). Sattığın ya da kiraya verdiğin oyuncu sayıdan düşer.
-              </p>
-            </Card>
-          )}
+          <SaveSlots
+            slots={savedSlots}
+            onSaveNew={saveNewSlot}
+            onOverwrite={overwriteSlot}
+            onLoad={loadSlot}
+            onDelete={deleteSlot}
+          />
 
           <TeamLoader onLoad={setLoadTeam} />
 
@@ -755,6 +849,79 @@ function PlayerActionMenu({
         </div>
       </div>
     </div>
+  )
+}
+
+function SaveSlots({
+  slots,
+  onSaveNew,
+  onOverwrite,
+  onLoad,
+  onDelete,
+}: {
+  slots: SavedSlot[]
+  onSaveNew: () => void
+  onOverwrite: (i: number) => void
+  onLoad: (i: number) => void
+  onDelete: (i: number) => void
+}) {
+  return (
+    <Card className="space-y-2.5 p-4">
+      <div className="section-label flex items-center gap-1.5 text-ink-400">
+        <Save className="h-3.5 w-3.5 text-brand-300" /> Kayıtlı kadrolar
+        <span className="ml-auto text-[10px] text-ink-600">
+          {slots.length}/{MAX_SLOTS}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {slots.map((slot, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-2.5 py-2"
+          >
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-ink-850 text-[11px] font-bold text-ink-400">
+              {i + 1}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-100">
+              {slot.name}
+            </span>
+            <button
+              onClick={() => onLoad(i)}
+              className="flex items-center gap-1 rounded-md border border-brand-500/40 px-2 py-1 text-[11px] font-semibold text-brand-300 transition hover:bg-brand-500/10"
+            >
+              <FolderOpen className="h-3 w-3" /> Yükle
+            </button>
+            <button
+              onClick={() => onOverwrite(i)}
+              title="Bu slotun üzerine kaydet"
+              className="rounded-md border border-ink-700 px-2 py-1 text-[11px] text-ink-300 transition hover:bg-ink-800"
+            >
+              Güncelle
+            </button>
+            <button
+              onClick={() => onDelete(i)}
+              title="Sil"
+              aria-label="Kadroyu sil"
+              className="rounded-md p-1 text-ink-500 transition hover:text-loss"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {slots.length < MAX_SLOTS ? (
+          <button
+            onClick={onSaveNew}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ink-700 py-2 text-sm text-ink-300 transition hover:border-brand-500/50 hover:text-ink-100"
+          >
+            <Save className="h-3.5 w-3.5" /> Mevcut kadroyu kaydet
+          </button>
+        ) : (
+          <p className="text-center text-[11px] text-ink-600">
+            3 kadro dolu — birini güncelle ya da sil.
+          </p>
+        )}
+      </div>
+    </Card>
   )
 }
 
