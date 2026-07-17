@@ -1,33 +1,14 @@
 import { useEffect } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
 
-// Sets the browser-tab title from the current route.
-const TITLES: Array<[RegExp, string]> = [
-  [/^\/$/, 'Ana Sayfa'],
-  [/^\/leagues\/\d+/, 'Lig'],
-  [/^\/leagues/, 'Ligler'],
-  [/^\/teams\//, 'Takım'],
-  [/^\/players\//, 'Oyuncu'],
-  [/^\/matches\//, 'Maç'],
-  [/^\/group/, 'Grup'],
-  [/^\/predictions/, 'Tahminler'],
-  [/^\/oyun/, 'Gol Düellosu'],
-  [/^\/kadro-kur/, 'Kadro Kur'],
-  [/^\/kim-bu/, 'Kim Bu?'],
-  [/^\/admin/, 'Admin'],
-  [/^\/settings/, 'Ayarlar'],
-  [/^\/login/, 'Giriş'],
-  [/^\/register/, 'Kayıt'],
-]
-
+// The browser tab always reads just the brand (plus its logo favicon), never a
+// per-page prefix.
 function RouteTitle() {
-  const { pathname } = useLocation()
   useEffect(() => {
-    const match = TITLES.find(([re]) => re.test(pathname))
-    document.title = match ? `${match[1]} · EXTRATIME` : 'EXTRATIME'
-  }, [pathname])
+    document.title = 'Extratime'
+  }, [])
   return null
 }
 import { AuthProvider } from '@/features/auth/AuthContext'
