@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { Table, Th, Td, Tr } from '@/components/ui/Table'
 import { TeamLogo } from '@/components/TeamLogo'
 import { FormBadges } from './FormBadges'
 import { cn } from '@/lib/cn'
@@ -83,60 +82,101 @@ export function StandingsTable({ rows, compact = false }: { rows: StandingRow[];
   )
 }
 
+// Rank chip: podium colours for the top three, plain otherwise.
+function rankChip(rank: number): string {
+  if (rank === 1) return 'bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/25'
+  if (rank === 2) return 'bg-slate-300/15 text-slate-200 ring-1 ring-slate-300/20'
+  if (rank === 3) return 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25'
+  return 'text-ink-400'
+}
+
 function StandingsTableInner({ rows, compact }: { rows: StandingRow[]; compact: boolean }) {
   return (
-    <Table>
-      <thead>
-        <tr>
-          <Th className="w-8">#</Th>
-          <Th>Takım</Th>
-          <Th className="text-center">O</Th>
-          {!compact && (
-            <>
-              <Th className="hidden text-center sm:table-cell">G</Th>
-              <Th className="hidden text-center sm:table-cell">B</Th>
-              <Th className="hidden text-center sm:table-cell">M</Th>
-            </>
-          )}
-          <Th className="text-center">AV</Th>
-          {!compact && <Th className="hidden text-center md:table-cell">Form</Th>}
-          <Th className="text-center">P</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => {
-          const diff = row.goalsFor - row.goalsAgainst
-          const zone = standingZone(row.description)
-          return (
-            <Tr key={row.teamId}>
-              <Td className={cn('border-l-2 text-ink-400', zone ? zone.border : 'border-l-transparent')}>
-                {row.position}
-              </Td>
-              <Td>
-                <Link to={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-brand-300">
-                  <TeamLogo apiId={row.teamApiId} size={20} />
-                  <span className="truncate">{row.teamName}</span>
-                </Link>
-              </Td>
-              <Td className="text-center">{row.played}</Td>
-              {!compact && (
-                <>
-                  <Td className="hidden text-center sm:table-cell">{row.won}</Td>
-                  <Td className="hidden text-center sm:table-cell">{row.drawn}</Td>
-                  <Td className="hidden text-center sm:table-cell">{row.lost}</Td>
-                </>
-              )}
-              <Td className="text-center text-ink-400">{diff > 0 ? `+${diff}` : diff}</Td>
-              {!compact && (
-                <Td className="hidden text-center md:table-cell">
-                  <FormBadges form={row.form} />
-                </Td>
-              )}
-              <Td className="text-center font-bold text-ink-100">{row.points}</Td>
-            </Tr>
-          )
-        })}
-      </tbody>
-    </Table>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-sm tabular-nums">
+        <thead>
+          <tr className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+            <th className="py-3 pl-3 pr-1 text-left">#</th>
+            <th className="py-3 pl-1 pr-3 text-left">Takım</th>
+            <th className="px-2 py-3 text-center">O</th>
+            {!compact && (
+              <>
+                <th className="hidden px-2 py-3 text-center sm:table-cell">G</th>
+                <th className="hidden px-2 py-3 text-center sm:table-cell">B</th>
+                <th className="hidden px-2 py-3 text-center sm:table-cell">M</th>
+              </>
+            )}
+            <th className="px-2 py-3 text-center">AV</th>
+            {!compact && <th className="hidden px-3 py-3 text-center md:table-cell">Form</th>}
+            <th className="px-3 py-3 text-center">P</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const diff = row.goalsFor - row.goalsAgainst
+            const zone = standingZone(row.description)
+            return (
+              <tr
+                key={row.teamId}
+                className="group border-b border-ink-850/40 transition-colors last:border-0 even:bg-ink-900/20 hover:bg-ink-800/40"
+              >
+                <td
+                  className={cn(
+                    'border-l-[3px] py-3 pl-2 pr-1',
+                    zone ? zone.border : 'border-l-transparent',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'inline-grid h-6 min-w-[24px] place-items-center rounded-md px-1 text-[13px] font-bold',
+                      rankChip(row.position),
+                    )}
+                  >
+                    {row.position}
+                  </span>
+                </td>
+                <td className="py-3 pl-1 pr-3">
+                  <Link
+                    to={`/teams/${row.teamId}`}
+                    className="flex items-center gap-2.5 group-hover:text-brand-300"
+                  >
+                    <TeamLogo apiId={row.teamApiId} size={26} />
+                    <span className="truncate font-semibold text-ink-100">{row.teamName}</span>
+                  </Link>
+                </td>
+                <td className="px-2 py-3 text-center text-ink-300">{row.played}</td>
+                {!compact && (
+                  <>
+                    <td className="hidden px-2 py-3 text-center text-ink-300 sm:table-cell">{row.won}</td>
+                    <td className="hidden px-2 py-3 text-center text-ink-400 sm:table-cell">{row.drawn}</td>
+                    <td className="hidden px-2 py-3 text-center text-ink-400 sm:table-cell">{row.lost}</td>
+                  </>
+                )}
+                <td
+                  className={cn(
+                    'px-2 py-3 text-center font-medium',
+                    diff > 0 ? 'text-win' : diff < 0 ? 'text-loss' : 'text-ink-500',
+                  )}
+                >
+                  {diff > 0 ? `+${diff}` : diff}
+                </td>
+                {!compact && (
+                  <td className="hidden px-3 py-3 md:table-cell">
+                    <div className="flex justify-center">
+                      <FormBadges form={row.form} />
+                    </div>
+                  </td>
+                )}
+                <td className="px-3 py-3 text-center">
+                  <span className="inline-grid h-7 min-w-[32px] place-items-center rounded-lg bg-ink-800/80 px-1.5 text-[15px] font-extrabold text-ink-50 ring-1 ring-ink-700/60 transition group-hover:ring-brand-500/40">
+                    {row.points}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
