@@ -65,11 +65,11 @@ function cmpNum(guess: number | null, secret: number | null): { state: TileState
 
 const TILE_BG: Record<TileState, string> = {
   match:
-    'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white ring-emerald-300/70 shadow-sm shadow-emerald-950/40',
+    'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] ring-emerald-300/70 shadow-sm shadow-emerald-950/40',
   close:
-    'bg-gradient-to-b from-amber-300 to-amber-500 text-ink-950 ring-amber-200/70 shadow-sm shadow-amber-950/30',
-  miss: 'bg-gradient-to-b from-ink-800 to-ink-850 text-ink-300 ring-ink-700',
-  unknown: 'bg-ink-900/70 text-ink-500 ring-ink-800',
+    'bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950 ring-amber-200/70 shadow-sm shadow-amber-950/30',
+  miss: 'bg-gradient-to-br from-ink-750 to-ink-850 text-ink-100 ring-ink-600',
+  unknown: 'bg-ink-900/60 italic text-ink-400 ring-ink-800',
 }
 
 const BEST_KEY = 'extratime:guess:best'
