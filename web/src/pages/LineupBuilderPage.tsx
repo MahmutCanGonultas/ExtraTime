@@ -1194,18 +1194,20 @@ function Pitch({
                 y1={slots[a].y}
                 x2={slots[b].x}
                 y2={slots[b].y}
-                stroke="rgba(194,245,66,0.13)"
-                strokeWidth={1.5}
+                stroke="rgba(194,245,66,0.14)"
+                strokeWidth={6}
                 strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
               />
               <line
                 x1={slots[a].x}
                 y1={slots[a].y}
                 x2={slots[b].x}
                 y2={slots[b].y}
-                stroke="rgba(194,245,66,0.5)"
-                strokeWidth={0.4}
+                stroke="rgba(194,245,66,0.55)"
+                strokeWidth={1.5}
                 strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
               />
             </g>
           ))}
