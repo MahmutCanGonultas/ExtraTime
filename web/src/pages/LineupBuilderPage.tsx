@@ -723,7 +723,7 @@ export function LineupBuilderPage() {
               <p className="mt-2 text-center text-[11px] text-ink-500">
                 {swapFrom !== null
                   ? 'Yer değiştirmek için başka bir oyuncuya (veya boş mevkiye) dokun'
-                  : 'Oyuncuya tıkla → işlemler · sahada sürükle · üst üste bırakınca yer değişir'}
+                  : 'Oyuncuya dokun → işlemler menüsü (yer değiştir, kaptan, çıkar) · masaüstünde sürükleyerek de taşıyabilirsin'}
               </p>
             </div>
 
@@ -1225,7 +1225,7 @@ function BenchChip({
       onDragStart={onDragStart}
       onClick={onClick}
       disabled={disabled}
-      title={`${player.name} · ${roleLabel}${player.age != null ? ` · ${player.age} yaş` : ''}\nSahaya sürükle veya dokun`}
+      title={`${player.name} · ${roleLabel}${player.age != null ? ` · ${player.age} yaş` : ''}\nDokun → sahaya ekle (masaüstünde sürükle)`}
       className={cn(
         'flex w-full cursor-grab items-center gap-2 rounded-lg border border-l-[3px] border-ink-800 bg-ink-900 px-2 py-1.5 text-left transition hover:border-brand-500/50 hover:bg-ink-800 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-60',
         roleKind ? ROLE_ACCENT[roleKind] : 'border-l-ink-600',
@@ -1312,6 +1312,21 @@ function Pitch({
     const r = ref.current!.getBoundingClientRect()
     return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }
   }
+  // Chip sizes scale with the measured pitch width so dense lines (5-back, 10-0-0)
+  // don't overlap or clip on narrow phones. Before the first measure, use the max.
+  const [pitchW, setPitchW] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0
+      if (w) setPitchW(w)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const av = pitchW ? Math.round(Math.min(52, Math.max(30, pitchW * 0.135))) : 52
+  const chipSize = { avatar: av, box: av + 4, label: Math.round(av * 1.9), empty: Math.round(av * 0.9) }
   return (
     <div
       ref={ref}
@@ -1505,6 +1520,7 @@ function Pitch({
           slot={slot}
           player={players[i]}
           number={players[i]?.jerseyNumber ?? i + 1}
+          size={chipSize}
           isCaptain={captain === i}
           isSwapSource={swapFrom === i}
           swapping={swapFrom !== null}
@@ -1523,6 +1539,7 @@ function SlotChip({
   slot,
   player,
   number,
+  size,
   isCaptain,
   isSwapSource,
   swapping,
@@ -1535,6 +1552,7 @@ function SlotChip({
   slot: Slot
   player: Placed | null
   number: number
+  size: { avatar: number; box: number; label: number; empty: number }
   isCaptain: boolean
   isSwapSource: boolean
   swapping: boolean
@@ -1546,8 +1564,8 @@ function SlotChip({
 }) {
   return (
     <div
-      className="absolute flex w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-[left,top] duration-200"
-      style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+      className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-[left,top] duration-200"
+      style={{ left: `${slot.x}%`, top: `${slot.y}%`, width: size.label + 12 }}
     >
       {player ? (
         <div className="group relative flex flex-col items-center">
@@ -1559,16 +1577,17 @@ function SlotChip({
               'relative cursor-grab transition hover:scale-105 active:cursor-grabbing',
               swapping && !isSwapSource && 'hover:scale-110',
             )}
-            title={swapping ? 'Yer değiştirmek için dokun' : 'Tıkla: işlemler · sürükle: taşı'}
+            title={swapping ? 'Yer değiştirmek için dokun' : 'Dokun: işlemler menüsü'}
           >
             <div
               className={cn(
-                'grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
+                'grid place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
                 isSwapSource ? 'ring-brand-400 ring-offset-2 ring-offset-emerald-900' : ROLE_RING[slot.role],
                 isSwapSource && 'animate-pulse',
               )}
+              style={{ height: size.box, width: size.box }}
             >
-              <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={52} />
+              <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={size.avatar} />
             </div>
             <span
               className={cn(
@@ -1600,7 +1619,10 @@ function SlotChip({
           >
             👑
           </button>
-          <span className="mt-1.5 flex max-w-[96px] items-center gap-1 truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10">
+          <span
+            className="mt-1.5 flex items-center gap-1 truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10"
+            style={{ maxWidth: size.label }}
+          >
             {isCaptain && <span className="text-amber-300">©</span>}
             <span className="truncate">{surname(player.name)}</span>
           </span>
@@ -1608,8 +1630,9 @@ function SlotChip({
       ) : (
         <button
           onClick={onClick}
+          style={{ height: size.empty, width: size.empty }}
           className={cn(
-            'grid h-12 w-12 place-items-center rounded-full border-2 border-dashed bg-ink-950/30 backdrop-blur-sm transition hover:scale-105 hover:border-white/70 hover:bg-ink-950/50',
+            'grid place-items-center rounded-full border-2 border-dashed bg-ink-950/30 backdrop-blur-sm transition hover:scale-105 hover:border-white/70 hover:bg-ink-950/50',
             'border-white/40',
           )}
           title={`${ROLE_LABEL[slot.role]} ekle`}

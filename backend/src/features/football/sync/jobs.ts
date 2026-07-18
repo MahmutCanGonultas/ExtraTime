@@ -602,8 +602,10 @@ export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number
 // daily would cost hundreds of requests/day. Instead we rotate: each run refreshes
 // the N most-stale teams (least-recently-updated first). Because syncCurrentSquads
 // stamps updated_at, refreshed teams sink to the back and the rest surface next
-// day, so every team is refreshed on a rolling ~week cycle within a bounded budget.
-const SQUAD_REFRESH_MAX_TEAMS = 60
+// day, so every team is refreshed on a rolling cycle within a bounded budget.
+// Kept small so it fits the free 100-req/day plan alongside the other daily syncs;
+// raise it if the API plan is upgraded.
+const SQUAD_REFRESH_MAX_TEAMS = 20
 
 /**
  * Daily refresh of tracked teams' current squads so transfers (new club, shirt
