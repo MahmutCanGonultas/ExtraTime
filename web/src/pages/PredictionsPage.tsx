@@ -100,24 +100,47 @@ export function PredictionsPage() {
             )}
           </div>
 
-          {/* progress */}
+          {/* Vibrant game hero — the group + your progress, front and centre, so
+              predicting is the obvious first thing you do here. */}
           {openGames.length > 0 && (
-            <div className="max-w-sm">
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="text-ink-400">
-                  {predicted}/{openGames.length} maç tahmin edildi
-                </span>
-                <span className="font-medium text-brand-300">
-                  {predicted < openGames.length ? `${openGames.length - predicted} kaldı` : 'Hepsi tamam ✓'}
-                </span>
+            <section className="relative overflow-hidden rounded-card border border-brand-500/25 bg-gradient-to-br from-brand-500/20 via-ink-900 to-ink-950 px-5 py-4">
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(90% 130% at 100% 0%, rgba(194,245,66,0.20), transparent 55%)',
+                }}
+              />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-brand-300">
+                    {active.name} · tahmin oyunu
+                  </div>
+                  <h2 className="mt-0.5 text-2xl font-extrabold tracking-tight text-white">
+                    {predicted === openGames.length ? 'Tüm tahminlerin hazır 🎯' : 'Tahminlerini gir'}
+                  </h2>
+                  <p className="mt-0.5 text-sm text-ink-300">
+                    {predicted}/{openGames.length} maç tahmin edildi
+                    {predicted < openGames.length && (
+                      <span className="font-semibold text-brand-300">
+                        {' '}
+                        · {openGames.length - predicted} maç kaldı
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="score-num shrink-0 text-right">
+                  <span className="text-4xl font-black tabular-nums text-brand-300">{predicted}</span>
+                  <span className="text-xl font-bold text-ink-500">/{openGames.length}</span>
+                </div>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-ink-800">
+              <div className="relative mt-3 h-2.5 overflow-hidden rounded-full bg-ink-950/60">
                 <div
-                  className="h-full rounded-full bg-brand-500 transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-brand-400 to-emerald-500 transition-all"
                   style={{ width: `${openGames.length ? (predicted / openGames.length) * 100 : 0}%` }}
                 />
               </div>
-            </div>
+            </section>
           )}
 
           <HowToPlay />

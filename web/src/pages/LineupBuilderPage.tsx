@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X, Trash2, Users, Sparkles, ArrowLeftRight, Save, FolderOpen } from 'lucide-react'
+import {
+  Plus,
+  X,
+  Trash2,
+  Users,
+  Sparkles,
+  ArrowLeftRight,
+  Save,
+  FolderOpen,
+  PenLine,
+  Eraser,
+} from 'lucide-react'
 import { useSearch, useTeamSquad } from '@/features/football/hooks'
 import type { SquadPlayer } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -128,6 +139,28 @@ const FORMATION_NOTES: Record<string, string> = {
   '3-4-3': 'Cesur ve ofansif — kanatlarda baskı, riskli ama etkili.',
   '5-3-2': 'Kompakt beşli savunma, hızlı kontra atak.',
   '10-0-0': '🧱 Otobüsü çektik — herkes savunmada, gol yeme derdi yok!',
+}
+
+// User-drawn tactical arrows (pass / run directions), in pitch-percent coords.
+interface Arrow {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+const ARROWS_KEY = 'extratime:lineup:arrows:v1'
+function loadArrows(): Arrow[] {
+  const raw = safeGetItem(ARROWS_KEY)
+  if (!raw) return []
+  try {
+    const a = JSON.parse(raw)
+    return Array.isArray(a) ? a : []
+  } catch {
+    return []
+  }
+}
+function saveArrows(a: Arrow[]) {
+  safeSetItem(ARROWS_KEY, JSON.stringify(a))
 }
 
 const ROLE_RING: Record<Role, string> = {
@@ -334,7 +367,21 @@ function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
 export function LineupBuilderPage() {
   const initial = useMemo(loadSaved, [])
   const [formation, setFormation] = useState<FormationKey>(initial.formation)
-  const [showTactics, setShowTactics] = useState(true)
+  const [showTactics, setShowTactics] = useState(false)
+  const [arrows, setArrows] = useState<Arrow[]>(loadArrows)
+  const [arrowMode, setArrowMode] = useState(false)
+
+  function addArrow(a: Arrow) {
+    setArrows((prev) => {
+      const next = [...prev, a]
+      saveArrows(next)
+      return next
+    })
+  }
+  function clearArrows() {
+    setArrows([])
+    saveArrows([])
+  }
   const [title, setTitle] = useState(initial.title)
   const [players, setPlayers] = useState<(Placed | null)[]>(initial.players)
   const [captain, setCaptain] = useState<number | null>(() => initial.captain)
@@ -621,6 +668,9 @@ export function LineupBuilderPage() {
                 slots={placedSlots}
                 connections={connections}
                 showTactics={showTactics}
+                arrows={arrows}
+                arrowMode={arrowMode}
+                onAddArrow={addArrow}
                 players={players}
                 captain={captain}
                 teamApiId={loadedTeamApiId}
@@ -794,6 +844,35 @@ export function LineupBuilderPage() {
                 />
               </span>
             </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setArrowMode((v) => !v)}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition',
+                  arrowMode
+                    ? 'border-brand-500 bg-brand-500/15 text-brand-200'
+                    : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:text-ink-100',
+                )}
+              >
+                <PenLine className="h-4 w-4" /> {arrowMode ? 'Çizim açık' : 'Ok çiz'}
+              </button>
+              {arrows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearArrows}
+                  className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-ink-400 transition hover:border-loss/50 hover:text-loss"
+                  title="Okları temizle"
+                >
+                  <Eraser className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {arrowMode && (
+              <p className="text-[11px] leading-relaxed text-ink-500">
+                Sahada sürükleyerek pas/koşu oku çiz — bitince kapat. Oyuncuları düzenlemek için çizimi kapat.
+              </p>
+            )}
           </Card>
 
           <Button variant="secondary" className="w-full" onClick={reset} disabled={filled === 0}>
@@ -1106,6 +1185,9 @@ function Pitch({
   slots,
   connections,
   showTactics,
+  arrows,
+  arrowMode,
+  onAddArrow,
   players,
   captain,
   teamApiId,
@@ -1121,6 +1203,9 @@ function Pitch({
   slots: Slot[]
   connections: Array<[number, number]>
   showTactics: boolean
+  arrows: Arrow[]
+  arrowMode: boolean
+  onAddArrow: (a: Arrow) => void
   players: (Placed | null)[]
   captain: number | null
   teamApiId: number | null
@@ -1134,6 +1219,11 @@ function Pitch({
   onDropAt: (x: number, y: number) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [draft, setDraft] = useState<Arrow | null>(null)
+  const toPct = (e: React.PointerEvent) => {
+    const r = ref.current!.getBoundingClientRect()
+    return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }
+  }
   return (
     <div
       ref={ref}
@@ -1148,7 +1238,37 @@ function Pitch({
           ((e.clientY - rect.top) / rect.height) * 100,
         )
       }}
-      className="relative mx-auto aspect-[3/4] w-full max-w-[480px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60"
+      onPointerDown={
+        arrowMode
+          ? (e) => {
+              const p = toPct(e)
+              setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
+              e.currentTarget.setPointerCapture(e.pointerId)
+            }
+          : undefined
+      }
+      onPointerMove={
+        arrowMode && draft
+          ? (e) => {
+              const p = toPct(e)
+              setDraft({ ...draft, x2: p.x, y2: p.y })
+            }
+          : undefined
+      }
+      onPointerUp={
+        arrowMode && draft
+          ? (e) => {
+              const p = toPct(e)
+              const a = { ...draft, x2: p.x, y2: p.y }
+              if (Math.hypot(a.x2 - a.x1, a.y2 - a.y1) > 3) onAddArrow(a)
+              setDraft(null)
+            }
+          : undefined
+      }
+      className={cn(
+        'relative mx-auto aspect-[3/4] w-full max-w-[480px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60',
+        arrowMode && 'cursor-crosshair',
+      )}
       style={{
         backgroundImage:
           'repeating-linear-gradient(180deg, #124d33 0 8.33%, #0e4229 8.33% 16.66%), radial-gradient(130% 90% at 50% 0%, rgba(194,245,66,0.10), transparent 55%)',
@@ -1210,6 +1330,42 @@ function Pitch({
                 vectorEffect="non-scaling-stroke"
               />
             </g>
+          ))}
+        </svg>
+      )}
+
+      {/* User-drawn tactical arrows (pass / run directions) + the live draft. */}
+      {(arrows.length > 0 || draft) && (
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+        >
+          <defs>
+            <marker
+              id="lineup-arrowhead"
+              markerWidth="7"
+              markerHeight="7"
+              refX="4.5"
+              refY="3"
+              orient="auto"
+            >
+              <path d="M0,0 L6,3 L0,6 Z" fill="#c2f542" />
+            </marker>
+          </defs>
+          {[...arrows, ...(draft ? [draft] : [])].map((a, k) => (
+            <line
+              key={k}
+              x1={a.x1}
+              y1={a.y1}
+              x2={a.x2}
+              y2={a.y2}
+              stroke="#c2f542"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              markerEnd="url(#lineup-arrowhead)"
+              vectorEffect="non-scaling-stroke"
+            />
           ))}
         </svg>
       )}

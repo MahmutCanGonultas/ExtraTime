@@ -173,7 +173,7 @@ const TROPHY_IMG: Record<string, string> = {
   'la-liga': '/trophies/la-liga.png',
   'premier-league': '/trophies/premier-league.png',
   bundesliga: '/trophies/bundesliga.png',
-  'serie-a': '/trophies/serie-a.png',
+  'serie-a': '/trophies/serie-a.jpg',
   'ligue-1': '/trophies/ligue-1.png',
   'super-lig': '/trophies/super-lig.png',
   'copa-del-rey': '/trophies/copa-del-rey.png',
@@ -181,7 +181,7 @@ const TROPHY_IMG: Record<string, string> = {
   'dfb-pokal': '/trophies/dfb-pokal.png',
   'coppa-italia': '/trophies/coppa-italia.png',
   'coupe-de-france': '/trophies/coupe-de-france.png',
-  'turkiye-kupasi': '/trophies/turkiye-kupasi.png',
+  'turkiye-kupasi': '/trophies/turkiye-kupasi.jpg',
 }
 const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
   39: { league: 'premier-league', cup: 'fa-cup' },
@@ -303,21 +303,39 @@ function TrophyCabinet({
   )
 }
 
+// Gold / silver / bronze podium tints for the top three scorers.
+const MEDAL_CARD = [
+  'from-amber-400/[0.14] to-ink-900 ring-amber-400/35',
+  'from-slate-300/[0.10] to-ink-900 ring-slate-300/25',
+  'from-orange-500/[0.10] to-ink-900 ring-orange-500/25',
+]
+const MEDAL_NUM = ['text-amber-300', 'text-slate-200', 'text-orange-300']
+
 function TeamStars({ squad, season }: { squad: SquadPlayer[]; season?: number }) {
   return (
     <Card>
-      <CardHeader title={`Takımın golcüleri${season ? ` · ${seasonLabel(season)}` : ''}`} />
+      <CardHeader
+        title={`Takımın golcüleri${season ? ` · ${seasonLabel(season)}` : ''}`}
+        action={<Trophy className="h-4 w-4 text-amber-400" />}
+      />
       <CardBody>
-        <div className="grid grid-cols-3 gap-3">
-          {squad.map((p) => (
+        <div className="grid grid-cols-3 items-end gap-3">
+          {squad.map((p, i) => (
             <Link
               key={p.playerApiId}
               to={`/players/${p.playerApiId}`}
-              className="flex flex-col items-center gap-1.5 rounded-lg bg-ink-850 px-2 py-3 text-center transition hover:bg-ink-800"
+              className={`relative flex flex-col items-center gap-1.5 rounded-xl border border-ink-800 bg-gradient-to-b px-2 py-3 text-center ring-1 transition hover:brightness-125 ${
+                MEDAL_CARD[i] ?? 'from-ink-850 to-ink-900 ring-transparent'
+              }`}
             >
-              <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={56} />
+              <span className="absolute left-2 top-1.5 text-[11px] font-black tabular-nums text-ink-600">
+                {i + 1}
+              </span>
+              <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={i === 0 ? 66 : 52} />
               <div className="mt-0.5 truncate text-xs font-medium text-ink-100">{p.name}</div>
-              <div className="score-num text-2xl font-extrabold text-brand-300">{p.goals ?? 0}</div>
+              <div className={`score-num text-2xl font-extrabold ${MEDAL_NUM[i] ?? 'text-brand-300'}`}>
+                {p.goals ?? 0}
+              </div>
               <div className="text-[10px] uppercase tracking-wide text-ink-500">gol</div>
             </Link>
           ))}

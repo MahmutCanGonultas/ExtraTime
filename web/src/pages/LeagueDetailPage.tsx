@@ -56,34 +56,48 @@ export function LeagueDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        {league && <TeamLogo apiId={league.apiFootballId} kind="league" size={40} />}
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-ink-100">{league?.name ?? 'Lig'}</h1>
+      <section className="relative overflow-hidden rounded-card border border-ink-800 bg-gradient-to-r from-ink-900 via-ink-900 to-ink-950 px-5 py-4">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(90% 130% at 0% 0%, rgba(194,245,66,0.11), transparent 55%)',
+          }}
+        />
+        <div className="relative flex flex-wrap items-center gap-4">
           {league && (
-            <p className="text-sm text-ink-400">
-              {league.country} · {seasonLabel(league.season)} sezonu
-            </p>
+            <div className="shrink-0 rounded-2xl bg-white/[0.06] p-2.5 ring-1 ring-white/10">
+              <TeamLogo apiId={league.apiFootballId} kind="league" size={46} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+              {league?.name ?? 'Lig'}
+            </h1>
+            {league && (
+              <p className="mt-0.5 text-sm text-ink-400">
+                {league.country} · {seasonLabel(league.season)} sezonu
+              </p>
+            )}
+          </div>
+          {seasons.length > 1 && (
+            <label className="ml-auto flex items-center gap-2 text-sm text-ink-400">
+              <span className="hidden sm:inline">Sezon</span>
+              <select
+                value={leagueId}
+                onChange={(e) => navigate(`/leagues/${e.target.value}`)}
+                className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm font-semibold text-ink-100 outline-none transition hover:border-ink-600 focus:border-brand-500"
+              >
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {seasonLabel(s.season)}
+                    {s.isCurrent ? ' • güncel' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
         </div>
-        {seasons.length > 1 && (
-          <label className="ml-auto flex items-center gap-2 text-sm text-ink-400">
-            <span className="hidden sm:inline">Sezon</span>
-            <select
-              value={leagueId}
-              onChange={(e) => navigate(`/leagues/${e.target.value}`)}
-              className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm font-semibold text-ink-100 outline-none transition hover:border-ink-600 focus:border-brand-500"
-            >
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {seasonLabel(s.season)}
-                  {s.isCurrent ? ' • güncel' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
+      </section>
 
       <Tabs items={tabs} active={active} onChange={setTab} />
 

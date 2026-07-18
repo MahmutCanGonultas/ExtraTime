@@ -280,8 +280,8 @@ function OutcomeButton({
       onClick={onClick}
       className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-semibold transition ${
         active
-          ? 'border-brand-400 bg-brand-500 text-ink-950 shadow-sm shadow-brand-950/40'
-          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:bg-ink-800 hover:text-ink-100'
+          ? 'scale-[1.03] border-brand-300 bg-gradient-to-b from-brand-400 to-emerald-500 text-ink-950 shadow-md shadow-brand-950/50 ring-1 ring-brand-300/60'
+          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-brand-500/40 hover:bg-ink-800 hover:text-ink-100'
       }`}
     >
       {children}

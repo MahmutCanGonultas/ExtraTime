@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
+import { CalendarDays, Shirt, Sparkles, Target } from 'lucide-react'
 import { usePlayer } from '@/features/football/hooks'
 import type { PlayerSeason } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -50,11 +51,13 @@ export function PlayerDetailPage() {
   )
   const distinctSeasons = new Set(data.seasons.map((s) => s.season)).size
   const summary = [
-    { label: 'Sezon', value: distinctSeasons },
-    { label: 'Maç', value: totals.apps },
-    { label: 'Gol', value: totals.goals, accent: true },
-    { label: 'Asist', value: totals.assists },
+    { label: 'Sezon', value: distinctSeasons, Icon: CalendarDays, grad: 'from-violet-400 to-purple-600' },
+    { label: 'Maç', value: totals.apps, Icon: Shirt, grad: 'from-sky-400 to-blue-600' },
+    { label: 'Gol', value: totals.goals, Icon: Target, grad: 'from-brand-400 to-emerald-600' },
+    { label: 'Asist', value: totals.assists, Icon: Sparkles, grad: 'from-amber-300 to-orange-500' },
   ]
+  // Peak-goals season, highlighted in the career table.
+  const peakGoals = Math.max(0, ...data.seasons.map((s) => s.goals ?? 0))
 
   const isFormer = data.currentTeamSeason != null && data.currentTeamSeason < CURRENT_SEASON
 
@@ -66,6 +69,20 @@ export function PlayerDetailPage() {
         style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
       >
         <div className="absolute inset-0 mow-stripes" />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              'radial-gradient(120% 85% at 85% -15%, rgba(194,245,66,0.18), transparent 55%)',
+          }}
+        />
+        {/* A big translucent flag disc anchors the hero and adds a splash of the
+            player's nationality colour instead of a flat green field. */}
+        {data.nationality && (
+          <div className="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 select-none text-[9rem] leading-none opacity-15 blur-[1px] sm:block">
+            {flagEmoji(data.nationality)}
+          </div>
+        )}
         <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
         <div className="relative flex flex-wrap items-center gap-5 px-6 py-7 sm:px-8">
           <PlayerAvatar
@@ -107,19 +124,22 @@ export function PlayerDetailPage() {
         </div>
       </section>
 
-      {/* Career totals */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Career totals — a distinct colour + icon per stat, so the row reads at a glance */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {summary.map((s) => (
-          <Card key={s.label}>
-            <div className="px-3 py-4 text-center">
+          <Card key={s.label} className="overflow-hidden">
+            <div className="flex items-center gap-3 px-3 py-3.5 sm:px-4">
               <div
-                className={`score-num text-2xl font-extrabold tabular-nums sm:text-3xl ${
-                  s.accent ? 'text-brand-300' : 'text-ink-100'
-                }`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${s.grad} shadow-lg shadow-black/30 ring-1 ring-white/10`}
               >
-                {s.value}
+                <s.Icon className="h-5 w-5 text-white drop-shadow" />
               </div>
-              <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{s.label}</div>
+              <div className="min-w-0">
+                <div className="score-num text-2xl font-extrabold leading-none tabular-nums text-ink-50 sm:text-3xl">
+                  {s.value}
+                </div>
+                <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{s.label}</div>
+              </div>
             </div>
           </Card>
         ))}
@@ -144,7 +164,11 @@ export function PlayerDetailPage() {
           </thead>
           <tbody>
             {data.seasons.map((s) => (
-              <SeasonRow key={`${s.leagueId}-${s.season}`} s={s} />
+              <SeasonRow
+                key={`${s.leagueId}-${s.season}`}
+                s={s}
+                peak={peakGoals > 0 && (s.goals ?? 0) === peakGoals}
+              />
             ))}
           </tbody>
         </Table>
@@ -153,11 +177,12 @@ export function PlayerDetailPage() {
   )
 }
 
-function SeasonRow({ s }: { s: PlayerSeason }) {
+function SeasonRow({ s, peak }: { s: PlayerSeason; peak?: boolean }) {
   return (
-    <Tr>
+    <Tr className={peak ? 'bg-brand-500/[0.07]' : undefined}>
       <Td className="whitespace-nowrap text-ink-300">
         <Link to={`/leagues/${s.leagueId}`} className="flex items-center gap-1.5 hover:text-brand-300">
+          {peak && <span className="text-amber-300" title="En golcü sezonu">★</span>}
           <TeamLogo apiId={s.leagueApiId} kind="league" size={16} />
           {seasonLabel(s.season)}
         </Link>
@@ -173,7 +198,7 @@ function SeasonRow({ s }: { s: PlayerSeason }) {
       </Td>
       <Td className="text-center text-ink-300">{s.appearances ?? '—'}</Td>
       <Td className="hidden text-center text-ink-400 sm:table-cell">{s.minutes ?? '—'}</Td>
-      <Td className="text-center font-bold text-ink-100">{s.goals ?? 0}</Td>
+      <Td className={`text-center font-bold ${peak ? 'text-brand-300' : 'text-ink-100'}`}>{s.goals ?? 0}</Td>
       <Td className="text-center font-semibold text-ink-100">{s.assists ?? 0}</Td>
       <Td className="hidden text-center text-ink-400 sm:table-cell">{s.yellowCards ?? 0}</Td>
       <Td className="hidden text-center text-ink-400 sm:table-cell">{s.redCards ?? 0}</Td>
