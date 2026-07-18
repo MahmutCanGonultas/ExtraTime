@@ -10,6 +10,7 @@ import {
   FolderOpen,
   PenLine,
   Eraser,
+  ChevronDown,
 } from 'lucide-react'
 import { useSearch, useTeamSquad } from '@/features/football/hooks'
 import type { SquadPlayer } from '@/features/football/types'
@@ -370,6 +371,7 @@ export function LineupBuilderPage() {
   const [showTactics, setShowTactics] = useState(false)
   const [arrows, setArrows] = useState<Arrow[]>(loadArrows)
   const [arrowMode, setArrowMode] = useState(false)
+  const [formOpen, setFormOpen] = useState(true)
 
   function addArrow(a: Arrow) {
     setArrows((prev) => {
@@ -802,7 +804,18 @@ export function LineupBuilderPage() {
           )}
 
           <Card className="space-y-3 p-4">
-            <div className="section-label text-ink-400">Diziliş</div>
+            <button
+              type="button"
+              onClick={() => setFormOpen((v) => !v)}
+              className="flex w-full items-center justify-between"
+            >
+              <span className="section-label text-ink-400">Diziliş · {formation}</span>
+              <ChevronDown
+                className={cn('h-4 w-4 text-ink-400 transition', formOpen ? '' : '-rotate-90')}
+              />
+            </button>
+            {formOpen && (
+            <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(FORMATIONS) as FormationKey[]).map((key) => (
                 <button
@@ -872,6 +885,8 @@ export function LineupBuilderPage() {
               <p className="text-[11px] leading-relaxed text-ink-500">
                 Sahada sürükleyerek pas/koşu oku çiz — bitince kapat. Oyuncuları düzenlemek için çizimi kapat.
               </p>
+            )}
+            </div>
             )}
           </Card>
 

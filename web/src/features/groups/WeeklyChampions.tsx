@@ -4,9 +4,19 @@ import type { GameWeek } from './types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
 
-// A round's headline label — the Süper Lig-style gameweek number ("2. Hafta"),
-// falling back to the raw round name for cups/knockouts.
+const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+
+// Each week is an Istanbul calendar week (Mon–Sun). roundKey is that week's Monday
+// date — show it as "N. Hafta · 13 Tem–19 Tem".
 function weekTitle(week: GameWeek): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(week.roundKey)
+  if (m) {
+    const mon = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const sun = new Date(mon)
+    sun.setDate(mon.getDate() + 6)
+    const fmt = (d: Date) => `${d.getDate()} ${TR_MONTHS[d.getMonth()]}`
+    return `${week.weekNo}. Hafta · ${fmt(mon)}–${fmt(sun)}`
+  }
   return week.weekNo != null ? `${week.weekNo}. Hafta` : week.roundKey
 }
 

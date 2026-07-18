@@ -117,23 +117,22 @@ export interface GameWeek {
  */
 export async function seasonWeeks(groupId: number, seasonId: number | null): Promise<GameWeek[]> {
   if (seasonId === null) return []
-  // The league round, with its trailing number pulled out ("Regular Season - 2" → 2).
-  const ROUND = `COALESCE(f.round, 'Maçlar')`
-  const WEEK_NO = `(regexp_match(f.round, '(\\d+)\\s*$'))[1]::int`
+  // Bucket by the Istanbul CALENDAR week (Monday 00:00 – Sunday 23:59): every match
+  // played in the same week — whatever competition or round — shares one weekly
+  // champion. The key is the week's Monday date.
+  const WEEK = `to_char(date_trunc('week', f.kickoff_at AT TIME ZONE 'Europe/Istanbul'), 'YYYY-MM-DD')`
 
   const fixtures = await query<{
     roundKey: string
-    weekNo: number | null
     matchCount: number
     settledCount: number
   }>(
-    `SELECT ${ROUND} AS "roundKey",
-            MAX(${WEEK_NO}) AS "weekNo",
+    `SELECT ${WEEK} AS "roundKey",
             COUNT(*)::int AS "matchCount",
             COUNT(*) FILTER (WHERE f.status IN ('FT','AET','PEN'))::int AS "settledCount"
      FROM group_fixtures gf JOIN fixtures f ON f.id = gf.fixture_id
      WHERE gf.season_id = $1
-     GROUP BY ${ROUND} ORDER BY MIN(f.kickoff_at)`,
+     GROUP BY ${WEEK} ORDER BY MIN(f.kickoff_at)`,
     [seasonId],
   )
 
@@ -144,7 +143,7 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
     points: number
     exactCount: number
   }>(
-    `SELECT ${ROUND} AS "roundKey",
+    `SELECT ${WEEK} AS "roundKey",
             u.id AS "userId", u.display_name AS "displayName",
             COALESCE(SUM(p.points_awarded), 0)::int AS points,
             COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount"
@@ -155,7 +154,7 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
      LEFT JOIN predictions p ON p.group_id = gf.group_id AND p.user_id = gm.user_id
        AND p.fixture_id = gf.fixture_id AND p.settled_at IS NOT NULL
      WHERE gf.season_id = $1 AND gf.group_id = $2
-     GROUP BY ${ROUND}, u.id, u.display_name`,
+     GROUP BY ${WEEK}, u.id, u.display_name`,
     [seasonId, groupId],
   )
 
@@ -164,8 +163,8 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
   const weeks: GameWeek[] = fixtures.rows.map((f, i) => {
     roundIndex.set(f.roundKey, i)
     return {
-      roundKey: f.roundKey,
-      weekNo: f.weekNo,
+      roundKey: f.roundKey, // the week's Monday date (YYYY-MM-DD)
+      weekNo: i + 1, // chronological week index within the game
       matchCount: f.matchCount,
       settledCount: f.settledCount,
       settled: f.settledCount === f.matchCount && f.matchCount > 0,

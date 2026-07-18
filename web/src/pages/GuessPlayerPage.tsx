@@ -455,22 +455,31 @@ function MysteryPhoto({ player, revealed }: { player: GuessPoolPlayer | null; re
 
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
-      {revealed && player?.photoUrl && !failed ? (
+      {player?.photoUrl && !failed ? (
         <img
+          // Heavily blurred + darkened while playing (can't be guessed from), fully
+          // clear once the round is solved or given up.
           key={player.playerApiId}
           src={player.photoUrl}
-          alt={player.name}
+          alt={revealed ? player.name : 'Gizli oyuncu'}
           onError={() => setFailed(true)}
-          className="h-full w-full animate-pop-in object-cover"
+          style={
+            revealed
+              ? undefined
+              : { filter: 'blur(22px) brightness(0.75) grayscale(0.4)', transform: 'scale(1.25)' }
+          }
+          className="h-full w-full object-cover transition-[filter,transform] duration-500"
           draggable={false}
         />
       ) : (
-        <div className="grid h-full w-full place-items-center bg-gradient-to-b from-ink-800 to-ink-950">
-          <div className="flex flex-col items-center gap-1 text-ink-600">
-            <User className="h-24 w-24" />
-            <span className="score-num text-6xl font-black leading-none text-ink-700">?</span>
-          </div>
+        <div className="grid h-full w-full place-items-center bg-gradient-to-b from-ink-800 to-ink-950 text-ink-600">
+          <User className="h-24 w-24" />
         </div>
+      )}
+      {!revealed && (
+        <span className="absolute bottom-2 right-2 rounded-lg bg-ink-950/70 px-2 py-0.5 text-xl font-black text-white/80">
+          ?
+        </span>
       )}
     </div>
   )
