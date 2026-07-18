@@ -173,6 +173,16 @@
   }
 }
 
+/* Lineup-builder tactical arrows: when not drawing, hovering an arrow shows it's
+   deletable (pointer cursor + it turns red). The CSS `stroke` beats the inline
+   presentation colour, so only the hovered arrow recolours. */
+.la-arrow {
+  cursor: pointer;
+}
+.la-arrow:hover .la-vis {
+  stroke: #f05252;
+}
+
 /* Clear affordances — it must be obvious what can be clicked. Interactive elements
    always show the pointer cursor and a visible keyboard-focus ring. */
 button:not(:disabled),

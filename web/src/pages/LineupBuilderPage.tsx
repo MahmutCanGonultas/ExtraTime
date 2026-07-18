@@ -142,20 +142,39 @@ const FORMATION_NOTES: Record<string, string> = {
   '10-0-0': '🧱 Otobüsü çektik — herkes savunmada, gol yeme derdi yok!',
 }
 
-// User-drawn tactical arrows (pass / run directions), in pitch-percent coords.
+// User-drawn tactical arrows, in pitch-percent coords. Each arrow has a tactical
+// KIND so the same drawing tool can express passes, runs and pressing — each with
+// its own colour + line style, the way a coach's whiteboard does.
+type ArrowKind = 'pass' | 'run' | 'press'
 interface Arrow {
   x1: number
   y1: number
   x2: number
   y2: number
+  kind: ArrowKind
 }
+const ARROW_STYLES: Record<ArrowKind, { label: string; hint: string; color: string; dash?: string }> = {
+  pass: { label: 'Pas', hint: 'düz çizgi — topun gideceği yön', color: '#c2f542' },
+  run: { label: 'Koşu', hint: 'kesik çizgi — oyuncunun koşusu', color: '#38bdf8', dash: '5 3' },
+  press: { label: 'Pres', hint: 'noktalı — baskı / markaj yönü', color: '#fb7185', dash: '1.5 3' },
+}
+const ARROW_KINDS = Object.keys(ARROW_STYLES) as ArrowKind[]
+
 const ARROWS_KEY = 'extratime:lineup:arrows:v1'
 function loadArrows(): Arrow[] {
   const raw = safeGetItem(ARROWS_KEY)
   if (!raw) return []
   try {
     const a = JSON.parse(raw)
-    return Array.isArray(a) ? a : []
+    if (!Array.isArray(a)) return []
+    // Older saves had no kind — treat them as passes.
+    return a.map((x): Arrow => ({
+      x1: x.x1,
+      y1: x.y1,
+      x2: x.x2,
+      y2: x.y2,
+      kind: ARROW_STYLES[x?.kind as ArrowKind] ? x.kind : 'pass',
+    }))
   } catch {
     return []
   }
@@ -371,11 +390,19 @@ export function LineupBuilderPage() {
   const [showTactics, setShowTactics] = useState(false)
   const [arrows, setArrows] = useState<Arrow[]>(loadArrows)
   const [arrowMode, setArrowMode] = useState(false)
+  const [arrowKind, setArrowKind] = useState<ArrowKind>('pass')
   const [formOpen, setFormOpen] = useState(true)
 
   function addArrow(a: Arrow) {
     setArrows((prev) => {
       const next = [...prev, a]
+      saveArrows(next)
+      return next
+    })
+  }
+  function removeArrow(index: number) {
+    setArrows((prev) => {
+      const next = prev.filter((_, i) => i !== index)
       saveArrows(next)
       return next
     })
@@ -672,7 +699,9 @@ export function LineupBuilderPage() {
                 showTactics={showTactics}
                 arrows={arrows}
                 arrowMode={arrowMode}
+                arrowKind={arrowKind}
                 onAddArrow={addArrow}
+                onRemoveArrow={removeArrow}
                 players={players}
                 captain={captain}
                 teamApiId={loadedTeamApiId}
@@ -882,8 +911,48 @@ export function LineupBuilderPage() {
               )}
             </div>
             {arrowMode && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {ARROW_KINDS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setArrowKind(k)}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-bold transition',
+                        arrowKind === k
+                          ? 'border-transparent text-ink-950'
+                          : 'border-ink-700 bg-ink-850 text-ink-300 hover:text-ink-100',
+                      )}
+                      style={arrowKind === k ? { backgroundColor: ARROW_STYLES[k].color } : undefined}
+                    >
+                      <span
+                        className="h-0.5 w-4 rounded-full"
+                        style={{
+                          backgroundColor: arrowKind === k ? '#1a1f27' : ARROW_STYLES[k].color,
+                          ...(ARROW_STYLES[k].dash
+                            ? {
+                                background: `repeating-linear-gradient(90deg, ${
+                                  arrowKind === k ? '#1a1f27' : ARROW_STYLES[k].color
+                                } 0 3px, transparent 3px 5px)`,
+                              }
+                            : {}),
+                        }}
+                      />
+                      {ARROW_STYLES[k].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-ink-500">
+                  Sahada sürükleyerek çiz —{' '}
+                  <span className="text-ink-300">{ARROW_STYLES[arrowKind].hint}</span>. Bitince çizimi
+                  kapat; bir oku silmek için üstüne tıkla.
+                </p>
+              </div>
+            )}
+            {!arrowMode && arrows.length > 0 && (
               <p className="text-[11px] leading-relaxed text-ink-500">
-                Sahada sürükleyerek pas/koşu oku çiz — bitince kapat. Oyuncuları düzenlemek için çizimi kapat.
+                Bir oku silmek için sahada üstüne tıkla · hepsini silmek için 🧽 sil.
               </p>
             )}
             </div>
@@ -1202,7 +1271,9 @@ function Pitch({
   showTactics,
   arrows,
   arrowMode,
+  arrowKind,
   onAddArrow,
+  onRemoveArrow,
   players,
   captain,
   teamApiId,
@@ -1220,7 +1291,9 @@ function Pitch({
   showTactics: boolean
   arrows: Arrow[]
   arrowMode: boolean
+  arrowKind: ArrowKind
   onAddArrow: (a: Arrow) => void
+  onRemoveArrow: (i: number) => void
   players: (Placed | null)[]
   captain: number | null
   teamApiId: number | null
@@ -1257,7 +1330,7 @@ function Pitch({
         arrowMode
           ? (e) => {
               const p = toPct(e)
-              setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
+              setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y, kind: arrowKind })
               e.currentTarget.setPointerCapture(e.pointerId)
             }
           : undefined
@@ -1349,7 +1422,9 @@ function Pitch({
         </svg>
       )}
 
-      {/* User-drawn tactical arrows (pass / run directions) + the live draft. */}
+      {/* User-drawn tactical arrows (pass / run / press) + the live draft. Each
+          arrow has a wide transparent "hit" line so it can be tapped to delete
+          when not drawing; the arrowheads are one marker per kind (colour). */}
       {(arrows.length > 0 || draft) && (
         <svg
           viewBox="0 0 100 100"
@@ -1357,31 +1432,70 @@ function Pitch({
           className="pointer-events-none absolute inset-0 h-full w-full"
         >
           <defs>
-            <marker
-              id="lineup-arrowhead"
-              markerWidth="7"
-              markerHeight="7"
-              refX="4.5"
-              refY="3"
-              orient="auto"
-            >
-              <path d="M0,0 L6,3 L0,6 Z" fill="#c2f542" />
-            </marker>
+            {ARROW_KINDS.map((k) => (
+              <marker
+                key={k}
+                id={`la-head-${k}`}
+                markerWidth="7"
+                markerHeight="7"
+                refX="4.5"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L6,3 L0,6 Z" fill={ARROW_STYLES[k].color} />
+              </marker>
+            ))}
           </defs>
-          {[...arrows, ...(draft ? [draft] : [])].map((a, k) => (
+          {arrows.map((a, k) => {
+            const st = ARROW_STYLES[a.kind]
+            return (
+              <g key={k} className={cn(!arrowMode && 'la-arrow')}>
+                <line
+                  x1={a.x1}
+                  y1={a.y1}
+                  x2={a.x2}
+                  y2={a.y2}
+                  stroke="transparent"
+                  strokeWidth={7}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ pointerEvents: arrowMode ? 'none' : 'stroke' }}
+                  onClick={arrowMode ? undefined : () => onRemoveArrow(k)}
+                >
+                  <title>Silmek için tıkla</title>
+                </line>
+                <line
+                  className="la-vis"
+                  x1={a.x1}
+                  y1={a.y1}
+                  x2={a.x2}
+                  y2={a.y2}
+                  stroke={st.color}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeDasharray={st.dash}
+                  markerEnd={`url(#la-head-${a.kind})`}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
+            )
+          })}
+          {draft && (
             <line
-              key={k}
-              x1={a.x1}
-              y1={a.y1}
-              x2={a.x2}
-              y2={a.y2}
-              stroke="#c2f542"
+              x1={draft.x1}
+              y1={draft.y1}
+              x2={draft.x2}
+              y2={draft.y2}
+              stroke={ARROW_STYLES[draft.kind].color}
               strokeWidth={2.5}
               strokeLinecap="round"
-              markerEnd="url(#lineup-arrowhead)"
+              strokeDasharray={ARROW_STYLES[draft.kind].dash}
+              markerEnd={`url(#la-head-${draft.kind})`}
               vectorEffect="non-scaling-stroke"
+              opacity={0.85}
             />
-          ))}
+          )}
         </svg>
       )}
 
