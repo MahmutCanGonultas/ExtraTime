@@ -1,11 +1,11 @@
-import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MapPin, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import type { SquadPlayer, Team, TeamHonours, TeamHonourYears, TeamStanding } from '@/features/football/types'
+import { wonTrophies, TrophyImage, type WonTrophy } from '@/features/football/trophyAssets'
+import type { SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
@@ -36,15 +36,17 @@ export function TeamPage() {
   const domesticLeagueId = standings.find((s) =>
     [39, 140, 78, 135, 61, 203].includes(s.leagueApiId),
   )?.leagueApiId
+  const won = wonTrophies(trophies, domesticLeagueId, trophyYears)
+  const trophyTotal = won.reduce((sum, it) => sum + it.count, 0)
   const squadSeason = squad[0]?.season
   const recent = fixtures.filter((f) => isFinished(f.status)).reverse()
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
 
   return (
     <div className="space-y-5">
-      {/* Hero — the stadium photo as a blurred, darkened backdrop that fills the
-          whole banner, with the team crest big and framed in front. */}
-      <section className="relative h-52 overflow-hidden rounded-card border border-ink-800 bg-ink-950 sm:h-60">
+      {/* Hero — the stadium photo as a blurred, darkened backdrop, with the crest
+          + identity on the left and the club's trophies right beside it. */}
+      <section className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950">
         {team.venueImage ? (
           <img
             src={team.venueImage}
@@ -62,30 +64,36 @@ export function TeamPage() {
             <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
           </>
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-950/55 to-ink-950/25" />
-        <div className="absolute inset-0 flex items-center gap-5 p-6 sm:gap-7 sm:px-10">
-          <div className="shrink-0 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
-            <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
-              {team.name}
-            </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
-              {location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 text-brand-300" /> {location}
-                </span>
-              )}
-              {team.founded && <span>Kuruluş {team.founded}</span>}
-              {primary && (
-                <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-bold text-ink-950">
-                  {primary.leagueName}
-                  {primary.played > 0 ? ` · ${primary.position}. sıra` : ` · ${seasonLabel(primary.season)}`}
-                </span>
-              )}
+        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/92 via-ink-950/65 to-ink-950/40" />
+        <div className="relative flex flex-col gap-5 p-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <div className="flex min-w-0 items-center gap-5 sm:gap-6">
+            <div className="shrink-0 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
+              <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
+                {team.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
+                {location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-brand-300" /> {location}
+                  </span>
+                )}
+                {team.founded && <span>Kuruluş {team.founded}</span>}
+                {primary && (
+                  <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-bold text-ink-950">
+                    {primary.leagueName}
+                    {primary.played > 0
+                      ? ` · ${primary.position}. sıra`
+                      : ` · ${seasonLabel(primary.season)}`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
+          {won.length > 0 && <TrophyShelf won={won} total={trophyTotal} teamId={team.id} />}
         </div>
       </section>
 
@@ -128,7 +136,6 @@ export function TeamPage() {
         </div>
 
         <aside className="space-y-5">
-          <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} years={trophyYears} />
           <TeamInfoCard team={team} />
 
           <Card className="overflow-hidden">
@@ -159,146 +166,36 @@ export function TeamPage() {
   )
 }
 
-// Real trophy photos in /public/trophies. The league-title and national-cup image
-// depend on which of the six leagues the club plays in; the European/world ones
-// are fixed. (jpg or png per source.)
-const TROPHY_IMG: Record<string, string> = {
-  'champions-league': '/trophies/champions-league.png',
-  'europa-league': '/trophies/europa-league.png',
-  'conference-league': '/trophies/conference-league.png',
-  'super-cup': '/trophies/super-cup.png',
-  'club-world-cup': '/trophies/club-world-cup.png',
-  'cup-winners-cup': '/trophies/cup-winners-cup.png',
-  'la-liga': '/trophies/la-liga.png',
-  'premier-league': '/trophies/premier-league.png',
-  bundesliga: '/trophies/bundesliga.png',
-  'serie-a': '/trophies/serie-a.jpg',
-  'ligue-1': '/trophies/ligue-1.png',
-  'super-lig': '/trophies/super-lig.png',
-  'copa-del-rey': '/trophies/copa-del-rey.png',
-  'fa-cup': '/trophies/fa-cup.png',
-  'dfb-pokal': '/trophies/dfb-pokal.png',
-  'coppa-italia': '/trophies/coppa-italia.png',
-  'coupe-de-france': '/trophies/coupe-de-france.png',
-  'turkiye-kupasi': '/trophies/turkiye-kupasi.jpg',
-}
-const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
-  39: { league: 'premier-league', cup: 'fa-cup' },
-  140: { league: 'la-liga', cup: 'copa-del-rey' },
-  78: { league: 'bundesliga', cup: 'dfb-pokal' },
-  135: { league: 'serie-a', cup: 'coppa-italia' },
-  61: { league: 'ligue-1', cup: 'coupe-de-france' },
-  203: { league: 'super-lig', cup: 'turkiye-kupasi' },
-}
-const CONTINENTAL_SLUG: Partial<Record<keyof TeamHonours, string>> = {
-  championsLeague: 'champions-league',
-  europaLeague: 'europa-league',
-  conferenceLeague: 'conference-league',
-  cupWinnersCup: 'cup-winners-cup',
-  uefaSuperCup: 'super-cup',
-  clubWorldCup: 'club-world-cup',
-}
-// Order shown, most prestigious first.
-const HONOUR_ORDER: Array<{ key: keyof TeamHonours; label: string }> = [
-  { key: 'leagueTitles', label: 'Lig Şampiyonluğu' },
-  { key: 'championsLeague', label: 'Şampiyonlar Ligi' },
-  { key: 'domesticCups', label: 'Ülke Kupası' },
-  { key: 'europaLeague', label: 'UEFA Avrupa Ligi' },
-  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası' },
-  { key: 'conferenceLeague', label: 'Konferans Ligi' },
-  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası' },
-  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa' },
-]
-
-function honourSlug(key: keyof TeamHonours, leagueApiId?: number): string | undefined {
-  if (key === 'leagueTitles') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.league : undefined
-  if (key === 'domesticCups') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.cup : undefined
-  return CONTINENTAL_SLUG[key]
-}
-
-// The trophy photo, falling back to a trophy icon if the image is missing/broken.
-function TrophyImage({ src, label }: { src?: string; label: string }) {
-  const [failed, setFailed] = useState(!src)
-  if (failed || !src) return <Trophy className="h-9 w-9 text-amber-400/70" />
+// A compact, prominent trophy shelf shown right in the team header: the club's
+// most prestigious honours as big photos, linking to the full cabinet page.
+function TrophyShelf({ won, total, teamId }: { won: WonTrophy[]; total: number; teamId: number }) {
+  const top = won.slice(0, 4)
   return (
-    <img
-      src={src}
-      alt={label}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className="max-h-full max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]"
-    />
-  )
-}
-
-function TrophyCabinet({
-  trophies,
-  leagueApiId,
-  years,
-}: {
-  trophies: TeamHonours | null
-  leagueApiId?: number
-  years?: TeamHonourYears | null
-}) {
-  const [detailed, setDetailed] = useState(false)
-  if (!trophies) return null
-  const won = HONOUR_ORDER.map((it) => ({
-    ...it,
-    count: trophies[it.key],
-    slug: honourSlug(it.key, leagueApiId),
-    years: years?.[it.key] ?? [],
-  })).filter((it) => it.count > 0)
-  if (won.length === 0) return null
-  const total = won.reduce((sum, it) => sum + it.count, 0)
-  const hasYears = won.some((it) => it.years.length > 0)
-
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader
-        title="Kupa Dolabı"
-        action={
-          <div className="flex items-center gap-2">
-            {hasYears && (
-              <button
-                onClick={() => setDetailed((d) => !d)}
-                className="rounded-full border border-ink-700 px-2.5 py-1 text-xs font-semibold text-ink-300 transition hover:border-brand-500 hover:text-brand-300"
-              >
-                {detailed ? 'Basit' : 'Detaylı'}
-              </button>
-            )}
-            <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-bold text-amber-300">
-              <Trophy className="h-3.5 w-3.5" /> {total} kupa
-            </span>
-          </div>
-        }
-      />
-      <CardBody className="space-y-2">
-        {won.map((it) => (
-          <div
-            key={it.key}
-            className="flex items-center gap-3 rounded-xl border border-ink-800 bg-gradient-to-r from-ink-800/40 to-ink-950 p-2.5"
-          >
-            <div className="flex h-12 w-11 shrink-0 items-center justify-center">
-              <TrophyImage src={it.slug ? TROPHY_IMG[it.slug] : undefined} label={it.label} />
+    <Link
+      to={`/teams/${teamId}/trophies`}
+      className="group shrink-0 rounded-2xl border border-amber-400/25 bg-ink-950/55 p-3 pt-2.5 ring-1 ring-white/5 backdrop-blur-md transition hover:border-amber-400/55 hover:bg-ink-950/70"
+    >
+      <div className="mb-2 flex items-center justify-between gap-4 px-1">
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-300">
+          <Trophy className="h-3.5 w-3.5" /> {total} Kupa
+        </span>
+        <span className="text-[11px] font-semibold text-ink-400 transition group-hover:text-amber-300">
+          Tümü &rarr;
+        </span>
+      </div>
+      <div className="flex items-end justify-center gap-2 sm:gap-3">
+        {top.map((it) => (
+          <div key={it.key} className="flex w-[68px] flex-col items-center gap-1.5" title={it.label}>
+            <div className="flex h-[72px] w-full items-end justify-center">
+              <TrophyImage src={it.img} label={it.label} />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-ink-100">{it.label}</div>
-              {detailed && it.years.length > 0 && (
-                <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-ink-500">
-                  {it.years.join(' · ')}
-                </div>
-              )}
-            </div>
-            <span className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 text-sm font-black tabular-nums text-ink-950">
-              ×{it.count}
+            <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-black tabular-nums text-ink-950 shadow">
+              &times;{it.count}
             </span>
           </div>
         ))}
-        {detailed && !hasYears && (
-          <p className="text-center text-xs text-ink-500">Yıl verisi bulunamadı.</p>
-        )}
-      </CardBody>
-    </Card>
+      </div>
+    </Link>
   )
 }
 
@@ -402,14 +299,18 @@ function StandingCard({ s }: { s: TeamStanding }) {
   const cols: Array<{ label: string; value: string; tone?: string }> = [
     { label: 'Sıra', value: `${s.position}.`, tone: 'text-brand-300' },
     { label: 'O', value: String(s.played) },
-    { label: 'G', value: String(s.won) },
-    { label: 'B', value: String(s.drawn) },
-    { label: 'M', value: String(s.lost) },
-    { label: 'AV', value: diff > 0 ? `+${diff}` : String(diff) },
-    { label: 'P', value: String(s.points), tone: 'text-ink-100' },
+    { label: 'G', value: String(s.won), tone: 'text-emerald-400' },
+    { label: 'B', value: String(s.drawn), tone: 'text-ink-300' },
+    { label: 'M', value: String(s.lost), tone: 'text-rose-400' },
+    {
+      label: 'AV',
+      value: diff > 0 ? `+${diff}` : String(diff),
+      tone: diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-ink-300',
+    },
+    { label: 'P', value: String(s.points), tone: 'text-amber-300' },
   ]
   return (
-    <Card>
+    <Card className="overflow-hidden border-brand-500/15 bg-gradient-to-br from-brand-500/[0.06] to-ink-900">
       <CardBody>
         <div className="mb-3 flex items-center gap-2">
           <TeamLogo apiId={s.leagueApiId} kind="league" size={18} />
@@ -421,7 +322,7 @@ function StandingCard({ s }: { s: TeamStanding }) {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-7 gap-1 rounded-xl bg-ink-850 p-3 text-center">
+        <div className="grid grid-cols-7 gap-1 rounded-xl bg-ink-950/60 p-3 text-center ring-1 ring-ink-800">
           {cols.map((c) => (
             <div key={c.label}>
               <div className={`score-num text-xl font-extrabold ${c.tone ?? 'text-ink-200'}`}>{c.value}</div>

@@ -20,6 +20,7 @@ import { HomePage } from '@/pages/HomePage'
 import { LeaguesPage } from '@/pages/LeaguesPage'
 import { LeagueDetailPage } from '@/pages/LeagueDetailPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { TeamTrophiesPage } from '@/pages/TeamTrophiesPage'
 import { SquadPage } from '@/pages/SquadPage'
 import { PlayerDetailPage } from '@/pages/PlayerDetailPage'
 import { GroupHubPage } from '@/pages/GroupHubPage'
@@ -46,6 +47,7 @@ export function App() {
                 <Route path="/leagues" element={<LeaguesPage />} />
                 <Route path="/leagues/:id" element={<LeagueDetailPage />} />
                 <Route path="/teams/:id" element={<TeamPage />} />
+                <Route path="/teams/:id/trophies" element={<TeamTrophiesPage />} />
                 <Route path="/teams/:id/squad" element={<SquadPage />} />
                 <Route path="/players/:apiId" element={<PlayerDetailPage />} />
                 <Route path="/matches/:id" element={<MatchPage />} />
