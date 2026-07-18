@@ -89,8 +89,6 @@ export function TeamPage() {
         </div>
       </section>
 
-      <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} years={trophyYears} />
-
       {primary && <StandingCard s={primary} />}
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -130,6 +128,7 @@ export function TeamPage() {
         </div>
 
         <aside className="space-y-5">
+          <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} years={trophyYears} />
           <TeamInfoCard team={team} />
 
           <Card className="overflow-hidden">
@@ -220,14 +219,14 @@ function honourSlug(key: keyof TeamHonours, leagueApiId?: number): string | unde
 // The trophy photo, falling back to a trophy icon if the image is missing/broken.
 function TrophyImage({ src, label }: { src?: string; label: string }) {
   const [failed, setFailed] = useState(!src)
-  if (failed || !src) return <Trophy className="h-14 w-14 text-amber-400/70" />
+  if (failed || !src) return <Trophy className="h-9 w-9 text-amber-400/70" />
   return (
     <img
       src={src}
       alt={label}
       loading="lazy"
       onError={() => setFailed(true)}
-      className="max-h-[108px] max-w-full object-contain drop-shadow-[0_6px_16px_rgba(0,0,0,0.55)]"
+      className="max-h-full max-w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]"
     />
   )
 }
@@ -273,30 +272,30 @@ function TrophyCabinet({
           </div>
         }
       />
-      <CardBody>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {won.map((it) => (
-            <div
-              key={it.key}
-              className="relative flex flex-col items-center gap-2.5 rounded-2xl border border-ink-800 bg-gradient-to-b from-ink-800/50 to-ink-950 p-3 pt-4 text-center"
-            >
-              <span className="absolute right-2 top-2 z-10 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black tabular-nums text-ink-950 shadow-md">
-                ×{it.count}
-              </span>
-              <div className="flex h-28 w-full items-end justify-center">
-                <TrophyImage src={it.slug ? TROPHY_IMG[it.slug] : undefined} label={it.label} />
-              </div>
-              <div className="text-[11px] font-medium leading-tight text-ink-300">{it.label}</div>
+      <CardBody className="space-y-2">
+        {won.map((it) => (
+          <div
+            key={it.key}
+            className="flex items-center gap-3 rounded-xl border border-ink-800 bg-gradient-to-r from-ink-800/40 to-ink-950 p-2.5"
+          >
+            <div className="flex h-12 w-11 shrink-0 items-center justify-center">
+              <TrophyImage src={it.slug ? TROPHY_IMG[it.slug] : undefined} label={it.label} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-ink-100">{it.label}</div>
               {detailed && it.years.length > 0 && (
-                <div className="mt-0.5 max-h-24 overflow-y-auto text-[10px] leading-relaxed text-ink-500">
+                <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-ink-500">
                   {it.years.join(' · ')}
                 </div>
               )}
             </div>
-          ))}
-        </div>
+            <span className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 text-sm font-black tabular-nums text-ink-950">
+              ×{it.count}
+            </span>
+          </div>
+        ))}
         {detailed && !hasYears && (
-          <p className="mt-2 text-center text-xs text-ink-500">Bu kulüp için yıl verisi bulunamadı.</p>
+          <p className="text-center text-xs text-ink-500">Yıl verisi bulunamadı.</p>
         )}
       </CardBody>
     </Card>
