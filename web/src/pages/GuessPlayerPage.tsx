@@ -91,16 +91,7 @@ const POS_TR: Record<string, string> = {
 }
 const posLabel = (p: string | null) => (p ? (POS_TR[p] ?? p) : '—')
 
-// How censored the photo is: fully blurred at the start, opening a little with
-// each wrong guess, fully clear once the round is over.
 const MAX_GUESSES = 8
-const BASE_BLUR = 16
-const BLUR_STEP = 2 // opens a bit faster per wrong guess
-const MIN_BLUR = 4 // but never fully clears during play — only when solved / given up
-function blurFor(wrongGuesses: number, finished: boolean): number {
-  if (finished) return 0
-  return Math.max(MIN_BLUR, BASE_BLUR - wrongGuesses * BLUR_STEP)
-}
 
 type TileState = 'match' | 'close' | 'miss' | 'unknown'
 type Arrow = 'up' | 'down' | null
@@ -149,8 +140,6 @@ export function GuessPlayerPage() {
   const outOfGuesses = guesses.length >= MAX_GUESSES && !won
   const finished = won || revealed || outOfGuesses
   const remaining = Math.max(0, MAX_GUESSES - guesses.length)
-  // Guesses that were not the answer — drives how far the photo has opened.
-  const wrongCount = secret ? guesses.filter((g) => g.playerApiId !== secret.playerApiId).length : 0
 
   function pickSecret(list: GuessPoolPlayer[]) {
     // Draw the answer from the most-prominent slice so it is recognisable.
@@ -205,11 +194,11 @@ export function GuessPlayerPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="section-label text-brand-300">Kim Bu Oyuncu?</div>
-          <h1 className="mt-1 text-2xl font-bold text-ink-100">Fotoğraftan oyuncuyu bul</h1>
+          <h1 className="mt-1 text-2xl font-bold text-ink-100">Gizli oyuncuyu bul</h1>
           <p className="mt-1 max-w-xl text-sm text-ink-400">
-            Fotoğraf sansürlü başlar, her yanlış tahminde biraz daha açılır. Tahmininde uyruk,
-            mevki, takım, lig, yaş ve forma numarasını karşılaştıralım — yeşil doğru, sarı yakın,
-            ok yukarıysa aranan değer daha büyük.
+            Fotoğraf gizli — sadece ipuçlarıyla bul. Her tahminde uyruk, mevki, takım, lig, yaş
+            ve forma numarasını karşılaştıralım (yeşil doğru, sarı yakın, ok yukarıysa aranan
+            değer daha büyük). Oyuncunun fotoğrafı ancak doğru bildiğinde ya da hakların bitince açılır.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -242,7 +231,7 @@ export function GuessPlayerPage() {
               }}
             />
             <div className="relative mx-auto w-full max-w-[290px] rounded-[20px] bg-gradient-to-br from-brand-500/50 via-emerald-500/25 to-sky-500/30 p-[3px] shadow-lg shadow-brand-950/20">
-              <MysteryPhoto player={secret} blur={blurFor(wrongCount, finished)} revealed={finished} />
+              <MysteryPhoto player={secret} revealed={finished} />
             </div>
             {finished ? (
               <div className="relative animate-pop-in text-center">
@@ -396,42 +385,30 @@ function GuessInput({
   )
 }
 
-function MysteryPhoto({
-  player,
-  blur,
-  revealed,
-}: {
-  player: GuessPoolPlayer | null
-  blur: number
-  revealed: boolean
-}) {
+// The photo stays HIDDEN during play (a plain silhouette) so nobody can guess from
+// the face — the real photo is only unveiled once the round is solved or given up.
+function MysteryPhoto({ player, revealed }: { player: GuessPoolPlayer | null; revealed: boolean }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [player?.playerApiId])
 
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
-      {player?.photoUrl && !failed ? (
+      {revealed && player?.photoUrl && !failed ? (
         <img
-          // Remount per player so a new round's photo paints already-blurred
-          // instead of transitioning from clear (which briefly revealed the face).
           key={player.playerApiId}
           src={player.photoUrl}
-          alt="Gizli oyuncu"
+          alt={player.name}
           onError={() => setFailed(true)}
-          // Scale up a touch so the blur has no hard edges while censored.
-          style={{ filter: blur > 0 ? `blur(${blur}px)` : 'none', transform: blur > 0 ? 'scale(1.15)' : 'none' }}
-          className="h-full w-full object-cover transition-[filter,transform] duration-500"
+          className="h-full w-full animate-pop-in object-cover"
           draggable={false}
         />
       ) : (
-        <div className="grid h-full w-full place-items-center text-ink-600">
-          <User className="h-20 w-20" />
+        <div className="grid h-full w-full place-items-center bg-gradient-to-b from-ink-800 to-ink-950">
+          <div className="flex flex-col items-center gap-1 text-ink-600">
+            <User className="h-24 w-24" />
+            <span className="score-num text-6xl font-black leading-none text-ink-700">?</span>
+          </div>
         </div>
-      )}
-      {!revealed && (
-        <span className="absolute bottom-1.5 right-1.5 rounded-lg bg-ink-950/70 px-2 py-0.5 text-xl font-bold text-white">
-          ?
-        </span>
       )}
     </div>
   )

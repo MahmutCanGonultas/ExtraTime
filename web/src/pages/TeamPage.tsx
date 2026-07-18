@@ -89,9 +89,9 @@ export function TeamPage() {
         </div>
       </section>
 
-      {primary && <StandingCard s={primary} />}
-
       <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} />
+
+      {primary && <StandingCard s={primary} />}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -164,24 +164,24 @@ export function TeamPage() {
 // depend on which of the six leagues the club plays in; the European/world ones
 // are fixed. (jpg or png per source.)
 const TROPHY_IMG: Record<string, string> = {
-  'champions-league': '/trophies/champions-league.jpg',
-  'europa-league': '/trophies/europa-league.jpg',
-  'conference-league': '/trophies/conference-league.jpg',
-  'super-cup': '/trophies/super-cup.jpg',
-  'club-world-cup': '/trophies/club-world-cup.jpg',
-  'cup-winners-cup': '/trophies/cup-winners-cup.jpg',
-  'la-liga': '/trophies/la-liga.jpg',
-  'premier-league': '/trophies/premier-league.jpg',
-  bundesliga: '/trophies/bundesliga.jpg',
-  'serie-a': '/trophies/serie-a.jpg',
-  'ligue-1': '/trophies/ligue-1.jpg',
-  'super-lig': '/trophies/super-lig.jpg',
+  'champions-league': '/trophies/champions-league.png',
+  'europa-league': '/trophies/europa-league.png',
+  'conference-league': '/trophies/conference-league.png',
+  'super-cup': '/trophies/super-cup.png',
+  'club-world-cup': '/trophies/club-world-cup.png',
+  'cup-winners-cup': '/trophies/cup-winners-cup.png',
+  'la-liga': '/trophies/la-liga.png',
+  'premier-league': '/trophies/premier-league.png',
+  bundesliga: '/trophies/bundesliga.png',
+  'serie-a': '/trophies/serie-a.png',
+  'ligue-1': '/trophies/ligue-1.png',
+  'super-lig': '/trophies/super-lig.png',
   'copa-del-rey': '/trophies/copa-del-rey.png',
-  'fa-cup': '/trophies/fa-cup.jpg',
+  'fa-cup': '/trophies/fa-cup.png',
   'dfb-pokal': '/trophies/dfb-pokal.png',
-  'coppa-italia': '/trophies/coppa-italia.jpg',
+  'coppa-italia': '/trophies/coppa-italia.png',
   'coupe-de-france': '/trophies/coupe-de-france.png',
-  'turkiye-kupasi': '/trophies/turkiye-kupasi.jpg',
+  'turkiye-kupasi': '/trophies/turkiye-kupasi.png',
 }
 const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
   39: { league: 'premier-league', cup: 'fa-cup' },
