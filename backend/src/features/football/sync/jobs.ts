@@ -504,11 +504,31 @@ export async function expandAbbreviatedNames(): Promise<number> {
   const res = await withDbRetry(() =>
     query(
       `UPDATE players
-       SET name = split_part(firstname, ' ', 1) || ' ' || substring(name from '^[A-Z]\\. (.*)$'),
+       SET name = split_part(firstname, ' ', 1) || ' ' || substring(name from '^[A-ZÇĞİÖŞÜ]\\. (.*)$'),
            updated_at = now()
-       WHERE name ~ '^[A-Z]\\. '
+       WHERE name ~ '^[A-ZÇĞİÖŞÜ]\\. '
          AND firstname IS NOT NULL AND firstname <> ''
-         AND substring(name from '^[A-Z]\\. (.*)$') IS NOT NULL`,
+         AND substring(name from '^[A-ZÇĞİÖŞÜ]\\. (.*)$') IS NOT NULL`,
+    ),
+  )
+  return res.rowCount ?? 0
+}
+
+// API-Football's `name` drops middle given names ("Fehmi Mert Günok" → "Fehmi
+// Günok"). When the stored name is exactly <first given name> + <surname> and the
+// firstname holds more given names, restore the full name. Deliberately narrow so
+// mononyms/nicknames (Pedri, Vinícius Júnior) are never touched.
+export async function restoreCompoundFirstNames(): Promise<number> {
+  const res = await withDbRetry(() =>
+    query(
+      `UPDATE players
+       SET name = trim(firstname || ' ' || lastname),
+           updated_at = now()
+       WHERE firstname IS NOT NULL AND firstname <> ''
+         AND lastname IS NOT NULL AND lastname <> ''
+         AND position(' ' in trim(firstname)) > 0
+         AND name = split_part(firstname, ' ', 1) || ' ' || lastname
+         AND name <> trim(firstname || ' ' || lastname)`,
     ),
   )
   return res.rowCount ?? 0
@@ -569,6 +589,7 @@ export async function refreshCurrentSquads(): Promise<SyncResult> {
     const n = await syncCurrentSquads(rows)
     await backfillCurrentSquadProfiles()
     await expandAbbreviatedNames()
+    await restoreCompoundFirstNames()
     return n
   })
 }
