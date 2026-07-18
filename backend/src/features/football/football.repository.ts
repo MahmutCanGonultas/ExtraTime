@@ -358,8 +358,12 @@ const GUESS_SEARCH_LEAGUES = [
   204, // TFF 1. Lig (Turkey)
   308, // Saudi First Division
 ]
-const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the three clubs below
-const GUESS_EXTRA_CLUBS = [645, 611, 549] // Galatasaray, Fenerbahçe, Beşiktaş
+// The four biggest Turkish clubs, guessable in Kim Bu. This ONE list feeds both
+// the answer pool (getGuessPool default) and the search universe, so a Trabzonspor
+// player (e.g. Onuachu) can never be the secret yet be missing from the search.
+const GUESS_TURKISH_CLUBS = [611, 645, 549, 998] // Fenerbahçe, Galatasaray, Beşiktaş, Trabzonspor
+const GUESS_EXTRA_LEAGUE = 203 // Süper Lig, but only the four clubs above
+const GUESS_EXTRA_CLUBS = GUESS_TURKISH_CLUBS
 
 // MLS + the second divisions. These are guessable, but they are only used as a
 // player's *shown* club when he has no top-flight row — so a superstar with a
@@ -406,7 +410,7 @@ const GUESS_UNIVERSE = `players p JOIN leagues l ON l.id = p.league_id
 // Default answer pool: the five big leagues + the four biggest Turkish clubs. The
 // player can widen or narrow this from the game screen (Kim Bu league selector).
 export const GUESS_DEFAULT_LEAGUES = [140, 39, 78, 135, 61]
-export const GUESS_DEFAULT_CLUBS = [611, 645, 549, 998] // Fenerbahçe, Galatasaray, Beşiktaş, Trabzonspor
+export const GUESS_DEFAULT_CLUBS = GUESS_TURKISH_CLUBS // FB, GS, BJK, Trabzonspor
 
 export async function getGuessPool(
   leagueIds: number[] = GUESS_DEFAULT_LEAGUES,

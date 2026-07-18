@@ -355,18 +355,27 @@ export function GuessPlayerPage() {
             <GuessInput term={term} setTerm={setTerm} onPick={submit} guessedIds={guessedIds} />
           )}
           {guesses.length > 0 && secret ? (
-            <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <div className="min-w-180">
-                  <GuessHeader />
-                  <ul className="divide-y divide-ink-850">
-                    {guesses.map((g) => (
-                      <GuessRow key={g.playerApiId} guess={g} secret={secret} />
-                    ))}
-                  </ul>
+            <>
+              {/* Desktop: the wide 7-column comparison table. */}
+              <Card className="hidden overflow-hidden sm:block">
+                <div className="overflow-x-auto">
+                  <div className="min-w-180">
+                    <GuessHeader />
+                    <ul className="divide-y divide-ink-850">
+                      {guesses.map((g) => (
+                        <GuessRow key={g.playerApiId} guess={g} secret={secret} />
+                      ))}
+                    </ul>
+                  </div>
                 </div>
+              </Card>
+              {/* Mobile: stacked cards, no sideways scroll. */}
+              <div className="space-y-3 sm:hidden">
+                {guesses.map((g) => (
+                  <GuessCardMobile key={g.playerApiId} guess={g} secret={secret} />
+                ))}
               </div>
-            </Card>
+            </>
           ) : (
             <Card className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 p-8 text-center">
               <User className="h-9 w-9 text-ink-700" />
@@ -590,33 +599,93 @@ function TeamTile({
   )
 }
 
-function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPoolPlayer }) {
-  const nat = cmpText(guess.nationality, secret.nationality)
-  const pos = cmpText(guess.position, secret.position)
-  const team = cmpText(guess.teamName, secret.teamName)
-  const league = cmpText(guess.leagueName, secret.leagueName)
-  const age = cmpNum(guess.age, secret.age)
-  const jersey = cmpNum(guess.jerseyNumber, secret.jerseyNumber)
+// The six attribute comparisons for one guess vs the secret — shared by the
+// desktop table row and the mobile card so both stay in sync.
+function compareGuess(guess: GuessPoolPlayer, secret: GuessPoolPlayer) {
+  return {
+    nat: cmpText(guess.nationality, secret.nationality),
+    pos: cmpText(guess.position, secret.position),
+    team: cmpText(guess.teamName, secret.teamName),
+    league: cmpText(guess.leagueName, secret.leagueName),
+    age: cmpNum(guess.age, secret.age),
+    jersey: cmpNum(guess.jerseyNumber, secret.jerseyNumber),
+  }
+}
 
+// Desktop (≥sm): one wide 7-column table row.
+function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPoolPlayer }) {
+  const c = compareGuess(guess, secret)
   return (
     <li className={cn(COLS, 'animate-guess-in items-center px-3 py-2.5')}>
       <span className="flex min-w-0 items-center" title={guess.name}>
         <span className="min-w-0 truncate text-base font-semibold text-ink-100">{guess.name}</span>
       </span>
-      <NationalityTile state={nat} nationality={guess.nationality} />
-      <Tile state={pos} title={posLabel(guess.position)}>
+      <NationalityTile state={c.nat} nationality={guess.nationality} />
+      <Tile state={c.pos} title={posLabel(guess.position)}>
         {posLabel(guess.position)}
       </Tile>
-      <TeamTile state={team} teamName={guess.teamName} teamApiId={guess.teamApiId} />
-      <Tile state={league} title={guess.leagueName}>
+      <TeamTile state={c.team} teamName={guess.teamName} teamApiId={guess.teamApiId} />
+      <Tile state={c.league} title={guess.leagueName}>
         {guess.leagueName}
       </Tile>
-      <Tile state={age.state} arrow={age.arrow} big>
+      <Tile state={c.age.state} arrow={c.age.arrow} big>
         {guess.age ?? '—'}
       </Tile>
-      <Tile state={jersey.state} arrow={jersey.arrow} big>
+      <Tile state={c.jersey.state} arrow={c.jersey.arrow} big>
         {guess.jerseyNumber ?? '?'}
       </Tile>
     </li>
+  )
+}
+
+function LabeledTile({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-ink-500">
+        {label}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+// Mobile (<sm): a stacked card so all six attributes are visible without the
+// 720px sideways scroll the table needs.
+function GuessCardMobile({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPoolPlayer }) {
+  const c = compareGuess(guess, secret)
+  return (
+    <div className="animate-guess-in rounded-xl border border-ink-800 bg-ink-900/60 p-3">
+      <div className="mb-2 truncate text-base font-bold text-ink-100" title={guess.name}>
+        {guess.name}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <LabeledTile label="Uyruk">
+          <NationalityTile state={c.nat} nationality={guess.nationality} />
+        </LabeledTile>
+        <LabeledTile label="Mevki">
+          <Tile state={c.pos} title={posLabel(guess.position)}>
+            {posLabel(guess.position)}
+          </Tile>
+        </LabeledTile>
+        <LabeledTile label="Takım">
+          <TeamTile state={c.team} teamName={guess.teamName} teamApiId={guess.teamApiId} />
+        </LabeledTile>
+        <LabeledTile label="Lig">
+          <Tile state={c.league} title={guess.leagueName}>
+            {guess.leagueName}
+          </Tile>
+        </LabeledTile>
+        <LabeledTile label="Yaş">
+          <Tile state={c.age.state} arrow={c.age.arrow} big>
+            {guess.age ?? '—'}
+          </Tile>
+        </LabeledTile>
+        <LabeledTile label="No">
+          <Tile state={c.jersey.state} arrow={c.jersey.arrow} big>
+            {guess.jerseyNumber ?? '?'}
+          </Tile>
+        </LabeledTile>
+      </div>
+    </div>
   )
 }
