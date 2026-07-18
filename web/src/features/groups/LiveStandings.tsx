@@ -43,7 +43,7 @@ export function LiveStandings({
             ) : (
               <Minus className="h-3.5 w-3.5 text-ink-600" />
             )}
-            <MemberAvatar name={e.displayName} size={28} />
+            <MemberAvatar name={e.displayName} avatar={e.avatar} size={28} />
             <span className="min-w-0 flex-1 truncate text-sm text-ink-100">{e.displayName}</span>
             {e.livePoints > 0 && <span className="text-xs font-semibold text-brand-300">+{e.livePoints}</span>}
             <span className="score-num text-lg text-ink-100">{e.points}</span>

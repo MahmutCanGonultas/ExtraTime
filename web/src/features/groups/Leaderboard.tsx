@@ -44,7 +44,7 @@ export function Leaderboard({
             className={cn('flex items-center gap-3 px-3 py-2.5', isMe && 'bg-brand-500/[0.07]')}
           >
             <RankBadge rank={rank} />
-            <MemberAvatar name={e.displayName} size={34} />
+            <MemberAvatar name={e.displayName} avatar={e.avatar} size={34} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-ink-100">
                 {e.displayName}

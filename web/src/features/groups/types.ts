@@ -8,6 +8,7 @@ export interface GroupSummary {
 export interface GroupMember {
   id: number
   displayName: string
+  avatar: string | null
   joinedAt: string
 }
 
@@ -78,6 +79,7 @@ export interface SeasonSummary {
 export interface WeekStanding {
   userId: number
   displayName: string
+  avatar: string | null
   points: number
   exactCount: number
 }
@@ -128,6 +130,7 @@ export interface ProvisionalEntry extends LeaderboardEntry {
 export interface LeaderboardEntry {
   userId: number
   displayName: string
+  avatar: string | null
   points: number
   adjustment: number
   exactCount: number
@@ -157,6 +160,7 @@ export interface MyPrediction {
 export interface MemberPrediction {
   userId: number
   displayName: string
+  avatar: string | null
   predictedOutcome: Outcome
   predictedHome: number | null
   predictedAway: number | null

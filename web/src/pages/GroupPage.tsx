@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, RefreshCw, Users } from 'lucide-react'
+import { Copy, RefreshCw, Users, Crown } from 'lucide-react'
+import { MemberAvatar } from '@/components/MemberAvatar'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import {
   useCreateGroup,
@@ -261,9 +262,16 @@ function MemberRow({
   return (
     <li className="py-2 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-ink-100">
-          {member.displayName}
-          {isAdminOfMember && <span className="ml-1 text-xs text-brand-300">başkan</span>}
+        <span className="flex min-w-0 items-center gap-2.5">
+          <MemberAvatar name={member.displayName} avatar={member.avatar} size={34} />
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-ink-100">{member.displayName}</span>
+            {isAdminOfMember && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-300">
+                <Crown className="h-2.5 w-2.5" /> Başkan
+              </span>
+            )}
+          </span>
         </span>
         {canManage && (
           <Button

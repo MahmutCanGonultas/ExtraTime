@@ -5,6 +5,7 @@ import { useFixturePredictions, useUpsertPrediction } from '@/features/groups/ho
 import { isFinished, isLive } from '@/features/football/matchStatus'
 import { FormBadges } from '@/features/football/FormBadges'
 import { TeamLogo } from '@/components/TeamLogo'
+import { MemberAvatar } from '@/components/MemberAvatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody } from '@/components/ui/Card'
@@ -345,7 +346,10 @@ function MemberRow({
       : outcomeLabel(p.predictedOutcome, homeName, awayName)
   return (
     <li className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
-      <span className="min-w-0 truncate text-ink-200">{p.displayName}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <MemberAvatar name={p.displayName} avatar={p.avatar} size={24} />
+        <span className="min-w-0 truncate text-ink-200">{p.displayName}</span>
+      </span>
       <span className="flex shrink-0 items-center gap-2">
         <span className="font-medium text-ink-100">{pick}</span>
         {p.pointsAwarded != null && <Badge tone={pointsTone(p.pointsAwarded)}>{p.pointsAwarded}</Badge>}

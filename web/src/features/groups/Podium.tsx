@@ -20,7 +20,12 @@ function Column({ slot, isMe }: { slot: Slot | undefined; isMe: boolean }) {
   return (
     <div className="flex flex-1 flex-col items-center">
       {slot.rank === 1 && <Crown className="mb-1 h-5 w-5 text-amber-300" />}
-      <MemberAvatar name={slot.entry.displayName} size={m.avatar} className={cn('ring-2', m.ring)} />
+      <MemberAvatar
+        name={slot.entry.displayName}
+        avatar={slot.entry.avatar}
+        size={m.avatar}
+        className={cn('ring-2', m.ring)}
+      />
       <div className="mt-2 max-w-full truncate px-1 text-center text-sm font-semibold text-ink-100">
         {slot.entry.displayName}
         {isMe && <span className="ml-1 text-xs font-normal text-brand-300">(sen)</span>}

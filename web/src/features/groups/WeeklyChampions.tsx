@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Trophy, ChevronDown, Crown } from 'lucide-react'
 import type { GameWeek } from './types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { MemberAvatar } from '@/components/MemberAvatar'
 import { cn } from '@/lib/cn'
 
 const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
@@ -18,20 +19,6 @@ function weekTitle(week: GameWeek): string {
     return `${week.weekNo}. Hafta · ${fmt(mon)}–${fmt(sun)}`
   }
   return week.weekNo != null ? `${week.weekNo}. Hafta` : week.roundKey
-}
-
-function Initials({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toLocaleUpperCase('tr')
-  return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-bold text-ink-200">
-      {initials}
-    </span>
-  )
 }
 
 // Round-by-round breakdown of a game, aligned to the league gameweeks (Süper Lig
@@ -106,7 +93,7 @@ export function WeeklyChampions({
                       )}
                     >
                       <span className="w-4 shrink-0 text-xs text-ink-500">{idx + 1}</span>
-                      <Initials name={s.displayName} />
+                      <MemberAvatar name={s.displayName} avatar={s.avatar} size={28} />
                       <span className="min-w-0 flex-1 truncate text-ink-100">{s.displayName}</span>
                       <span className="score-num shrink-0 text-ink-200">{s.points}</span>
                     </li>
