@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Globe, MapPin, Medal, Star, Trophy } from 'lucide-react'
+import { MapPin, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
@@ -30,6 +31,11 @@ export function TeamPage() {
   // Anchor to the CURRENT season (newest we hold); it fills in as matches are
   // played. Older seasons live in the players' career tables.
   const primary = standings[0]
+  // Which of the six leagues the club plays in — picks its league-title and
+  // national-cup trophy images.
+  const domesticLeagueId = standings.find((s) =>
+    [39, 140, 78, 135, 61, 203].includes(s.leagueApiId),
+  )?.leagueApiId
   const squadSeason = squad[0]?.season
   const recent = fixtures.filter((f) => isFinished(f.status)).reverse()
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
@@ -85,7 +91,7 @@ export function TeamPage() {
 
       {primary && <StandingCard s={primary} />}
 
-      <TrophyCabinet trophies={trophies} />
+      <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -154,29 +160,85 @@ export function TeamPage() {
   )
 }
 
-// A club's all-time major honours, grouped domestic → European → world. Each
-// trophy gets its own icon + colour so the cabinet reads like a real shelf, not a
-// wall of identical icons.
-const HONOUR_ITEMS: Array<{
-  key: keyof TeamHonours
-  label: string
-  Icon: typeof Trophy
-  grad: string
-  hero?: boolean
-}> = [
-  { key: 'leagueTitles', label: 'Lig Şampiyonluğu', Icon: Trophy, grad: 'from-amber-300 to-yellow-600', hero: true },
-  { key: 'championsLeague', label: 'Şampiyonlar Ligi', Icon: Star, grad: 'from-sky-300 to-indigo-600', hero: true },
-  { key: 'domesticCups', label: 'Ülke Kupası', Icon: Trophy, grad: 'from-rose-400 to-red-600' },
-  { key: 'europaLeague', label: 'UEFA Avrupa Ligi', Icon: Trophy, grad: 'from-orange-300 to-amber-600' },
-  { key: 'conferenceLeague', label: 'Konferans Ligi', Icon: Trophy, grad: 'from-emerald-300 to-green-600' },
-  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası', Icon: Medal, grad: 'from-fuchsia-300 to-purple-600' },
-  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa', Icon: Medal, grad: 'from-cyan-300 to-teal-600' },
-  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası', Icon: Globe, grad: 'from-yellow-300 to-amber-600' },
+// Real trophy photos in /public/trophies. The league-title and national-cup image
+// depend on which of the six leagues the club plays in; the European/world ones
+// are fixed. (jpg or png per source.)
+const TROPHY_IMG: Record<string, string> = {
+  'champions-league': '/trophies/champions-league.jpg',
+  'europa-league': '/trophies/europa-league.jpg',
+  'conference-league': '/trophies/conference-league.jpg',
+  'super-cup': '/trophies/super-cup.jpg',
+  'club-world-cup': '/trophies/club-world-cup.jpg',
+  'cup-winners-cup': '/trophies/cup-winners-cup.jpg',
+  'la-liga': '/trophies/la-liga.jpg',
+  'premier-league': '/trophies/premier-league.jpg',
+  bundesliga: '/trophies/bundesliga.jpg',
+  'serie-a': '/trophies/serie-a.jpg',
+  'ligue-1': '/trophies/ligue-1.jpg',
+  'super-lig': '/trophies/super-lig.jpg',
+  'copa-del-rey': '/trophies/copa-del-rey.png',
+  'fa-cup': '/trophies/fa-cup.jpg',
+  'dfb-pokal': '/trophies/dfb-pokal.png',
+  'coppa-italia': '/trophies/coppa-italia.jpg',
+  'coupe-de-france': '/trophies/coupe-de-france.png',
+  'turkiye-kupasi': '/trophies/turkiye-kupasi.jpg',
+}
+const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
+  39: { league: 'premier-league', cup: 'fa-cup' },
+  140: { league: 'la-liga', cup: 'copa-del-rey' },
+  78: { league: 'bundesliga', cup: 'dfb-pokal' },
+  135: { league: 'serie-a', cup: 'coppa-italia' },
+  61: { league: 'ligue-1', cup: 'coupe-de-france' },
+  203: { league: 'super-lig', cup: 'turkiye-kupasi' },
+}
+const CONTINENTAL_SLUG: Partial<Record<keyof TeamHonours, string>> = {
+  championsLeague: 'champions-league',
+  europaLeague: 'europa-league',
+  conferenceLeague: 'conference-league',
+  cupWinnersCup: 'cup-winners-cup',
+  uefaSuperCup: 'super-cup',
+  clubWorldCup: 'club-world-cup',
+}
+// Order shown, most prestigious first.
+const HONOUR_ORDER: Array<{ key: keyof TeamHonours; label: string }> = [
+  { key: 'leagueTitles', label: 'Lig Şampiyonluğu' },
+  { key: 'championsLeague', label: 'Şampiyonlar Ligi' },
+  { key: 'domesticCups', label: 'Ülke Kupası' },
+  { key: 'europaLeague', label: 'UEFA Avrupa Ligi' },
+  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası' },
+  { key: 'conferenceLeague', label: 'Konferans Ligi' },
+  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası' },
+  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa' },
 ]
 
-function TrophyCabinet({ trophies }: { trophies: TeamHonours | null }) {
+function honourSlug(key: keyof TeamHonours, leagueApiId?: number): string | undefined {
+  if (key === 'leagueTitles') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.league : undefined
+  if (key === 'domesticCups') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.cup : undefined
+  return CONTINENTAL_SLUG[key]
+}
+
+// The trophy photo, falling back to a trophy icon if the image is missing/broken.
+function TrophyImage({ src, label }: { src?: string; label: string }) {
+  const [failed, setFailed] = useState(!src)
+  if (failed || !src) return <Trophy className="h-14 w-14 text-amber-400/70" />
+  return (
+    <img
+      src={src}
+      alt={label}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="max-h-[108px] max-w-full object-contain drop-shadow-[0_6px_16px_rgba(0,0,0,0.55)]"
+    />
+  )
+}
+
+function TrophyCabinet({ trophies, leagueApiId }: { trophies: TeamHonours | null; leagueApiId?: number }) {
   if (!trophies) return null
-  const won = HONOUR_ITEMS.map((it) => ({ ...it, count: trophies[it.key] })).filter((it) => it.count > 0)
+  const won = HONOUR_ORDER.map((it) => ({
+    ...it,
+    count: trophies[it.key],
+    slug: honourSlug(it.key, leagueApiId),
+  })).filter((it) => it.count > 0)
   if (won.length === 0) return null
   const total = won.reduce((sum, it) => sum + it.count, 0)
 
@@ -195,22 +257,14 @@ function TrophyCabinet({ trophies }: { trophies: TeamHonours | null }) {
           {won.map((it) => (
             <div
               key={it.key}
-              className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border p-4 text-center ${
-                it.hero
-                  ? 'border-amber-400/25 bg-gradient-to-b from-amber-400/[0.08] to-ink-900'
-                  : 'border-ink-800 bg-gradient-to-b from-ink-850 to-ink-900'
-              }`}
+              className="relative flex flex-col items-center gap-2.5 rounded-2xl border border-ink-800 bg-gradient-to-b from-ink-800/50 to-ink-950 p-3 pt-4 text-center"
             >
-              {/* faint watermark of the count so the card feels like a display case */}
-              <span className="pointer-events-none absolute -right-2 -top-3 select-none text-6xl font-black text-white/[0.03]">
-                {it.count}
+              <span className="absolute right-2 top-2 z-10 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black tabular-nums text-ink-950 shadow-md">
+                ×{it.count}
               </span>
-              <div
-                className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${it.grad} shadow-lg shadow-black/40 ring-2 ring-white/10`}
-              >
-                <it.Icon className="h-7 w-7 text-white drop-shadow" strokeWidth={2} />
+              <div className="flex h-28 w-full items-end justify-center">
+                <TrophyImage src={it.slug ? TROPHY_IMG[it.slug] : undefined} label={it.label} />
               </div>
-              <div className="score-num text-3xl font-extrabold leading-none text-white">{it.count}</div>
               <div className="text-[11px] font-medium leading-tight text-ink-300">{it.label}</div>
             </div>
           ))}
