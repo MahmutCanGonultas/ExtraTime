@@ -161,3 +161,14 @@
     }
   }
 }
+
+/* Stop iOS Safari from auto-zooming (and visually breaking the layout) when a
+   text field under 16px gets focus. Applies only on phones; desktop keeps the
+   compact 14px inputs. Not inside a @layer, so it overrides Tailwind utilities. */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

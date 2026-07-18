@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Settings } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { LogOut, Menu, Settings, X } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
 import { SearchBar } from '@/features/football/SearchBar'
@@ -17,41 +18,41 @@ const baseNav = [
 export function AppLayout() {
   const { user, logout, isPlatformAdmin } = useAuth()
   const navLinks = isPlatformAdmin ? [...baseNav, { to: '/admin', label: 'Admin' }] : baseNav
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+
+  // Close the mobile menu whenever the route changes.
+  useEffect(() => setMenuOpen(false), [location.pathname])
+
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition',
+      isActive ? 'bg-brand-500 text-ink-950' : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
+    )
 
   return (
     <div className="flex min-h-screen flex-col">
       <div className="h-1 bg-brand-500" />
-      <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-ink-800 bg-ink-950/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
           <NavLink to="/" className="shrink-0">
             <Brand markSize={24} />
           </NavLink>
 
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
+          {/* Desktop navigation */}
+          <nav className="hidden min-w-0 items-center gap-1 lg:flex">
             {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                className={({ isActive }) =>
-                  cn(
-                    'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition',
-                    isActive
-                      ? 'bg-brand-500 text-ink-950'
-                      : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
-                  )
-                }
-              >
+              <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
                 {link.label}
               </NavLink>
             ))}
           </nav>
 
-          <div className="ml-auto w-40 shrink-0 sm:w-52 lg:w-72">
-            <SearchBar />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3">
+          {/* Desktop account cluster */}
+          <div className="ml-auto hidden shrink-0 items-center gap-3 lg:flex">
+            <div className="w-52 xl:w-72">
+              <SearchBar />
+            </div>
             <GroupSwitcher />
             <NavLink
               to="/settings"
@@ -59,7 +60,7 @@ export function AppLayout() {
               title="Ayarlar"
             >
               <Settings className="h-5 w-5" />
-              <span className="hidden text-sm md:inline">{user?.displayName}</span>
+              <span className="hidden text-sm xl:inline">{user?.displayName}</span>
             </NavLink>
             <button
               onClick={logout}
@@ -70,7 +71,70 @@ export function AppLayout() {
               <LogOut className="h-5 w-5" />
             </button>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-200 transition hover:bg-ink-850 lg:hidden"
+            aria-label="Menü"
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
+
+        {/* Mobile drawer */}
+        {menuOpen && (
+          <div className="border-t border-ink-800 bg-ink-950 px-4 pb-4 pt-3 lg:hidden">
+            <div className="mb-3">
+              <SearchBar />
+            </div>
+            <nav className="flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  end={link.end}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      'rounded-md px-3 py-2.5 text-[15px] font-semibold transition',
+                      isActive
+                        ? 'bg-brand-500 text-ink-950'
+                        : 'text-ink-200 hover:bg-ink-850 hover:text-ink-100',
+                    )
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="my-3 border-t border-ink-800" />
+            <div className="flex items-center justify-between gap-3">
+              <GroupSwitcher />
+              <div className="flex items-center gap-4">
+                <NavLink
+                  to="/settings"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 text-sm text-ink-300 transition hover:text-ink-100"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="max-w-[120px] truncate">{user?.displayName}</span>
+                </NavLink>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    logout()
+                  }}
+                  className="flex items-center gap-1.5 text-sm text-ink-400 transition hover:text-loss"
+                  aria-label="Çıkış yap"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1">
