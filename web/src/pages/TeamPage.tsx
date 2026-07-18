@@ -1,10 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
-import { MapPin } from 'lucide-react'
+import { MapPin, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import type { SquadPlayer, Team, TeamStanding } from '@/features/football/types'
+import type { SquadPlayer, Team, TeamHonours, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
@@ -25,7 +25,7 @@ export function TeamPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Takım bulunamadı" />
 
-  const { team, fixtures, standings, squad } = data
+  const { team, fixtures, standings, squad, trophies } = data
   const location = [team.stadiumName, team.city].filter(Boolean).join(' · ')
   // Anchor to the CURRENT season (newest we hold); it fills in as matches are
   // played. Older seasons live in the players' career tables.
@@ -84,6 +84,8 @@ export function TeamPage() {
       </section>
 
       {primary && <StandingCard s={primary} />}
+
+      <TrophyCabinet trophies={trophies} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -149,6 +151,63 @@ export function TeamPage() {
         </aside>
       </div>
     </div>
+  )
+}
+
+// A club's all-time major honours, ordered domestic → European → world. Prestige
+// items (league titles, Champions League) get the brighter gold treatment.
+const HONOUR_ITEMS: Array<{ key: keyof TeamHonours; label: string; hero?: boolean }> = [
+  { key: 'leagueTitles', label: 'Lig Şampiyonluğu', hero: true },
+  { key: 'domesticCups', label: 'Ülke Kupası' },
+  { key: 'championsLeague', label: 'Şampiyonlar Ligi', hero: true },
+  { key: 'europaLeague', label: 'UEFA Avrupa Ligi' },
+  { key: 'conferenceLeague', label: 'Konferans Ligi' },
+  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası' },
+  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa' },
+  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası' },
+]
+
+function TrophyCabinet({ trophies }: { trophies: TeamHonours | null }) {
+  if (!trophies) return null
+  const won = HONOUR_ITEMS.map((it) => ({ ...it, count: trophies[it.key] })).filter((it) => it.count > 0)
+  if (won.length === 0) return null
+  const total = won.reduce((sum, it) => sum + it.count, 0)
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        title="Kupa Dolabı"
+        action={
+          <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-bold text-amber-300">
+            <Trophy className="h-3.5 w-3.5" /> {total} kupa
+          </span>
+        }
+      />
+      <CardBody>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+          {won.map((it) => (
+            <div
+              key={it.key}
+              className={`flex items-center gap-3 rounded-xl border p-3 ${
+                it.hero
+                  ? 'border-amber-400/30 bg-gradient-to-br from-amber-400/15 to-amber-500/[0.04]'
+                  : 'border-ink-800 bg-ink-850'
+              }`}
+            >
+              <Trophy className={`h-6 w-6 shrink-0 ${it.hero ? 'text-amber-300' : 'text-amber-400/70'}`} />
+              <div className="min-w-0">
+                <div className={`score-num text-2xl font-extrabold leading-none ${it.hero ? 'text-amber-200' : 'text-ink-100'}`}>
+                  {it.count}
+                </div>
+                <div className="mt-1 truncate text-[11px] font-medium text-ink-400" title={it.label}>
+                  {it.label}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 

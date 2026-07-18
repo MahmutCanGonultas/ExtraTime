@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { AppError } from '../../lib/errors'
 import * as repo from './football.repository'
+import { getTeamHonours } from './teamTrophies'
 
 export const footballRouter = Router()
 
@@ -148,7 +149,7 @@ footballRouter.get(
       repo.getTeamStandings(id),
       repo.getTeamSquad(team.apiFootballId),
     ])
-    res.json({ team, fixtures, standings, squad })
+    res.json({ team, fixtures, standings, squad, trophies: getTeamHonours(team.apiFootballId) })
   }),
 )
 

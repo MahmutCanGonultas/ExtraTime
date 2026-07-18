@@ -163,11 +163,23 @@ export interface SquadPlayer {
   careerApps: number | null
 }
 
+export interface TeamHonours {
+  leagueTitles: number
+  domesticCups: number
+  championsLeague: number
+  europaLeague: number
+  cupWinnersCup: number
+  conferenceLeague: number
+  uefaSuperCup: number
+  clubWorldCup: number
+}
+
 export interface TeamDetail {
   team: Team
   fixtures: Fixture[]
   standings: TeamStanding[]
   squad: SquadPlayer[]
+  trophies: TeamHonours | null
 }
 
 export interface TeamSquadHistory {
