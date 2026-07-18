@@ -304,6 +304,11 @@ export async function syncLiveScores(): Promise<SyncResult> {
 // Detailed summary (events + statistics) for one finished fixture. Two requests.
 export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number): Promise<number> {
   const client = await getPool()!.connect()
+  // A checked-out client that loses its connection mid-operation (e.g. Neon
+  // resetting the socket) emits 'error'; without a listener that crashes the
+  // whole process. Log it instead — the in-flight query still rejects and is
+  // handled by the caller.
+  client.on('error', (err) => logger.error({ err, fixtureId }, 'fixture-detail client error'))
   try {
     const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', { fixture: apiFixtureId })
     const stats = await apiFootballGet<RawFixtureStatistic[]>('fixtures/statistics', {
