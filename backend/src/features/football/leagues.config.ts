@@ -41,6 +41,18 @@ export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 848, name: 'UEFA Konferans Ligi', country: 'Avrupa' },
 ]
 
+// National (domestic) cups of the leagues above — pure knockout, so they get a
+// bracket (no standings). API-Football league ids.
+export const DOMESTIC_CUPS: Competition[] = [
+  { apiFootballId: 206, name: 'Türkiye Kupası', country: 'Türkiye' },
+  { apiFootballId: 45, name: 'FA Cup', country: 'İngiltere' },
+  { apiFootballId: 143, name: 'Copa del Rey', country: 'İspanya' },
+  { apiFootballId: 137, name: 'Coppa Italia', country: 'İtalya' },
+  { apiFootballId: 81, name: 'DFB Pokal', country: 'Almanya' },
+  { apiFootballId: 66, name: 'Coupe de France', country: 'Fransa' },
+]
+export const DOMESTIC_CUP_API_IDS = DOMESTIC_CUPS.map((c) => c.apiFootballId)
+
 // The most recent COMPLETE season (full standings/scorers) shown in browse.
 export const CURRENT_SEASON = 2025
 // The next season — fixtures are scheduled, used by the prediction game.
@@ -48,7 +60,7 @@ export const UPCOMING_SEASON = 2026
 export const HISTORY_SEASONS = [2024, 2023]
 
 export const LEAGUE_SEEDS: LeagueSeed[] = [
-  ...CLUB_COMPETITIONS.flatMap((c) => [
+  ...[...CLUB_COMPETITIONS, ...DOMESTIC_CUPS].flatMap((c) => [
     { ...c, season: CURRENT_SEASON, isActive: true },
     { ...c, season: UPCOMING_SEASON, isActive: true },
     ...HISTORY_SEASONS.map((season) => ({ ...c, season, isActive: false })),
@@ -63,10 +75,20 @@ export const LEAGUE_SEEDS: LeagueSeed[] = [
 // auto-retire — their completed season stays browsable.
 export const TOURNAMENT_API_IDS = [1]
 
+// Per-match detail (goals, cards, subs, team stats) is expensive (~2 API req/match),
+// so we enrich ONLY the six big leagues + UEFA club competitions + the World Cup —
+// NOT second divisions, other leagues, or domestic cups.
+export const MATCH_DETAIL_LEAGUE_API_IDS = [
+  39, 140, 78, 135, 61, 203, // Premier, La Liga, Bundesliga, Serie A, Ligue 1, Süper Lig
+  2, 3, 848, // Champions League, Europa League, Conference League
+  1, // World Cup
+]
+
 // The single source of truth for "our leagues". Any browse/upcoming/live list is
 // restricted to these api_football_ids — no stray competition ever leaks in.
 export const CONFIGURED_LEAGUE_API_IDS = [
   ...CLUB_COMPETITIONS.map((c) => c.apiFootballId),
+  ...DOMESTIC_CUP_API_IDS,
   ...TOURNAMENT_API_IDS,
 ]
 

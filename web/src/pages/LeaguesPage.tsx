@@ -24,6 +24,7 @@ const LEAGUE_COLOR: Record<number, string> = {
   203: '#f43f5e', // Süper Lig — rose
 }
 const CUPS = [2, 3, 848, 1] // Champions, Europa, Conference, World Cup
+const DOMESTIC_CUPS = [206, 45, 143, 137, 81, 66] // Türkiye Kupası, FA Cup, Copa del Rey, Coppa Italia, DFB Pokal, Coupe de France
 const OTHER = [94, 88, 71, 307, 253] // Portugal, Netherlands, Brazil, Saudi, MLS
 const SECOND = [40, 141, 136, 79, 62, 95, 89, 72, 204, 308] // second divisions
 
@@ -68,13 +69,14 @@ export function LeaguesPage() {
     byApi.set(apiId, { apiId, head, current, past })
   }
   const pick = (ids: number[]) => ids.map((id) => byApi.get(id)).filter((c): c is Comp => Boolean(c))
-  const known = new Set([...MAIN, ...CUPS, ...OTHER, ...SECOND])
+  const known = new Set([...MAIN, ...CUPS, ...DOMESTIC_CUPS, ...OTHER, ...SECOND])
   const rest = [...byApi.values()]
     .filter((c) => !known.has(c.apiId))
     .sort((a, b) => a.head.name.localeCompare(b.head.name))
 
   const main = pick(MAIN)
   const cups = pick(CUPS)
+  const domesticCups = pick(DOMESTIC_CUPS)
   const others = [...pick(OTHER), ...rest]
   const second = pick(SECOND)
 
@@ -94,6 +96,17 @@ export function LeaguesPage() {
           <SectionHeader title="Kupalar & Turnuvalar" icon={<Trophy className="h-4 w-4 text-amber-400" />} />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {cups.map((c) => (
+              <CompactLeagueCard key={c.apiId} c={c} accent />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {domesticCups.length > 0 && (
+        <section>
+          <SectionHeader title="Yerel Kupalar" icon={<Trophy className="h-4 w-4 text-amber-400" />} />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            {domesticCups.map((c) => (
               <CompactLeagueCard key={c.apiId} c={c} accent />
             ))}
           </div>

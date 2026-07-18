@@ -16,7 +16,12 @@ import type {
   RawStandingsLeague,
   RawTopScorer,
 } from '../types'
-import { CONFIGURED_LEAGUE_API_IDS, seedLeagues, TOURNAMENT_API_IDS } from '../leagues.config'
+import {
+  CONFIGURED_LEAGUE_API_IDS,
+  MATCH_DETAIL_LEAGUE_API_IDS,
+  seedLeagues,
+  TOURNAMENT_API_IDS,
+} from '../leagues.config'
 import {
   collectTeams,
   replaceFixtureEvents,
@@ -325,7 +330,7 @@ export async function syncRecentMatchDetails(limit = 30): Promise<SyncResult> {
          AND f.detail_synced_at IS NULL
        ORDER BY f.kickoff_at DESC
        LIMIT $2`,
-      [CONFIGURED_LEAGUE_API_IDS, limit],
+      [MATCH_DETAIL_LEAGUE_API_IDS, limit],
     )
     let total = 0
     for (const r of rows) {
