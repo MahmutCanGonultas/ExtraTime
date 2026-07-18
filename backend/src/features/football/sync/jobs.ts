@@ -242,7 +242,25 @@ async function updateFixtureFromRaw(raw: RawFixture): Promise<{ id: number } | n
   return res.rowCount ? res.rows[0] : null
 }
 
+// Guard so a slow live run (many concurrent matches × one events request each,
+// serialised by the RPM throttle) can't overlap the next 2-minute cron tick and
+// double-fetch the same events. If a run is still in flight, this tick no-ops.
+let liveSyncRunning = false
+
 export async function syncLiveScores(): Promise<SyncResult> {
+  if (liveSyncRunning) {
+    logger.info({ job: 'live' }, 'Previous live sync still running — skipping this tick')
+    return { job: 'live', success: true, records: 0, requests: 0 }
+  }
+  liveSyncRunning = true
+  try {
+    return await runLiveScores()
+  } finally {
+    liveSyncRunning = false
+  }
+}
+
+async function runLiveScores(): Promise<SyncResult> {
   return runJob('live', async () => {
     // Run when something could be live now, OR when we still have a fixture marked
     // live (which may actually have ended and needs reconciling to FT).
@@ -580,21 +598,29 @@ export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number
   return updated
 }
 
+// One squad refresh = one API request per team, so refreshing every tracked team
+// daily would cost hundreds of requests/day. Instead we rotate: each run refreshes
+// the N most-stale teams (least-recently-updated first). Because syncCurrentSquads
+// stamps updated_at, refreshed teams sink to the back and the rest surface next
+// day, so every team is refreshed on a rolling ~week cycle within a bounded budget.
+const SQUAD_REFRESH_MAX_TEAMS = 60
+
 /**
- * Daily refresh of every tracked team's current squad so transfers show up —
- * important during the transfer window. Re-pulls the live roster for all teams
- * we hold a current-season row for, then re-derives nationality/name parts.
- * Heavier than the other daily jobs (~one request per team), so it runs once a
- * day.
+ * Daily refresh of tracked teams' current squads so transfers (new club, shirt
+ * number) show up. Processes a bounded, staleness-ordered slice each run (see
+ * SQUAD_REFRESH_MAX_TEAMS), then re-derives nationality/name parts.
  */
 export async function refreshCurrentSquads(): Promise<SyncResult> {
   return runJob('squads', async () => {
     const { rows } = await query<{ teamApiId: number; leagueId: number }>(
-      `SELECT DISTINCT p.team_api_id AS "teamApiId", p.league_id AS "leagueId"
+      `SELECT p.team_api_id AS "teamApiId", p.league_id AS "leagueId"
        FROM players p JOIN leagues l ON l.id = p.league_id
        WHERE p.season = $1 AND p.team_api_id IS NOT NULL
-         AND l.api_football_id = ANY($2)`,
-      [CURRENT_SQUAD_SEASON, CONFIGURED_LEAGUE_API_IDS],
+         AND l.api_football_id = ANY($2)
+       GROUP BY p.team_api_id, p.league_id
+       ORDER BY MAX(p.updated_at) ASC NULLS FIRST
+       LIMIT $3`,
+      [CURRENT_SQUAD_SEASON, CONFIGURED_LEAGUE_API_IDS, SQUAD_REFRESH_MAX_TEAMS],
     )
     const n = await syncCurrentSquads(rows)
     await backfillCurrentSquadProfiles()

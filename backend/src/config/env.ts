@@ -64,6 +64,16 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data
+
+// Reflecting every origin is only safe here because auth is a Bearer token (not a
+// cookie), but it's still a hardening gap — warn loudly in prod so the owner sets
+// an explicit allowlist. Not fatal, so an already-deployed backend keeps serving.
+if (env.NODE_ENV === 'production' && env.CORS_ORIGIN === '*') {
+  console.warn(
+    '[security] CORS_ORIGIN is "*" in production — set it to your frontend origin(s) (e.g. https://extra-time-two.vercel.app).',
+  )
+}
+
 export const isProduction = env.NODE_ENV === 'production'
 export const isTest = env.NODE_ENV === 'test'
 export const isDevelopment = env.NODE_ENV === 'development'

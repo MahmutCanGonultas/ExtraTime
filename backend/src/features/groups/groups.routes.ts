@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { parseIdParam } from '../../lib/params'
@@ -11,6 +12,17 @@ export const groupsRouter = Router()
 
 // Everything about groups requires a logged-in user.
 groupsRouter.use(requireAuth)
+
+// Throttle invite-code guessing on /join: a logged-in user gets a bounded number
+// of attempts per window (keyed by user id), so 4–16 char codes can't be probed
+// at speed even by an authenticated attacker.
+const joinLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.userId),
+})
 
 const createSchema = z.object({ name: z.string().min(2).max(60) })
 const joinSchema = z.object({ inviteCode: z.string().min(4).max(16) })
@@ -35,6 +47,7 @@ groupsRouter.post(
 
 groupsRouter.post(
   '/join',
+  joinLimiter,
   asyncHandler(async (req, res) => {
     const { inviteCode } = joinSchema.parse(req.body)
     res.json({ group: await groups.joinGroup(inviteCode, req.userId!) })

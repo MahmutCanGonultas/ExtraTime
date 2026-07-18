@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
 import { query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
@@ -30,6 +30,15 @@ adminRouter.use(requireSyncAccess)
 function requireAdminUser(req: { userId?: number }): number {
   if (!req.userId) throw AppError.forbidden('Bu işlem için platform-admin girişi gerekir')
   return req.userId
+}
+
+// Middleware form of the above, for READ routes that expose user/group data. The
+// shared SYNC_SECRET (handed to external cron triggers) must NOT be able to read
+// PII — only a real platform-admin JWT (which sets req.userId) may. Sync-TRIGGER
+// routes keep the broader requireSyncAccess gate.
+const adminOnly: RequestHandler = (req, _res, next) => {
+  requireAdminUser(req)
+  next()
 }
 
 const adjustmentSchema = z.object({
@@ -64,10 +73,12 @@ const adminPredictionSchema = z
 // --- Platform-admin group moderation: step into any group ---
 adminRouter.get(
   '/groups',
+  adminOnly,
   asyncHandler(async (_req, res) => res.json({ groups: await groups.adminListGroups() })),
 )
 adminRouter.get(
   '/groups/:id',
+  adminOnly,
   asyncHandler(async (req, res) => res.json(await groups.adminGroupOverview(parseIdParam(req.params.id)))),
 )
 // Platform-admin moderation operates on the group's newest active game.
@@ -78,6 +89,7 @@ async function requireActiveGameId(groupId: number): Promise<number> {
 }
 adminRouter.get(
   '/groups/:id/candidate-fixtures',
+  adminOnly,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
     res.json({ fixtures: await groups.getCandidateFixtures(id, await requireActiveGameId(id)) })
@@ -140,6 +152,7 @@ adminRouter.post(
 // Every member's prediction for a match (bypasses the pre-lock privacy screen).
 adminRouter.get(
   '/groups/:id/fixtures/:fixtureId/predictions',
+  adminOnly,
   asyncHandler(async (req, res) => {
     res.json({
       predictions: await predictions.adminFixturePredictions(
@@ -171,12 +184,14 @@ adminRouter.post(
 // --- Platform overview ---
 adminRouter.get(
   '/stats',
+  adminOnly,
   asyncHandler(async (_req, res) => res.json(await admin.adminStats())),
 )
 
 // --- User management ---
 adminRouter.get(
   '/users',
+  adminOnly,
   asyncHandler(async (req, res) => {
     const { search } = userSearchSchema.parse(req.query)
     res.json({ users: await admin.adminListUsers(search ?? '') })
@@ -184,6 +199,7 @@ adminRouter.get(
 )
 adminRouter.get(
   '/users/:id',
+  adminOnly,
   asyncHandler(async (req, res) => res.json(await admin.adminUserDetail(parseIdParam(req.params.id)))),
 )
 adminRouter.post(
@@ -223,6 +239,7 @@ adminRouter.delete(
 // --- Group management (list + rename/transfer/invite/add-member/delete) ---
 adminRouter.get(
   '/all-groups',
+  adminOnly,
   asyncHandler(async (_req, res) => res.json({ groups: await admin.adminListAllGroups() })),
 )
 adminRouter.patch(
