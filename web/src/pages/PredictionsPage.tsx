@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, ChevronDown } from 'lucide-react'
+import { Plus, ChevronDown, Trophy } from 'lucide-react'
 import {
   useCreateGame,
   useGameDetail,
@@ -17,7 +17,7 @@ import { LiveStandings } from '@/features/groups/LiveStandings'
 import { Leaderboard } from '@/features/groups/Leaderboard'
 import { WeeklyChampions } from '@/features/groups/WeeklyChampions'
 import { Button } from '@/components/ui/Button'
-import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { Card, CardBody } from '@/components/ui/Card'
 import { Skeleton, EmptyState } from '@/components/ui/feedback'
 import { cn } from '@/lib/cn'
 
@@ -225,8 +225,11 @@ export function PredictionsPage() {
                 <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />
               )}
               {gameDetail.data && gameDetail.data.standings.length > 0 && (
-                <Card className="overflow-hidden">
-                  <CardHeader title="Bu oyunun sıralaması" />
+                <Card className="overflow-hidden border-amber-500/20">
+                  <div className="flex items-center gap-2 border-b border-amber-500/15 bg-amber-500/[0.06] px-4 py-3">
+                    <Trophy className="h-4 w-4 text-amber-300" />
+                    <h3 className="section-label text-sm text-amber-200">Bu oyunun sıralaması</h3>
+                  </div>
                   <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
                 </Card>
               )}
