@@ -7,7 +7,6 @@ import type { TeamHonours } from './teamTrophies'
 export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours, number[]>>> = {
   33: { leagueTitles: [2012, 2010, 2008, 2007, 2006, 2002, 2000, 1999, 1998, 1996, 1995, 1993, 1992, 1966, 1964, 1956, 1955, 1951, 1910, 1907], domesticCups: [2023, 2015, 2003, 1998, 1995, 1993, 1989, 1984, 1982, 1976, 1962, 1947, 1908], championsLeague: [2007, 1998, 1967], europaLeague: [2016], cupWinnersCup: [1990], uefaSuperCup: [1991], clubWorldCup: [2008, 1999] },
   34: { leagueTitles: [1992, 1926, 1908, 1906, 1904], domesticCups: [1954, 1951, 1950, 1931, 1923, 1909] },
-  36: { leagueTitles: [2000], europaLeague: [2009] },
   39: { leagueTitles: [1958, 1957, 1953], domesticCups: [1959, 1948, 1907, 1892] },
   40: { leagueTitles: [2024, 2019, 1989, 1987, 1985, 1983, 1982, 1981, 1979, 1978, 1976, 1975, 1972, 1965, 1963, 1946, 1922, 1921, 1905, 1900], domesticCups: [2021, 2005, 2000, 1991, 1988, 1985, 1973, 1964], championsLeague: [2018, 2004, 1983, 1980, 1977, 1976], europaLeague: [2000, 1975, 1972], uefaSuperCup: [2019, 2001, 1977], clubWorldCup: [2019] },
   42: { leagueTitles: [2025, 2003, 2001, 1997, 1990, 1988, 1970, 1952, 1947, 1937, 1934, 1933, 1932, 1930], domesticCups: [2019, 2016, 2014, 2013, 2004, 2002, 2001, 1997, 1992, 1978, 1970, 1949, 1935, 1929], cupWinnersCup: [1993] },

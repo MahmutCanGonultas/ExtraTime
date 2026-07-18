@@ -75,13 +75,16 @@ export const LEAGUE_SEEDS: LeagueSeed[] = [
 // auto-retire — their completed season stays browsable.
 export const TOURNAMENT_API_IDS = [1]
 
-// Per-match detail (goals, cards, subs, team stats) is expensive (~2 API req/match),
-// so we enrich ONLY the six big leagues + UEFA club competitions + the World Cup —
-// NOT second divisions, other leagues, or domestic cups.
+// Per-match detail (goals, cards, subs, team stats) costs ~2 API req/match. On the
+// paid Pro plan (7500 req/day) we enrich every top-flight league, the UEFA club
+// competitions, the World Cup and the domestic cups — but still NOT the second
+// divisions (huge match volume, low interest) to keep the backfill bounded.
 export const MATCH_DETAIL_LEAGUE_API_IDS = [
   39, 140, 78, 135, 61, 203, // Premier, La Liga, Bundesliga, Serie A, Ligue 1, Süper Lig
+  94, 88, 71, 307, 253, // Primeira Liga, Eredivisie, Brasileirão, Suudi Pro Ligi, MLS
   2, 3, 848, // Champions League, Europa League, Conference League
   1, // World Cup
+  ...DOMESTIC_CUP_API_IDS, // FA Cup, Copa del Rey, Coppa Italia, DFB-Pokal, Coupe de France, Türkiye Kupası
 ]
 
 // The single source of truth for "our leagues". Any browse/upcoming/live list is

@@ -91,15 +91,18 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
   return { user, token: signToken({ userId: user.id }) }
 }
 
-// Update the display name and/or avatar. Either field may be omitted (undefined),
-// in which case COALESCE leaves the stored value untouched — so the same endpoint
-// serves "rename me" and "pick an avatar" without clobbering the other field.
+// Update the display name and/or avatar. An OMITTED field is left untouched; an
+// explicit value (including avatar: null to clear it) is written. We distinguish
+// "not provided" from "set to null" by whether the key is present, so the same
+// endpoint serves "rename me", "pick an avatar" and "remove my avatar".
 export async function updateProfile(
   userId: number,
   changes: { displayName?: string; avatar?: string | null },
 ): Promise<PublicUser> {
   const name = changes.displayName?.trim() ?? null
-  const avatar = changes.avatar === undefined ? null : changes.avatar
+  // Whether the caller actually sent an avatar field (present, even if null).
+  const setAvatar = Object.prototype.hasOwnProperty.call(changes, 'avatar')
+  const avatar = changes.avatar ?? null
   const { rows } = await query<{
     id: number
     email: string
@@ -109,10 +112,10 @@ export async function updateProfile(
   }>(
     `UPDATE users
         SET display_name = COALESCE($1, display_name),
-            avatar       = COALESCE($2, avatar)
-      WHERE id = $3
+            avatar       = CASE WHEN $3::boolean THEN $2 ELSE avatar END
+      WHERE id = $4
       RETURNING id, email, display_name, is_admin, avatar`,
-    [name, avatar, userId],
+    [name, avatar, setAvatar, userId],
   )
   const row = rows[0]
   if (!row) throw AppError.notFound('User not found')

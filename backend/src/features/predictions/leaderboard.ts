@@ -104,20 +104,20 @@ export interface WeekStanding {
 }
 
 export interface GameWeek {
-  roundKey: string // stable bucket identity (the league round, e.g. "Regular Season - 2")
-  weekNo: number | null // the league round number parsed from it, if any
+  roundKey: string // the week's Monday date, "YYYY-MM-DD" (Istanbul calendar week)
+  weekNo: number | null // chronological week index within the game (1, 2, 3, …)
   matchCount: number
   settledCount: number
-  settled: boolean // every match of the round is final
+  settled: boolean // every match of the week is final
   standings: WeekStanding[]
-  champion: WeekStanding | null // crowned once the round is settled
+  champion: WeekStanding | null // crowned once the week is settled
 }
 
 /**
- * Per-round breakdown of a game: fixtures are bucketed by their LEAGUE round
- * (Süper Lig "Regular Season - 2" → week 2), not the calendar week, so a group's
- * weekly champions line up with the actual gameweeks. Rounds are ordered by their
- * earliest kickoff. The OVERALL champion is still the season total.
+ * Weekly breakdown of a game: fixtures are bucketed by their Istanbul CALENDAR
+ * week (Monday 00:00 – Sunday 23:59) — every match that week, whatever competition
+ * or round, shares one weekly champion. Weeks are ordered by their earliest
+ * kickoff and numbered chronologically. The OVERALL champion is still the season total.
  */
 export async function seasonWeeks(groupId: number, seasonId: number | null): Promise<GameWeek[]> {
   if (seasonId === null) return []

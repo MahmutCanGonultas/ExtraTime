@@ -45,6 +45,7 @@ const userPatchSchema = z
   })
   .refine((b) => b.displayName != null || b.email != null, { message: 'Değişiklik yok' })
 const setAdminSchema = z.object({ isAdmin: z.boolean() })
+const userSearchSchema = z.object({ search: z.string().trim().max(60).optional() })
 const renameGroupSchema = z.object({ name: z.string().trim().min(2).max(60) })
 const transferSchema = z.object({ email: z.string().email().max(120) })
 const addMemberSchema = z.object({ email: z.string().email().max(120) })
@@ -177,8 +178,8 @@ adminRouter.get(
 adminRouter.get(
   '/users',
   asyncHandler(async (req, res) => {
-    const search = typeof req.query.search === 'string' ? req.query.search : ''
-    res.json({ users: await admin.adminListUsers(search) })
+    const { search } = userSearchSchema.parse(req.query)
+    res.json({ users: await admin.adminListUsers(search ?? '') })
   }),
 )
 adminRouter.get(

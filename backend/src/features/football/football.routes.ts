@@ -137,17 +137,18 @@ footballRouter.get(
   }),
 )
 
+const squadQuerySchema = z.object({
+  season: z.coerce.number().int().min(1900).max(2100).optional(),
+})
+
 footballRouter.get(
   '/teams/:id/squad',
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id)
     const team = await repo.getTeam(id)
     if (!team) throw AppError.notFound('Team not found')
-    const season = req.query.season ? Number(req.query.season) : undefined
-    const data = await repo.getTeamSquadHistory(
-      team.apiFootballId,
-      Number.isFinite(season) ? season : undefined,
-    )
+    const { season } = squadQuerySchema.parse(req.query)
+    const data = await repo.getTeamSquadHistory(team.apiFootballId, season)
     res.json({ team, ...data })
   }),
 )
