@@ -172,3 +172,27 @@
     font-size: 16px;
   }
 }
+
+/* Clear affordances — it must be obvious what can be clicked. Interactive elements
+   always show the pointer cursor and a visible keyboard-focus ring. */
+button:not(:disabled),
+summary,
+select,
+label[role='button'],
+[role='button'],
+a[href] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #c2f542;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
