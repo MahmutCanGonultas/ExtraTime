@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { MapPin, Trophy } from 'lucide-react'
+import { Globe, MapPin, Medal, Star, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
@@ -154,17 +154,24 @@ export function TeamPage() {
   )
 }
 
-// A club's all-time major honours, ordered domestic → European → world. Prestige
-// items (league titles, Champions League) get the brighter gold treatment.
-const HONOUR_ITEMS: Array<{ key: keyof TeamHonours; label: string; hero?: boolean }> = [
-  { key: 'leagueTitles', label: 'Lig Şampiyonluğu', hero: true },
-  { key: 'domesticCups', label: 'Ülke Kupası' },
-  { key: 'championsLeague', label: 'Şampiyonlar Ligi', hero: true },
-  { key: 'europaLeague', label: 'UEFA Avrupa Ligi' },
-  { key: 'conferenceLeague', label: 'Konferans Ligi' },
-  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası' },
-  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa' },
-  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası' },
+// A club's all-time major honours, grouped domestic → European → world. Each
+// trophy gets its own icon + colour so the cabinet reads like a real shelf, not a
+// wall of identical icons.
+const HONOUR_ITEMS: Array<{
+  key: keyof TeamHonours
+  label: string
+  Icon: typeof Trophy
+  grad: string
+  hero?: boolean
+}> = [
+  { key: 'leagueTitles', label: 'Lig Şampiyonluğu', Icon: Trophy, grad: 'from-amber-300 to-yellow-600', hero: true },
+  { key: 'championsLeague', label: 'Şampiyonlar Ligi', Icon: Star, grad: 'from-sky-300 to-indigo-600', hero: true },
+  { key: 'domesticCups', label: 'Ülke Kupası', Icon: Trophy, grad: 'from-rose-400 to-red-600' },
+  { key: 'europaLeague', label: 'UEFA Avrupa Ligi', Icon: Trophy, grad: 'from-orange-300 to-amber-600' },
+  { key: 'conferenceLeague', label: 'Konferans Ligi', Icon: Trophy, grad: 'from-emerald-300 to-green-600' },
+  { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası', Icon: Medal, grad: 'from-fuchsia-300 to-purple-600' },
+  { key: 'uefaSuperCup', label: 'UEFA Süper Kupa', Icon: Medal, grad: 'from-cyan-300 to-teal-600' },
+  { key: 'clubWorldCup', label: 'Dünya Kulüpler Kupası', Icon: Globe, grad: 'from-yellow-300 to-amber-600' },
 ]
 
 function TrophyCabinet({ trophies }: { trophies: TeamHonours | null }) {
@@ -184,25 +191,27 @@ function TrophyCabinet({ trophies }: { trophies: TeamHonours | null }) {
         }
       />
       <CardBody>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {won.map((it) => (
             <div
               key={it.key}
-              className={`flex items-center gap-3 rounded-xl border p-3 ${
+              className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border p-4 text-center ${
                 it.hero
-                  ? 'border-amber-400/30 bg-gradient-to-br from-amber-400/15 to-amber-500/[0.04]'
-                  : 'border-ink-800 bg-ink-850'
+                  ? 'border-amber-400/25 bg-gradient-to-b from-amber-400/[0.08] to-ink-900'
+                  : 'border-ink-800 bg-gradient-to-b from-ink-850 to-ink-900'
               }`}
             >
-              <Trophy className={`h-6 w-6 shrink-0 ${it.hero ? 'text-amber-300' : 'text-amber-400/70'}`} />
-              <div className="min-w-0">
-                <div className={`score-num text-2xl font-extrabold leading-none ${it.hero ? 'text-amber-200' : 'text-ink-100'}`}>
-                  {it.count}
-                </div>
-                <div className="mt-1 truncate text-[11px] font-medium text-ink-400" title={it.label}>
-                  {it.label}
-                </div>
+              {/* faint watermark of the count so the card feels like a display case */}
+              <span className="pointer-events-none absolute -right-2 -top-3 select-none text-6xl font-black text-white/[0.03]">
+                {it.count}
+              </span>
+              <div
+                className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${it.grad} shadow-lg shadow-black/40 ring-2 ring-white/10`}
+              >
+                <it.Icon className="h-7 w-7 text-white drop-shadow" strokeWidth={2} />
               </div>
+              <div className="score-num text-3xl font-extrabold leading-none text-white">{it.count}</div>
+              <div className="text-[11px] font-medium leading-tight text-ink-300">{it.label}</div>
             </div>
           ))}
         </div>
