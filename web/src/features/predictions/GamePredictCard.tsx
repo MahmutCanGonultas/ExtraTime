@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Lock, Plus, Check, X } from 'lucide-react'
-import type { GameFixture, Outcome } from '@/features/groups/types'
-import { useUpsertPrediction } from '@/features/groups/hooks'
+import { Lock, Plus, Check, X, Users, ChevronDown } from 'lucide-react'
+import type { GameFixture, MemberPrediction, Outcome } from '@/features/groups/types'
+import { useFixturePredictions, useUpsertPrediction } from '@/features/groups/hooks'
 import { isFinished, isLive } from '@/features/football/matchStatus'
 import { FormBadges } from '@/features/football/FormBadges'
 import { TeamLogo } from '@/components/TeamLogo'
@@ -47,11 +46,25 @@ export function GamePredictCard({
   const [showScore, setShowScore] = useState(fixture.myHome != null)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
 
   const live = isLive(fixture.status)
   const finished = isFinished(fixture.status)
   const showResult = live || finished
   const locked = !fixture.open
+  // A colour-coded border tells the state apart at a glance.
+  const statusBorder =
+    finished && fixture.myPoints != null
+      ? fixture.myPoints >= 3
+        ? 'border-emerald-500/45'
+        : fixture.myPoints > 0
+          ? 'border-amber-500/45'
+          : 'border-rose-500/45'
+      : live
+        ? 'border-amber-400/50'
+        : !locked
+          ? 'border-brand-500/30'
+          : 'border-ink-800'
   // Predictions are final: once submitted, a member can no longer change it.
   const predicted = fixture.myOutcome != null
 
@@ -93,7 +106,7 @@ export function GamePredictCard({
   }
 
   return (
-    <Card className="transition duration-200 hover:border-ink-700">
+    <Card className={`border transition duration-200 ${statusBorder}`}>
       <CardBody className="space-y-3">
         {/* header */}
         <div className="flex items-center justify-between text-xs">
@@ -147,30 +160,43 @@ export function GamePredictCard({
         </div>
 
         {locked ? (
-          /* locked — show my pick and, once settled, the points */
-          <div className="flex items-center justify-between rounded-lg bg-ink-850 px-3 py-2 text-sm">
-            {fixture.myOutcome ? (
-              <span className="text-ink-200">
-                Tahminin:{' '}
-                <span className="font-medium text-ink-100">
-                  {outcomeLabel(fixture.myOutcome, fixture.homeName, fixture.awayName)}
-                </span>
-                {fixture.myHome != null && (
-                  <span className="text-ink-400">
-                    {' '}
-                    · {fixture.myHome}-{fixture.myAway}
+          /* locked — my pick + everyone else's, revealed now that it's kicked off */
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-lg bg-ink-850 px-3 py-2 text-sm">
+              {fixture.myOutcome ? (
+                <span className="text-ink-200">
+                  Tahminin:{' '}
+                  <span className="font-medium text-ink-100">
+                    {outcomeLabel(fixture.myOutcome, fixture.homeName, fixture.awayName)}
                   </span>
-                )}
-              </span>
-            ) : (
-              <span className="text-ink-500">Tahmin girmedin</span>
-            )}
-            {fixture.myPoints != null ? (
-              <Badge tone={pointsTone(fixture.myPoints)}>{fixture.myPoints} puan</Badge>
-            ) : (
-              <Link to={`/matches/${fixture.fixtureId}`} className="text-xs text-brand-300 hover:underline">
-                Herkesin tahmini →
-              </Link>
+                  {fixture.myHome != null && (
+                    <span className="text-ink-400">
+                      {' '}
+                      · {fixture.myHome}-{fixture.myAway}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-ink-500">Tahmin girmedin</span>
+              )}
+              {fixture.myPoints != null && (
+                <Badge tone={pointsTone(fixture.myPoints)}>{fixture.myPoints} puan</Badge>
+              )}
+            </div>
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-ink-700 py-1.5 text-xs font-medium text-ink-300 transition hover:border-brand-500/50 hover:text-brand-300"
+            >
+              <Users className="h-3.5 w-3.5" /> Herkesin tahmini
+              <ChevronDown className={`h-3.5 w-3.5 transition ${showAll ? 'rotate-180' : ''}`} />
+            </button>
+            {showAll && (
+              <EveryonesPredictions
+                groupId={groupId}
+                fixtureId={fixture.fixtureId}
+                homeName={fixture.homeName}
+                awayName={fixture.awayName}
+              />
             )}
           </div>
         ) : predicted ? (
@@ -263,6 +289,68 @@ export function GamePredictCard({
         )}
       </CardBody>
     </Card>
+  )
+}
+
+// Everyone's picks for one fixture — revealed only after kickoff (the server hides
+// them while the match is open so nobody can copy).
+function EveryonesPredictions({
+  groupId,
+  fixtureId,
+  homeName,
+  awayName,
+}: {
+  groupId: number
+  fixtureId: number
+  homeName: string
+  awayName: string
+}) {
+  const { data, isLoading } = useFixturePredictions(groupId, fixtureId)
+  if (isLoading)
+    return <div className="py-2 text-center text-xs text-ink-500">Yükleniyor…</div>
+  if (!data) return null
+  if (!data.locked)
+    return (
+      <div className="rounded-lg bg-ink-850 px-3 py-2 text-center text-xs text-ink-500">
+        Tahminler maç başlayınca açılır.
+      </div>
+    )
+  if (data.predictions.length === 0)
+    return (
+      <div className="rounded-lg bg-ink-850 px-3 py-2 text-center text-xs text-ink-500">
+        Kimse tahmin girmemiş.
+      </div>
+    )
+  return (
+    <ul className="divide-y divide-ink-850 overflow-hidden rounded-lg border border-ink-800">
+      {data.predictions.map((p) => (
+        <MemberRow key={p.userId} p={p} homeName={homeName} awayName={awayName} />
+      ))}
+    </ul>
+  )
+}
+
+function MemberRow({
+  p,
+  homeName,
+  awayName,
+}: {
+  p: MemberPrediction
+  homeName: string
+  awayName: string
+}) {
+  const pick =
+    p.predictedHome != null
+      ? `${p.predictedHome}-${p.predictedAway}`
+      : outcomeLabel(p.predictedOutcome, homeName, awayName)
+  return (
+    <li className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+      <span className="min-w-0 truncate text-ink-200">{p.displayName}</span>
+      <span className="flex shrink-0 items-center gap-2">
+        <span className="font-medium text-ink-100">{pick}</span>
+        {p.pointsAwarded != null && <Badge tone={pointsTone(p.pointsAwarded)}>{p.pointsAwarded}</Badge>}
+      </span>
+    </li>
   )
 }
 

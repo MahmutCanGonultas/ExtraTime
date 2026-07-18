@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronDown } from 'lucide-react'
 import {
   useCreateGame,
   useGameDetail,
@@ -143,66 +143,93 @@ export function PredictionsPage() {
             </section>
           )}
 
-          <HowToPlay />
-          {gameId != null && <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />}
-          {isAdmin && gameId != null && <AddMatchesPanel groupId={groupId} gameId={gameId} />}
-
-          {gameDetail.isLoading ? (
-            <Skeleton className="h-56" />
-          ) : fixtures.length === 0 ? (
-            <Card>
-              <CardBody>
-                <EmptyState
-                  title="Henüz maç yok"
-                  description={
-                    isAdmin
-                      ? 'Yukarıdaki “Oyuna maç ekle” ile maçları oyununa ekle.'
-                      : 'Başkan maçları ekleyince tahmin girebilirsin.'
-                  }
-                />
-              </CardBody>
-            </Card>
-          ) : (
-            <>
-              {openGames.length > 0 && (
-                <section>
-                  <h2 className="section-label mb-2 text-sm text-ink-400">
-                    Tahmin bekleyenler · {openGames.length}
-                  </h2>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {openGames.map((f) => (
-                      <GamePredictCard
-                        key={f.fixtureId}
-                        fixture={f}
-                        groupId={groupId}
-                        gameId={gameId!}
-                        onRemove={isAdmin ? () => removeFixture.mutate(f.fixtureId) : undefined}
-                      />
-                    ))}
+          {/* Dashboard: predictions on the left, standings/champions on the right. */}
+          <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+            {/* ── Left: the matches ── */}
+            <div className="space-y-5 lg:col-span-2">
+              {isAdmin && gameId != null && (
+                <details className="group overflow-hidden rounded-card border border-sky-500/25 bg-sky-500/[0.04]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-sky-200">
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Oyuna maç ekle
+                    </span>
+                    <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="border-t border-ink-800">
+                    <AddMatchesPanel groupId={groupId} gameId={gameId} />
                   </div>
-                </section>
+                </details>
               )}
 
-              {closedGames.length > 0 && (
-                <section>
-                  <h2 className="section-label mb-2 text-sm text-ink-400">
-                    Kilitli & sonuçlanan · {closedGames.length}
-                  </h2>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {closedGames.map((f) => (
-                      <GamePredictCard key={f.fixtureId} fixture={f} groupId={groupId} gameId={gameId!} />
-                    ))}
-                  </div>
-                </section>
-              )}
+              {gameDetail.isLoading ? (
+                <Skeleton className="h-56" />
+              ) : fixtures.length === 0 ? (
+                <Card>
+                  <CardBody>
+                    <EmptyState
+                      title="Henüz maç yok"
+                      description={
+                        isAdmin
+                          ? '“Oyuna maç ekle” ile maçları oyununa ekle.'
+                          : 'Başkan maçları ekleyince tahmin girebilirsin.'
+                      }
+                    />
+                  </CardBody>
+                </Card>
+              ) : (
+                <>
+                  {openGames.length > 0 && (
+                    <section className="rounded-card border border-brand-500/25 bg-brand-500/[0.04] p-3 sm:p-4">
+                      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-brand-300">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/20 text-xs tabular-nums">
+                          {openGames.length}
+                        </span>
+                        Tahmin bekleyenler
+                      </h2>
+                      <div className="grid gap-3 xl:grid-cols-2">
+                        {openGames.map((f) => (
+                          <GamePredictCard
+                            key={f.fixtureId}
+                            fixture={f}
+                            groupId={groupId}
+                            gameId={gameId!}
+                            onRemove={isAdmin ? () => removeFixture.mutate(f.fixtureId) : undefined}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
+                  {closedGames.length > 0 && (
+                    <section className="rounded-card border border-ink-800 bg-ink-900/40 p-3 sm:p-4">
+                      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-300">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink-800 text-xs tabular-nums">
+                          {closedGames.length}
+                        </span>
+                        Kilitli & sonuçlanan
+                      </h2>
+                      <div className="grid gap-3 xl:grid-cols-2">
+                        {closedGames.map((f) => (
+                          <GamePredictCard key={f.fixtureId} fixture={f} groupId={groupId} gameId={gameId!} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ── Right: standings + weekly champions ── */}
+            <div className="space-y-5">
+              {gameId != null && (
+                <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />
+              )}
               {gameDetail.data && gameDetail.data.standings.length > 0 && (
                 <Card className="overflow-hidden">
                   <CardHeader title="Bu oyunun sıralaması" />
                   <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
                 </Card>
               )}
-
               {gameDetail.data && gameDetail.data.weeks.length > 0 && (
                 <WeeklyChampions
                   weeks={gameDetail.data.weeks}
@@ -210,8 +237,9 @@ export function PredictionsPage() {
                   currentUserId={user?.id}
                 />
               )}
-            </>
-          )}
+              <HowToPlay />
+            </div>
+          </div>
         </>
       )}
     </div>
