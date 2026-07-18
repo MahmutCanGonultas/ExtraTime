@@ -77,7 +77,7 @@ function ActiveGameRow({ groupId, game, isAdmin }: { groupId: number; game: Seas
           <div className="text-sm font-semibold text-ink-100">{game.title}</div>
           <div className="text-xs text-ink-400">{game.matchCount} maç · devam ediyor</div>
         </div>
-        <Link to="/predictions">
+        <Link to="/group">
           <Button size="sm" variant="secondary">
             Tahminler
           </Button>

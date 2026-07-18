@@ -17,3 +17,11 @@ export function safeSetItem(key: string, value: string): void {
     /* storage unavailable — persistence is best-effort, so ignore */
   }
 }
+
+export function safeRemoveItem(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* storage unavailable — ignore */
+  }
+}

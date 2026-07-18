@@ -1,13 +1,16 @@
 // Single HTTP client for the whole frontend. It attaches the JWT, unwraps the
 // backend's consistent { error: { code, message } } shape, and never talks to
 // API-Football directly (everything goes through our own API).
+import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage'
 
 const TOKEN_KEY = 'extratime_token'
 
+// Via the safe helpers so a storage-blocked browser degrades gracefully instead
+// of throwing during the auth boot effect (which would blank the app).
 export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  get: () => safeGetItem(TOKEN_KEY),
+  set: (token: string) => safeSetItem(TOKEN_KEY, token),
+  clear: () => safeRemoveItem(TOKEN_KEY),
 }
 
 export class ApiError extends Error {
