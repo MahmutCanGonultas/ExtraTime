@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowUp, ArrowDown, RotateCcw, Eye, Trophy, User, Check, Search } from 'lucide-react'
 import { useGuessPool, useGuessSearch } from '@/features/football/hooks'
 import type { GuessPoolPlayer } from '@/features/football/types'
@@ -12,11 +12,11 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { flagEmoji } from '@/lib/flags'
 import { cn } from '@/lib/cn'
 
-// The guess pool — kept in sync with the backend (getGuessPool): these leagues'
-// current squads plus the three Istanbul clubs from the Süper Lig.
-const POOL_LEAGUES: Array<{ id: number; name: string }> = [
-  { id: 39, name: 'Premier Lig' },
+// Guessable sources the player can toggle. The answer pool defaults to the five
+// big leagues + the four biggest Turkish clubs; extra leagues can be added.
+const ALL_LEAGUES: Array<{ id: number; name: string }> = [
   { id: 140, name: 'La Liga' },
+  { id: 39, name: 'Premier Lig' },
   { id: 78, name: 'Bundesliga' },
   { id: 135, name: 'Serie A' },
   { id: 61, name: 'Ligue 1' },
@@ -24,48 +24,81 @@ const POOL_LEAGUES: Array<{ id: number; name: string }> = [
   { id: 88, name: 'Hollanda' },
   { id: 71, name: 'Brezilya' },
   { id: 307, name: 'Suudi Arabistan' },
+  { id: 253, name: 'MLS' },
 ]
-const POOL_CLUBS: Array<{ id: number; name: string }> = [
-  { id: 645, name: 'Galatasaray' },
-  { id: 611, name: 'Fenerbahçe' },
-  { id: 549, name: 'Beşiktaş' },
-]
+const DEFAULT_LEAGUES = [140, 39, 78, 135, 61]
+const TURKISH_CLUBS = [611, 645, 549, 998] // Fenerbahçe, Galatasaray, Beşiktaş, Trabzonspor
+const SOURCES_KEY = 'extratime:guess:sources:v1'
 
-function PoolInfo() {
+interface Sources {
+  leagues: number[]
+  turkish: boolean
+}
+function loadSources(): Sources {
+  const raw = safeGetItem(SOURCES_KEY)
+  if (raw) {
+    try {
+      const p = JSON.parse(raw)
+      if (Array.isArray(p.leagues) && typeof p.turkish === 'boolean') {
+        const leagues = p.leagues.filter((id: number) => ALL_LEAGUES.some((l) => l.id === id))
+        if (leagues.length > 0 || p.turkish) return { leagues, turkish: p.turkish }
+      }
+    } catch {
+      /* fall back to default */
+    }
+  }
+  return { leagues: DEFAULT_LEAGUES, turkish: true }
+}
+function saveSources(s: Sources) {
+  safeSetItem(SOURCES_KEY, JSON.stringify(s))
+}
+
+function PoolSelector({
+  leagues,
+  turkishOn,
+  onToggleLeague,
+  onToggleTurkish,
+}: {
+  leagues: number[]
+  turkishOn: boolean
+  onToggleLeague: (id: number) => void
+  onToggleTurkish: () => void
+}) {
+  const chip = (on: boolean) =>
+    cn(
+      'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition',
+      on
+        ? 'border-brand-500 bg-brand-500/15 text-brand-200'
+        : 'border-ink-800 bg-ink-850 text-ink-500 hover:border-ink-600 hover:text-ink-300',
+    )
   return (
     <Card className="p-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-            Bu oyundaki ligler
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {POOL_LEAGUES.map((l) => (
-              <span
-                key={l.id}
-                className="flex items-center gap-1.5 rounded-full border border-ink-800 bg-ink-850 px-2.5 py-1 text-xs font-medium text-ink-200"
-              >
-                <TeamLogo apiId={l.id} kind="league" size={16} /> {l.name}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="shrink-0 sm:border-l sm:border-ink-800 sm:pl-6">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-            + Takımlar
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {POOL_CLUBS.map((c) => (
-              <span
-                key={c.id}
-                className="flex items-center gap-1.5 rounded-full border border-ink-800 bg-ink-850 px-2.5 py-1 text-xs font-medium text-ink-200"
-              >
-                <TeamLogo apiId={c.id} size={16} /> {c.name}
-              </span>
-            ))}
-          </div>
-        </div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+        Havuz — gizli oyuncu hangi liglerden gelsin (ekle / çıkar)
       </div>
+      <div className="flex flex-wrap gap-1.5">
+        {ALL_LEAGUES.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => onToggleLeague(l.id)}
+            className={chip(leagues.includes(l.id))}
+          >
+            <TeamLogo apiId={l.id} kind="league" size={16} /> {l.name}
+          </button>
+        ))}
+        <button type="button" onClick={onToggleTurkish} className={chip(turkishOn)}>
+          <span className="flex -space-x-1.5">
+            {TURKISH_CLUBS.map((id) => (
+              <TeamLogo key={id} apiId={id} size={16} />
+            ))}
+          </span>
+          Türk kulüpleri
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] text-ink-500">
+        Seçtiğin kaynaklardan rastgele oyuncu gelir. En az bir kaynak seçili olmalı.
+      </p>
     </Card>
   )
 }
@@ -125,7 +158,9 @@ const TILE_BG: Record<TileState, string> = {
 const BEST_KEY = 'extratime:guess:best'
 
 export function GuessPlayerPage() {
-  const { data: pool, isLoading, isError, refetch } = useGuessPool()
+  const [sources, setSources] = useState<Sources>(loadSources)
+  const clubs = sources.turkish ? TURKISH_CLUBS : []
+  const { data: pool, isLoading, isError, refetch } = useGuessPool(sources.leagues, clubs)
   const [secret, setSecret] = useState<GuessPoolPlayer | null>(null)
   const [guesses, setGuesses] = useState<GuessPoolPlayer[]>([])
   const [term, setTerm] = useState('')
@@ -134,8 +169,6 @@ export function GuessPlayerPage() {
     const raw = safeGetItem(BEST_KEY)
     return raw ? Number(raw) : null
   })
-  const startedRef = useRef(false)
-
   const won = secret != null && guesses.some((g) => g.playerApiId === secret.playerApiId)
   const outOfGuesses = guesses.length >= MAX_GUESSES && !won
   const finished = won || revealed || outOfGuesses
@@ -147,9 +180,13 @@ export function GuessPlayerPage() {
     return list[Math.floor(Math.random() * top)]
   }
 
+  // Start a fresh round whenever the pool changes — first load AND whenever the
+  // player edits which leagues/clubs feed the game.
   useEffect(() => {
-    if (pool && pool.length > 0 && !startedRef.current) {
-      startedRef.current = true
+    if (pool && pool.length > 0) {
+      setGuesses([])
+      setTerm('')
+      setRevealed(false)
       setSecret(pickSecret(pool))
     }
   }, [pool])
@@ -160,6 +197,26 @@ export function GuessPlayerPage() {
     setTerm('')
     setRevealed(false)
     setSecret(pickSecret(pool))
+  }
+
+  function toggleLeague(id: number) {
+    setSources((s) => {
+      const has = s.leagues.includes(id)
+      const leagues = has ? s.leagues.filter((x) => x !== id) : [...s.leagues, id]
+      if (leagues.length === 0 && !s.turkish) return s // keep at least one source
+      const next = { ...s, leagues }
+      saveSources(next)
+      return next
+    })
+  }
+  function toggleTurkish() {
+    setSources((s) => {
+      const turkish = !s.turkish
+      if (!turkish && s.leagues.length === 0) return s
+      const next = { ...s, turkish }
+      saveSources(next)
+      return next
+    })
   }
 
   // Record best (fewest guesses) on a win.
@@ -215,7 +272,12 @@ export function GuessPlayerPage() {
         </div>
       </header>
 
-      <PoolInfo />
+      <PoolSelector
+        leagues={sources.leagues}
+        turkishOn={sources.turkish}
+        onToggleLeague={toggleLeague}
+        onToggleTurkish={toggleTurkish}
+      />
 
       {/* Photo + controls on the left, guesses on the right — so many guesses
           stay visible at once. Stacks to a single column on small screens. */}

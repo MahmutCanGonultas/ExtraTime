@@ -87,12 +87,15 @@ export function useGamePool() {
   })
 }
 
-export function useGuessPool() {
+export function useGuessPool(leagues: number[], clubs: number[]) {
+  const qs = `leagues=${leagues.join(',')}&clubs=${clubs.join(',')}`
   return useQuery({
-    queryKey: ['guess-pool'],
-    queryFn: () => api.get<{ players: GuessPoolPlayer[] }>('/players/guess/pool'),
+    queryKey: ['guess-pool', qs],
+    queryFn: () => api.get<{ players: GuessPoolPlayer[] }>(`/players/guess/pool?${qs}`),
     select: (d) => d.players,
     staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    enabled: leagues.length > 0 || clubs.length > 0,
   })
 }
 
