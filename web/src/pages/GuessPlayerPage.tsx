@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowUp, ArrowDown, RotateCcw, Eye, Trophy, User, Check, Search } from 'lucide-react'
 import { useGuessPool, useGuessSearch } from '@/features/football/hooks'
 import type { GuessPoolPlayer } from '@/features/football/types'
-import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -424,17 +423,16 @@ function GuessInput({
             ) : (
               suggestions.map((p) => (
                 <li key={p.playerApiId}>
+                  {/* No player photo here — while guessing you should recognise the
+                      name, not the face. The team crest is fine (not the player). */}
                   <button
                     onClick={() => onPick(p)}
-                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-ink-800"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-ink-800"
                   >
-                    <PlayerAvatar playerApiId={p.playerApiId} name={p.name} size={30} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm text-ink-100">{p.name}</span>
-                      <span className="flex items-center gap-1 truncate text-xs text-ink-400">
-                        {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={14} />}
-                        <span className="truncate">{p.teamName ?? '—'}</span>
-                      </span>
+                    <span className="min-w-0 truncate text-sm font-medium text-ink-100">{p.name}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-xs text-ink-400">
+                      {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={14} />}
+                      <span className="max-w-[130px] truncate">{p.teamName ?? '—'}</span>
                     </span>
                   </button>
                 </li>
@@ -602,8 +600,7 @@ function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPool
 
   return (
     <li className={cn(COLS, 'animate-guess-in items-center px-3 py-2.5')}>
-      <span className="flex min-w-0 items-center gap-2.5" title={guess.name}>
-        <PlayerAvatar playerApiId={guess.playerApiId} name={guess.name} size={38} />
+      <span className="flex min-w-0 items-center" title={guess.name}>
         <span className="min-w-0 truncate text-base font-semibold text-ink-100">{guess.name}</span>
       </span>
       <NationalityTile state={nat} nationality={guess.nationality} />
