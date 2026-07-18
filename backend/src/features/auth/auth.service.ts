@@ -27,6 +27,7 @@ export interface PublicUser {
   email: string
   displayName: string
   isAdmin: boolean
+  avatar: string | null
 }
 
 export interface AuthResult {
@@ -49,7 +50,13 @@ export async function registerUser(
        VALUES ($1, $2, $3) RETURNING id`,
       [normalizedEmail, passwordHash, name],
     )
-    const user: PublicUser = { id: rows[0].id, email: normalizedEmail, displayName: name, isAdmin: false }
+    const user: PublicUser = {
+      id: rows[0].id,
+      email: normalizedEmail,
+      displayName: name,
+      isAdmin: false,
+      avatar: null,
+    }
     return { user, token: signToken({ userId: user.id }) }
   } catch (err) {
     if (isUniqueViolation(err)) throw AppError.conflict('This email is already registered')
@@ -64,7 +71,10 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
     password_hash: string
     display_name: string
     is_admin: boolean
-  }>(`SELECT id, password_hash, display_name, is_admin FROM users WHERE email = $1`, [normalizedEmail])
+    avatar: string | null
+  }>(`SELECT id, password_hash, display_name, is_admin, avatar FROM users WHERE email = $1`, [
+    normalizedEmail,
+  ])
   const row = rows[0]
   // Same error whether the email is unknown or the password is wrong, so an
   // attacker cannot tell which emails exist.
@@ -76,19 +86,43 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
     email: normalizedEmail,
     displayName: row.display_name,
     isAdmin: row.is_admin,
+    avatar: row.avatar,
   }
   return { user, token: signToken({ userId: user.id }) }
 }
 
-export async function updateDisplayName(userId: number, displayName: string): Promise<PublicUser> {
-  const name = displayName.trim()
-  const { rows } = await query<{ id: number; email: string; display_name: string; is_admin: boolean }>(
-    `UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, email, display_name, is_admin`,
-    [name, userId],
+// Update the display name and/or avatar. Either field may be omitted (undefined),
+// in which case COALESCE leaves the stored value untouched — so the same endpoint
+// serves "rename me" and "pick an avatar" without clobbering the other field.
+export async function updateProfile(
+  userId: number,
+  changes: { displayName?: string; avatar?: string | null },
+): Promise<PublicUser> {
+  const name = changes.displayName?.trim() ?? null
+  const avatar = changes.avatar === undefined ? null : changes.avatar
+  const { rows } = await query<{
+    id: number
+    email: string
+    display_name: string
+    is_admin: boolean
+    avatar: string | null
+  }>(
+    `UPDATE users
+        SET display_name = COALESCE($1, display_name),
+            avatar       = COALESCE($2, avatar)
+      WHERE id = $3
+      RETURNING id, email, display_name, is_admin, avatar`,
+    [name, avatar, userId],
   )
   const row = rows[0]
   if (!row) throw AppError.notFound('User not found')
-  return { id: row.id, email: row.email, displayName: row.display_name, isAdmin: row.is_admin }
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    isAdmin: row.is_admin,
+    avatar: row.avatar,
+  }
 }
 
 export async function changePassword(
@@ -110,12 +144,21 @@ export async function changePassword(
 }
 
 export async function getUserById(id: number): Promise<PublicUser | null> {
-  const { rows } = await query<{ id: number; email: string; display_name: string; is_admin: boolean }>(
-    `SELECT id, email, display_name, is_admin FROM users WHERE id = $1`,
-    [id],
-  )
+  const { rows } = await query<{
+    id: number
+    email: string
+    display_name: string
+    is_admin: boolean
+    avatar: string | null
+  }>(`SELECT id, email, display_name, is_admin, avatar FROM users WHERE id = $1`, [id])
   const row = rows[0]
   return row
-    ? { id: row.id, email: row.email, displayName: row.display_name, isAdmin: row.is_admin }
+    ? {
+        id: row.id,
+        email: row.email,
+        displayName: row.display_name,
+        isAdmin: row.is_admin,
+        avatar: row.avatar,
+      }
     : null
 }

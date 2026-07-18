@@ -100,8 +100,13 @@ export async function getGroupDetail(groupId: number, requesterId: number) {
     throw AppError.forbidden('You are not a member of this group')
   }
 
-  const members = await query<{ id: number; displayName: string; joinedAt: Date }>(
-    `SELECT u.id, u.display_name AS "displayName", gm.joined_at AS "joinedAt"
+  const members = await query<{
+    id: number
+    displayName: string
+    avatar: string | null
+    joinedAt: Date
+  }>(
+    `SELECT u.id, u.display_name AS "displayName", u.avatar, gm.joined_at AS "joinedAt"
      FROM group_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.group_id = $1 ORDER BY gm.joined_at`,
     [groupId],

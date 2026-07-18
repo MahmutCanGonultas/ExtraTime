@@ -9,6 +9,7 @@ import { calculatePoints, type MatchOutcome } from './scoring'
 export interface LeaderboardEntry {
   userId: number
   displayName: string
+  avatar: string | null
   points: number
   adjustment: number
   exactCount: number
@@ -30,6 +31,7 @@ export async function seasonLeaderboard(
   const { rows } = await query<{
     userId: number
     displayName: string
+    avatar: string | null
     points: number
     exactCount: number
     scoringCount: number
@@ -37,7 +39,7 @@ export async function seasonLeaderboard(
     settledCount: number
     totalPredictions: number
   }>(
-    `SELECT u.id AS "userId", u.display_name AS "displayName",
+    `SELECT u.id AS "userId", u.display_name AS "displayName", u.avatar,
             COALESCE(SUM(p.points_awarded), 0)::int AS points,
             COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount",
             COALESCE(SUM(CASE WHEN p.points_awarded > 0 THEN 1 ELSE 0 END), 0)::int AS "scoringCount",
@@ -49,7 +51,7 @@ export async function seasonLeaderboard(
      LEFT JOIN predictions p ON p.group_id = gm.group_id AND p.user_id = gm.user_id
        AND p.fixture_id IN (SELECT fixture_id FROM group_fixtures WHERE season_id = $2)
      WHERE gm.group_id = $1
-     GROUP BY u.id, u.display_name
+     GROUP BY u.id, u.display_name, u.avatar
      ORDER BY points DESC, "exactCount" DESC, u.display_name ASC`,
     [groupId, seasonId],
   )
@@ -69,6 +71,7 @@ export async function seasonLeaderboard(
   const entries = rows.map((r) => ({
     userId: r.userId,
     displayName: r.displayName,
+    avatar: r.avatar,
     points: r.points + (adjustments.get(r.userId) ?? 0),
     adjustment: adjustments.get(r.userId) ?? 0,
     exactCount: r.exactCount,
@@ -95,6 +98,7 @@ export async function seasonLeaderboard(
 export interface WeekStanding {
   userId: number
   displayName: string
+  avatar: string | null
   points: number
   exactCount: number
 }
@@ -140,11 +144,12 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
     roundKey: string
     userId: number
     displayName: string
+    avatar: string | null
     points: number
     exactCount: number
   }>(
     `SELECT ${WEEK} AS "roundKey",
-            u.id AS "userId", u.display_name AS "displayName",
+            u.id AS "userId", u.display_name AS "displayName", u.avatar,
             COALESCE(SUM(p.points_awarded), 0)::int AS points,
             COALESCE(SUM(CASE WHEN p.points_awarded >= 5 THEN 1 ELSE 0 END), 0)::int AS "exactCount"
      FROM group_fixtures gf
@@ -154,7 +159,7 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
      LEFT JOIN predictions p ON p.group_id = gf.group_id AND p.user_id = gm.user_id
        AND p.fixture_id = gf.fixture_id AND p.settled_at IS NOT NULL
      WHERE gf.season_id = $1 AND gf.group_id = $2
-     GROUP BY ${WEEK}, u.id, u.display_name`,
+     GROUP BY ${WEEK}, u.id, u.display_name, u.avatar`,
     [seasonId, groupId],
   )
 
@@ -177,7 +182,13 @@ export async function seasonWeeks(groupId: number, seasonId: number | null): Pro
     const idx = roundIndex.get(r.roundKey)
     if (idx == null) continue
     const list = byRound.get(r.roundKey) ?? []
-    list.push({ userId: r.userId, displayName: r.displayName, points: r.points, exactCount: r.exactCount })
+    list.push({
+      userId: r.userId,
+      displayName: r.displayName,
+      avatar: r.avatar,
+      points: r.points,
+      exactCount: r.exactCount,
+    })
     byRound.set(r.roundKey, list)
   }
 

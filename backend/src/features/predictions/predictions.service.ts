@@ -178,12 +178,13 @@ export async function getFixturePredictions(groupId: number, fixtureId: number, 
   const { rows } = await query<{
     userId: number
     displayName: string
+    avatar: string | null
     predictedOutcome: MatchOutcome
     predictedHome: number | null
     predictedAway: number | null
     pointsAwarded: number | null
   }>(
-    `SELECT p.user_id AS "userId", u.display_name AS "displayName",
+    `SELECT p.user_id AS "userId", u.display_name AS "displayName", u.avatar,
             p.predicted_outcome AS "predictedOutcome",
             p.predicted_home AS "predictedHome", p.predicted_away AS "predictedAway",
             p.points_awarded AS "pointsAwarded"

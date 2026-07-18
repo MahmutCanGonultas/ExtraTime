@@ -9,7 +9,7 @@ import {
   isPlatformAdmin,
   loginUser,
   registerUser,
-  updateDisplayName,
+  updateProfile,
 } from './auth.service'
 import { requireAuth } from './requireAuth'
 
@@ -63,19 +63,28 @@ authRouter.get(
   }),
 )
 
-const updateNameSchema = z.object({ displayName: z.string().min(2).max(50) })
+// Both fields optional so this one endpoint handles renaming and avatar-picking;
+// avatar is a short preset id (or null to clear). At least one must be present.
+const updateProfileSchema = z
+  .object({
+    displayName: z.string().min(2).max(50).optional(),
+    avatar: z.string().max(40).nullable().optional(),
+  })
+  .refine((v) => v.displayName !== undefined || v.avatar !== undefined, {
+    message: 'No changes provided',
+  })
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(100),
 })
 
-// Change display name.
+// Change display name and/or avatar.
 authRouter.patch(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { displayName } = updateNameSchema.parse(req.body)
-    const user = await updateDisplayName(req.userId!, displayName)
+    const changes = updateProfileSchema.parse(req.body)
+    const user = await updateProfile(req.userId!, changes)
     res.json({ user, isPlatformAdmin: isPlatformAdmin(user) })
   }),
 )
