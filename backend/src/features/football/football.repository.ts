@@ -373,6 +373,11 @@ const GUESS_SECONDARY_LEAGUES = [253, 40, 141, 136, 79, 62, 95, 89, 72, 204, 308
 // or loan club — so for "current club" a same-season domestic-league row wins.
 const CUP_LEAGUE_API_IDS = new Set([2, 3, 848])
 
+// Secondary club leagues (MLS + the second divisions). Used when picking a player's
+// CURRENT club: a top-flight row always beats one of these, so a superstar with a
+// stray/erroneous secondary-league squad row still reads as his real club.
+const SECONDARY_CLUB_LEAGUES = new Set(GUESS_SECONDARY_LEAGUES)
+
 // Shared column list + FROM/WHERE so the pool and the autocomplete stay in
 // lockstep (same universe, same current-season rows). $1=season, $2=big5 ids,
 // $3=extra league id, $4=extra club ids. "appearances" is the player's career
@@ -567,16 +572,24 @@ export async function getPlayerProfile(playerApiId: number): Promise<PlayerProfi
   if (rows.length === 0) return null
   const head = rows[0]
   const birthDate = rows.find((r) => r.birthDate)?.birthDate ?? null
-  // Current club: the most-recent season's DOMESTIC-league row. A continental-cup
-  // row (Champions/Europa/Conference) can name a loan or former club — e.g. a
-  // player who moved but still shows a prior club's European run — so it must not
-  // win over the league row of the same season; national-team rows are never a
-  // club. Rows are already season-DESC, appearances-DESC.
+  // Current club: the most-recent season's DOMESTIC top-flight row. National-team
+  // rows (league 1) are never a club. Within that season we then prefer, in order:
+  // a top-flight domestic league, then any non-cup league, then anything. This
+  // avoids two traps: a continental-cup row (Champions/Europa/Conference) can name
+  // a loan or former club, and a secondary-league row (MLS / 2nd division) is often
+  // a stray/erroneous API squad entry — e.g. Lewandowski wrongly listed at an MLS
+  // club while really at Barcelona. A genuine MLS-only player (Messi at Inter Miami)
+  // has no top-flight row, so he still falls through to his real club.
   const clubRows = rows.filter((r) => r.leagueApiId !== 1)
   const topSeason = clubRows[0]?.season
   const seasonRows = clubRows.filter((r) => r.season === topSeason)
+  const isCup = (r: { leagueApiId: number }) => CUP_LEAGUE_API_IDS.has(r.leagueApiId)
+  const isSecondary = (r: { leagueApiId: number }) => SECONDARY_CLUB_LEAGUES.has(r.leagueApiId)
   const currentClub =
-    seasonRows.find((r) => !CUP_LEAGUE_API_IDS.has(r.leagueApiId)) ?? seasonRows[0] ?? head
+    seasonRows.find((r) => !isCup(r) && !isSecondary(r)) ??
+    seasonRows.find((r) => !isCup(r)) ??
+    seasonRows[0] ??
+    head
   return {
     playerApiId: head.playerApiId,
     name: head.name,

@@ -485,9 +485,14 @@ export async function backfillCurrentSquadProfiles(): Promise<number> {
          lastname = COALESCE(tgt.lastname, src.lastname),
          updated_at = now()
        FROM (
+         -- Source from the newest row that has a REAL name (not just a nationality):
+         -- a squad row can carry nationality yet lack firstname/lastname, and if that
+         -- row is the newest it would become its own useless source, leaving the name
+         -- abbreviated ("V. Muriqi"). Requiring firstname+lastname guarantees a
+         -- complete profile to copy from.
          SELECT DISTINCT ON (player_api_id) player_api_id, nationality, firstname, lastname
          FROM players
-         WHERE nationality IS NOT NULL
+         WHERE firstname IS NOT NULL AND firstname <> '' AND lastname IS NOT NULL AND lastname <> ''
          ORDER BY player_api_id, season DESC
        ) src
        WHERE tgt.player_api_id = src.player_api_id
