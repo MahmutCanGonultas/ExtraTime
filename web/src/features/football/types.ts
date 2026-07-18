@@ -174,12 +174,15 @@ export interface TeamHonours {
   clubWorldCup: number
 }
 
+export type TeamHonourYears = Partial<Record<keyof TeamHonours, number[]>>
+
 export interface TeamDetail {
   team: Team
   fixtures: Fixture[]
   standings: TeamStanding[]
   squad: SquadPlayer[]
   trophies: TeamHonours | null
+  trophyYears: TeamHonourYears | null
 }
 
 export interface TeamSquadHistory {

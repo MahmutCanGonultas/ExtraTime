@@ -5,7 +5,7 @@ import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import type { SquadPlayer, Team, TeamHonours, TeamStanding } from '@/features/football/types'
+import type { SquadPlayer, Team, TeamHonours, TeamHonourYears, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
@@ -26,7 +26,7 @@ export function TeamPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Takım bulunamadı" />
 
-  const { team, fixtures, standings, squad, trophies } = data
+  const { team, fixtures, standings, squad, trophies, trophyYears } = data
   const location = [team.stadiumName, team.city].filter(Boolean).join(' · ')
   // Anchor to the CURRENT season (newest we hold); it fills in as matches are
   // played. Older seasons live in the players' career tables.
@@ -89,7 +89,7 @@ export function TeamPage() {
         </div>
       </section>
 
-      <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} />
+      <TrophyCabinet trophies={trophies} leagueApiId={domesticLeagueId} years={trophyYears} />
 
       {primary && <StandingCard s={primary} />}
 
@@ -232,24 +232,45 @@ function TrophyImage({ src, label }: { src?: string; label: string }) {
   )
 }
 
-function TrophyCabinet({ trophies, leagueApiId }: { trophies: TeamHonours | null; leagueApiId?: number }) {
+function TrophyCabinet({
+  trophies,
+  leagueApiId,
+  years,
+}: {
+  trophies: TeamHonours | null
+  leagueApiId?: number
+  years?: TeamHonourYears | null
+}) {
+  const [detailed, setDetailed] = useState(false)
   if (!trophies) return null
   const won = HONOUR_ORDER.map((it) => ({
     ...it,
     count: trophies[it.key],
     slug: honourSlug(it.key, leagueApiId),
+    years: years?.[it.key] ?? [],
   })).filter((it) => it.count > 0)
   if (won.length === 0) return null
   const total = won.reduce((sum, it) => sum + it.count, 0)
+  const hasYears = won.some((it) => it.years.length > 0)
 
   return (
     <Card className="overflow-hidden">
       <CardHeader
         title="Kupa Dolabı"
         action={
-          <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-bold text-amber-300">
-            <Trophy className="h-3.5 w-3.5" /> {total} kupa
-          </span>
+          <div className="flex items-center gap-2">
+            {hasYears && (
+              <button
+                onClick={() => setDetailed((d) => !d)}
+                className="rounded-full border border-ink-700 px-2.5 py-1 text-xs font-semibold text-ink-300 transition hover:border-brand-500 hover:text-brand-300"
+              >
+                {detailed ? 'Basit' : 'Detaylı'}
+              </button>
+            )}
+            <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-bold text-amber-300">
+              <Trophy className="h-3.5 w-3.5" /> {total} kupa
+            </span>
+          </div>
         }
       />
       <CardBody>
@@ -266,9 +287,17 @@ function TrophyCabinet({ trophies, leagueApiId }: { trophies: TeamHonours | null
                 <TrophyImage src={it.slug ? TROPHY_IMG[it.slug] : undefined} label={it.label} />
               </div>
               <div className="text-[11px] font-medium leading-tight text-ink-300">{it.label}</div>
+              {detailed && it.years.length > 0 && (
+                <div className="mt-0.5 max-h-24 overflow-y-auto text-[10px] leading-relaxed text-ink-500">
+                  {it.years.join(' · ')}
+                </div>
+              )}
             </div>
           ))}
         </div>
+        {detailed && !hasYears && (
+          <p className="mt-2 text-center text-xs text-ink-500">Bu kulüp için yıl verisi bulunamadı.</p>
+        )}
       </CardBody>
     </Card>
   )

@@ -4,6 +4,7 @@ import { asyncHandler } from '../../lib/middleware/async'
 import { AppError } from '../../lib/errors'
 import * as repo from './football.repository'
 import { getTeamHonours } from './teamTrophies'
+import { getTeamHonourYears } from './teamTrophyYears'
 
 export const footballRouter = Router()
 
@@ -81,10 +82,23 @@ footballRouter.get(
   }),
 )
 
+// Comma-separated numeric id list → number[] (empty string → []), bounded.
+function parseIdList(raw: string | undefined): number[] | undefined {
+  if (raw === undefined) return undefined
+  return raw
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .slice(0, 40)
+}
+
+const guessPoolQuery = z.object({ leagues: z.string().optional(), clubs: z.string().optional() })
+
 footballRouter.get(
   '/players/guess/pool',
-  asyncHandler(async (_req, res) => {
-    res.json({ players: await repo.getGuessPool() })
+  asyncHandler(async (req, res) => {
+    const { leagues, clubs } = guessPoolQuery.parse(req.query)
+    res.json({ players: await repo.getGuessPool(parseIdList(leagues), parseIdList(clubs)) })
   }),
 )
 
@@ -149,7 +163,14 @@ footballRouter.get(
       repo.getTeamStandings(id),
       repo.getTeamSquad(team.apiFootballId),
     ])
-    res.json({ team, fixtures, standings, squad, trophies: getTeamHonours(team.apiFootballId) })
+    res.json({
+      team,
+      fixtures,
+      standings,
+      squad,
+      trophies: getTeamHonours(team.apiFootballId),
+      trophyYears: getTeamHonourYears(team.apiFootballId),
+    })
   }),
 )
 

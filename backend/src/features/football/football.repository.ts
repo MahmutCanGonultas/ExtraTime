@@ -403,16 +403,26 @@ const GUESS_UNIVERSE = `players p JOIN leagues l ON l.id = p.league_id
  * career prominence so the answer stays recognisable. Team/age/number come from
  * the live squad, so a transferred-out player (e.g. Messi) never appears here.
  */
-export async function getGuessPool(): Promise<GuessPoolPlayer[]> {
+// Default answer pool: the five big leagues + the four biggest Turkish clubs. The
+// player can widen or narrow this from the game screen (Kim Bu league selector).
+export const GUESS_DEFAULT_LEAGUES = [140, 39, 78, 135, 61]
+export const GUESS_DEFAULT_CLUBS = [611, 645, 549, 998] // Fenerbahçe, Galatasaray, Beşiktaş, Trabzonspor
+
+export async function getGuessPool(
+  leagueIds: number[] = GUESS_DEFAULT_LEAGUES,
+  clubIds: number[] = GUESS_DEFAULT_CLUBS,
+): Promise<GuessPoolPlayer[]> {
   const { rows } = await query<GuessPoolPlayer>(
     `SELECT * FROM (
        SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
-       FROM ${GUESS_UNIVERSE}
+       FROM players p JOIN leagues l ON l.id = p.league_id
+       WHERE p.season >= $1 AND p.photo_url IS NOT NULL AND p.nationality IS NOT NULL
+         AND (l.api_football_id = ANY($2) OR p.team_api_id = ANY($3))
        ORDER BY p.player_api_id, p.season DESC, p.appearances DESC NULLS LAST
      ) q
      ORDER BY q.appearances DESC NULLS LAST
      LIMIT 800`,
-    [GUESS_MIN_SEASON, GUESS_POOL_LEAGUES, GUESS_EXTRA_LEAGUE, GUESS_EXTRA_CLUBS],
+    [GUESS_MIN_SEASON, leagueIds, clubIds],
   )
   return rows
 }
