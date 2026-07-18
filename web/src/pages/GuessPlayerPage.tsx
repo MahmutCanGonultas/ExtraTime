@@ -12,6 +12,64 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { flagEmoji } from '@/lib/flags'
 import { cn } from '@/lib/cn'
 
+// The guess pool — kept in sync with the backend (getGuessPool): these leagues'
+// current squads plus the three Istanbul clubs from the Süper Lig.
+const POOL_LEAGUES: Array<{ id: number; name: string }> = [
+  { id: 39, name: 'Premier Lig' },
+  { id: 140, name: 'La Liga' },
+  { id: 78, name: 'Bundesliga' },
+  { id: 135, name: 'Serie A' },
+  { id: 61, name: 'Ligue 1' },
+  { id: 94, name: 'Portekiz' },
+  { id: 88, name: 'Hollanda' },
+  { id: 71, name: 'Brezilya' },
+  { id: 307, name: 'Suudi Arabistan' },
+]
+const POOL_CLUBS: Array<{ id: number; name: string }> = [
+  { id: 645, name: 'Galatasaray' },
+  { id: 611, name: 'Fenerbahçe' },
+  { id: 549, name: 'Beşiktaş' },
+]
+
+function PoolInfo() {
+  return (
+    <Card className="p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+            Bu oyundaki ligler
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {POOL_LEAGUES.map((l) => (
+              <span
+                key={l.id}
+                className="flex items-center gap-1.5 rounded-full border border-ink-800 bg-ink-850 px-2.5 py-1 text-xs font-medium text-ink-200"
+              >
+                <TeamLogo apiId={l.id} kind="league" size={16} /> {l.name}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="shrink-0 sm:border-l sm:border-ink-800 sm:pl-6">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+            + Takımlar
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {POOL_CLUBS.map((c) => (
+              <span
+                key={c.id}
+                className="flex items-center gap-1.5 rounded-full border border-ink-800 bg-ink-850 px-2.5 py-1 text-xs font-medium text-ink-200"
+              >
+                <TeamLogo apiId={c.id} size={16} /> {c.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 // Accent- and case-insensitive so "odegaard" matches "Ødegaard" and the Turkish
 // dotted/undotted i behaves. Mirrors the server-side unaccent search.
 function norm(s: string): string {
@@ -167,6 +225,8 @@ export function GuessPlayerPage() {
           </Button>
         </div>
       </header>
+
+      <PoolInfo />
 
       {/* Photo + controls on the left, guesses on the right — so many guesses
           stay visible at once. Stacks to a single column on small screens. */}
