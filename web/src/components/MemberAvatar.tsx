@@ -1,9 +1,10 @@
 import { cn } from '@/lib/cn'
 import { AVATAR_BY_ID } from './avatarPresets'
 
-// Members have no photo. If they've picked a preset avatar we show its emoji on a
-// vivid gradient; otherwise we fall back to a stable coloured "initials" disc — a
-// bit of identity and colour so member lists never read as a grey wall.
+// Members have no photo. If they've picked a preset avatar we render its icon on a
+// rich gradient with a little depth (a top highlight + soft shadow + light ring) so
+// it reads as a designed emblem; otherwise we fall back to a stable coloured
+// "initials" disc — a bit of identity and colour so lists never read as a grey wall.
 const PALETTE = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316']
 
 function colorFor(name: string): string {
@@ -33,24 +34,34 @@ export function MemberAvatar({
   const preset = avatar ? AVATAR_BY_ID.get(avatar) : undefined
 
   if (preset) {
+    const Icon = preset.Icon
     return (
       <div
-        className={cn(
-          'flex shrink-0 items-center justify-center rounded-full ring-1 ring-white/15',
-          className,
-        )}
+        className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full', className)}
         style={{
           width: size,
           height: size,
-          backgroundImage: `linear-gradient(135deg, ${preset.from}, ${preset.to})`,
-          fontSize: size * 0.52,
-          lineHeight: 1,
-          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.25)',
+          backgroundImage: `linear-gradient(140deg, ${preset.from} 0%, ${preset.to} 100%)`,
+          boxShadow: `inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.35)`,
         }}
-        title={name}
+        title={`${name} · ${preset.label}`}
         aria-hidden
       >
-        {preset.emoji}
+        {/* Soft top-left sheen for a glassy, dimensional look. */}
+        <span
+          className="pointer-events-none absolute inset-0 rounded-full"
+          style={{
+            backgroundImage: 'radial-gradient(65% 55% at 32% 24%, rgba(255,255,255,0.40), transparent 60%)',
+          }}
+        />
+        {/* Hairline light ring to crisp the edge against dark surfaces. */}
+        <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/25" />
+        <Icon
+          size={Math.round(size * 0.5)}
+          strokeWidth={2.3}
+          className="relative text-white"
+          style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))' }}
+        />
       </div>
     )
   }

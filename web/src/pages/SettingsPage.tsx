@@ -83,7 +83,7 @@ function AvatarForm({
             <div className="mt-0.5 text-xs text-ink-500">Bir tane seç, hemen kaydedilir.</div>
           </div>
         </div>
-        <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
+        <div className="grid grid-cols-5 gap-2.5">
           {AVATARS.map((a) => {
             const selected = a.id === current
             return (
@@ -91,16 +91,17 @@ function AvatarForm({
                 key={a.id}
                 onClick={() => pick(a.id)}
                 disabled={saving !== null}
-                aria-label={a.id}
+                aria-label={a.label}
                 aria-pressed={selected}
+                title={a.label}
                 className={cn(
-                  'relative flex items-center justify-center rounded-xl p-1 transition',
+                  'relative flex items-center justify-center rounded-xl p-1.5 transition',
                   selected
                     ? 'bg-brand-500/20 ring-2 ring-brand-400'
                     : 'ring-1 ring-ink-800 hover:bg-ink-850 hover:ring-ink-600',
                 )}
               >
-                <MemberAvatar name={name} avatar={a.id} size={36} />
+                <MemberAvatar name={name} avatar={a.id} size={44} />
                 {selected && (
                   <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-400 text-ink-950">
                     <Check className="h-3 w-3" />
