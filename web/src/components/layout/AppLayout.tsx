@@ -138,7 +138,7 @@ export function AppLayout() {
       </header>
 
       <main className="flex-1">
-        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:py-9">
           <Outlet />
         </div>
       </main>

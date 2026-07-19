@@ -144,9 +144,9 @@ export function PredictionsPage() {
           )}
 
           {/* Dashboard: predictions on the left, standings/champions on the right. */}
-          <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
             {/* ── Left: the matches ── */}
-            <div className="space-y-5 lg:col-span-2">
+            <div className="space-y-6 lg:col-span-2">
               {isAdmin && gameId != null && (
                 <details className="group overflow-hidden rounded-card border border-sky-500/25 bg-sky-500/[0.04]">
                   <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-sky-200">
@@ -220,7 +220,7 @@ export function PredictionsPage() {
             </div>
 
             {/* ── Right: standings + weekly champions ── */}
-            <div className="space-y-5">
+            <div className="space-y-6">
               {gameId != null && (
                 <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />
               )}

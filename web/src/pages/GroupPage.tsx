@@ -59,7 +59,7 @@ function NoGroup() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Hero — a welcoming pitch banner instead of a bare heading. */}
       <section
         className="relative overflow-hidden rounded-card border border-ink-800"
@@ -143,7 +143,7 @@ function GroupView({ group }: { group: GroupSummary }) {
   const memberCount = members.length || group.memberCount
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Hero — the group identity, member count and a stacked row of member
           avatars so the group feels populated the moment you open it. */}
       <section
