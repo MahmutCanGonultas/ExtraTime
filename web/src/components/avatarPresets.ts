@@ -1,41 +1,40 @@
+import type { ComponentType } from 'react'
 import {
+  Ball,
+  Jersey,
+  Boot,
+  Glove,
+  Goal,
   Trophy,
-  Crown,
-  Flame,
-  Zap,
-  Star,
-  Rocket,
-  Shield,
-  Gem,
-  Sparkles,
-  Target,
-  type LucideIcon,
-} from 'lucide-react'
+  CornerFlag,
+  Armband,
+  Whistle,
+  Pitch,
+  type IconProps,
+} from './footballIcons'
 
-// A small, hand-curated set of avatars: a crisp white icon on a rich two-stop
-// gradient, rendered with depth (a top highlight + soft shadow) by <MemberAvatar>
-// so they read as designed emblems, not casual emoji. Each has a distinct hue so a
-// group's roster is colourful. Storing just the id keeps the DB tiny.
-
+// Ten hand-drawn, ALL-football avatars: a white glyph on a vivid gradient, rendered
+// with depth by <MemberAvatar>. The user picks one in Settings; it shows everywhere
+// their name appears. Storing just the id keeps the DB tiny.
 export interface AvatarPreset {
   id: string
   label: string
-  Icon: LucideIcon
+  Icon: ComponentType<IconProps>
   from: string
   to: string
 }
 
 export const AVATARS: AvatarPreset[] = [
-  { id: 'trophy', label: 'Kupa', Icon: Trophy, from: '#fcd34d', to: '#b45309' },
-  { id: 'crown', label: 'Taç', Icon: Crown, from: '#c4b5fd', to: '#6d28d9' },
-  { id: 'flame', label: 'Ateş', Icon: Flame, from: '#fb923c', to: '#b91c1c' },
-  { id: 'volt', label: 'Volt', Icon: Zap, from: '#d9f99d', to: '#4d7c0f' },
-  { id: 'star', label: 'Yıldız', Icon: Star, from: '#7dd3fc', to: '#1d4ed8' },
-  { id: 'rocket', label: 'Roket', Icon: Rocket, from: '#5eead4', to: '#0f766e' },
-  { id: 'shield', label: 'Kalkan', Icon: Shield, from: '#cbd5e1', to: '#334155' },
-  { id: 'gem', label: 'Elmas', Icon: Gem, from: '#fda4af', to: '#be123c' },
-  { id: 'spark', label: 'Işıltı', Icon: Sparkles, from: '#f0abfc', to: '#a21caf' },
-  { id: 'target', label: 'Hedef', Icon: Target, from: '#67e8f9', to: '#0e7490' },
+  { id: 'ball', label: 'Top', Icon: Ball, from: '#34d399', to: '#047857' },
+  { id: 'jersey', label: 'Forma', Icon: Jersey, from: '#60a5fa', to: '#1e3a8a' },
+  { id: 'boot', label: 'Krampon', Icon: Boot, from: '#fb7185', to: '#9f1239' },
+  { id: 'glove', label: 'Eldiven', Icon: Glove, from: '#fbbf24', to: '#b45309' },
+  { id: 'goal', label: 'Kale', Icon: Goal, from: '#38bdf8', to: '#075985' },
+  { id: 'trophy', label: 'Kupa', Icon: Trophy, from: '#fcd34d', to: '#a16207' },
+  { id: 'flag', label: 'Korner', Icon: CornerFlag, from: '#f472b6', to: '#9d174d' },
+  { id: 'armband', label: 'Kaptan', Icon: Armband, from: '#c084fc', to: '#6b21a8' },
+  { id: 'whistle', label: 'Düdük', Icon: Whistle, from: '#5eead4', to: '#0f766e' },
+  { id: 'pitch', label: 'Saha', Icon: Pitch, from: '#4ade80', to: '#166534' },
 ]
 
 export const AVATAR_BY_ID = new Map(AVATARS.map((a) => [a.id, a]))

@@ -57,8 +57,7 @@ export function MemberAvatar({
         {/* Hairline light ring to crisp the edge against dark surfaces. */}
         <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/25" />
         <Icon
-          size={Math.round(size * 0.5)}
-          strokeWidth={2.3}
+          size={Math.round(size * 0.56)}
           className="relative text-white"
           style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))' }}
         />
