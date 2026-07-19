@@ -292,7 +292,12 @@ export function GuessPlayerPage() {
               }}
             />
             <div className="relative mx-auto w-full max-w-[290px] rounded-[20px] bg-gradient-to-br from-brand-500/50 via-emerald-500/25 to-sky-500/30 p-[3px] shadow-lg shadow-brand-950/20">
-              <MysteryPhoto player={secret} revealed={finished} />
+              <MysteryPhoto
+                player={secret}
+                revealed={finished}
+                guessCount={guesses.length}
+                maxGuesses={MAX_GUESSES}
+              />
             </div>
             {finished ? (
               <div className="relative animate-pop-in text-center">
@@ -454,27 +459,39 @@ function GuessInput({
   )
 }
 
-// The photo stays HIDDEN during play (a plain silhouette) so nobody can guess from
-// the face — the real photo is only unveiled once the round is solved or given up.
-function MysteryPhoto({ player, revealed }: { player: GuessPoolPlayer | null; revealed: boolean }) {
+// PROGRESSIVE reveal: the photo starts heavily blurred and gets clearer with every
+// wrong guess, so it's nearly sharp by the last guess — this drip-feed is the whole
+// point of the game. Fully clear once solved or given up.
+function MysteryPhoto({
+  player,
+  revealed,
+  guessCount,
+  maxGuesses,
+}: {
+  player: GuessPoolPlayer | null
+  revealed: boolean
+  guessCount: number
+  maxGuesses: number
+}) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [player?.playerApiId])
+
+  // 0 at the first guess → 1 by the final guess.
+  const t = Math.min(1, guessCount / Math.max(1, maxGuesses - 1))
+  const playStyle = {
+    filter: `blur(${Math.round((1 - t) * 20 + 2)}px) brightness(${(0.78 + t * 0.22).toFixed(2)}) grayscale(${((1 - t) * 0.45).toFixed(2)})`,
+    transform: `scale(${(1.22 - t * 0.14).toFixed(3)})`,
+  }
 
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-ink-850 ring-1 ring-ink-700">
       {player?.photoUrl && !failed ? (
         <img
-          // Heavily blurred + darkened while playing (can't be guessed from), fully
-          // clear once the round is solved or given up.
           key={player.playerApiId}
           src={player.photoUrl}
           alt={revealed ? player.name : 'Gizli oyuncu'}
           onError={() => setFailed(true)}
-          style={
-            revealed
-              ? undefined
-              : { filter: 'blur(22px) brightness(0.75) grayscale(0.4)', transform: 'scale(1.25)' }
-          }
+          style={revealed ? undefined : playStyle}
           className="h-full w-full object-cover transition-[filter,transform] duration-500"
           draggable={false}
         />
