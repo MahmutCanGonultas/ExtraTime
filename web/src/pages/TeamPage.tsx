@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MapPin, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
@@ -5,12 +6,13 @@ import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
 import { wonTrophies, TrophyImage, type WonTrophy } from '@/features/football/trophyAssets'
-import type { SquadPlayer, Team, TeamStanding } from '@/features/football/types'
+import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
+import { cn } from '@/lib/cn'
 
 function seasonLabel(season: number): string {
   const next = (season + 1) % 100
@@ -43,7 +45,7 @@ export function TeamPage() {
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Hero — the stadium photo as a blurred, darkened backdrop, with the crest
           + identity on the left and the club's trophies right beside it. */}
       <section className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950">
@@ -99,43 +101,15 @@ export function TeamPage() {
 
       {primary && <StandingCard s={primary} />}
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           {squad.filter((p) => (p.goals ?? 0) > 0).length > 0 && (
             <TeamStars squad={squad.filter((p) => (p.goals ?? 0) > 0).slice(0, 3)} season={squadSeason} />
           )}
-          {upcoming.length > 0 && (
-            <Card className="overflow-hidden">
-              <CardHeader
-                title="Yaklaşan maçlar"
-                action={
-                  primary && (
-                    <Link
-                      to={`/leagues/${primary.leagueId}`}
-                      className="text-xs font-medium text-brand-300 hover:underline"
-                    >
-                      Tüm fikstür →
-                    </Link>
-                  )
-                }
-              />
-              <FixtureList fixtures={upcoming.slice(0, 5)} showLeague />
-            </Card>
-          )}
-          {recent.length > 0 && (
-            <Card className="overflow-hidden">
-              <CardHeader title="Son sonuçlar" />
-              <FixtureList fixtures={recent.slice(0, 5)} showLeague />
-            </Card>
-          )}
-          {fixtures.length === 0 && (
-            <Card>
-              <EmptyState title="Maç bulunamadı" />
-            </Card>
-          )}
+          <TeamMatches upcoming={upcoming} recent={recent} leagueId={primary?.leagueId} />
         </div>
 
-        <aside className="space-y-5">
+        <aside className="space-y-6">
           <TeamInfoCard team={team} />
 
           <Card className="overflow-hidden">
@@ -196,6 +170,66 @@ function TrophyShelf({ won, total, teamId }: { won: WonTrophy[]; total: number; 
         ))}
       </div>
     </Link>
+  )
+}
+
+// Upcoming + recent matches in ONE compact card with a small toggle, so the two
+// fixture lists don't dominate the page (they used to be two tall stacked cards).
+function TeamMatches({
+  upcoming,
+  recent,
+  leagueId,
+}: {
+  upcoming: Fixture[]
+  recent: Fixture[]
+  leagueId?: number
+}) {
+  const [tab, setTab] = useState<'upcoming' | 'recent'>(upcoming.length > 0 ? 'upcoming' : 'recent')
+  if (upcoming.length === 0 && recent.length === 0) {
+    return (
+      <Card>
+        <CardBody className="py-8">
+          <EmptyState title="Maç bulunamadı" />
+        </CardBody>
+      </Card>
+    )
+  }
+  const list = (tab === 'upcoming' ? upcoming : recent).slice(0, 5)
+  const btn = (active: boolean) =>
+    cn(
+      'rounded-md px-3 py-1.5 text-xs font-semibold transition',
+      active ? 'bg-ink-700 text-ink-100 shadow-sm' : 'text-ink-400 hover:text-ink-200',
+    )
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800 px-3 py-2.5">
+        <div className="flex gap-0.5 rounded-lg bg-ink-850 p-0.5">
+          {upcoming.length > 0 && (
+            <button className={btn(tab === 'upcoming')} onClick={() => setTab('upcoming')}>
+              Yaklaşan
+            </button>
+          )}
+          {recent.length > 0 && (
+            <button className={btn(tab === 'recent')} onClick={() => setTab('recent')}>
+              Son sonuçlar
+            </button>
+          )}
+        </div>
+        {leagueId && (
+          <Link
+            to={`/leagues/${leagueId}`}
+            className="px-1 text-xs font-medium text-brand-300 hover:underline"
+          >
+            Tüm fikstür →
+          </Link>
+        )}
+      </div>
+      {list.length > 0 ? (
+        <FixtureList fixtures={list} showLeague />
+      ) : (
+        <p className="py-6 text-center text-sm text-ink-500">Kayıt yok.</p>
+      )}
+    </Card>
   )
 }
 
