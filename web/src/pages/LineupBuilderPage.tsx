@@ -1667,6 +1667,9 @@ function Pitch({
       onPointerDown={
         arrowMode
           ? (e) => {
+              // Stop the browser from starting a text/element selection (the blue
+              // highlight over player names) while dragging to draw.
+              e.preventDefault()
               const p = toPct(e)
               setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y, kind: arrowKind })
               e.currentTarget.setPointerCapture(e.pointerId)
@@ -1692,7 +1695,7 @@ function Pitch({
           : undefined
       }
       className={cn(
-        'relative mx-auto aspect-[3/4] w-full max-w-[480px] overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60',
+        'relative mx-auto aspect-[3/4] w-full max-w-[480px] select-none overflow-hidden rounded-2xl shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-950/60',
         arrowMode && 'cursor-crosshair',
       )}
       style={{
