@@ -673,6 +673,11 @@ export function LineupBuilderPage() {
       setLoadedTeamName(loadTeam.name)
       setReleased([])
       setTitle(loadTeam.name)
+      // A brand-new XI: drop the old captain / duties / drag overrides so their
+      // slot indices don't silently land on unrelated players from the new squad.
+      setCaptain(null)
+      setDuties({ ...NO_DUTIES })
+      setPositions(Array(11).fill(null))
       setLoadTeam(null)
     }
   }, [loadTeam, squadData, slots])
@@ -742,14 +747,21 @@ export function LineupBuilderPage() {
   }
 
   function assign(idx: number, p: Placed) {
+    const existing = players.findIndex((x) => x?.playerApiId === p.playerApiId)
     setPlayers((prev) => {
       const next = [...prev]
       // If the player is already on the pitch elsewhere, move them (no clones).
-      const existing = next.findIndex((x) => x?.playerApiId === p.playerApiId)
-      if (existing >= 0 && existing !== idx) next[existing] = null
+      const ex = next.findIndex((x) => x?.playerApiId === p.playerApiId)
+      if (ex >= 0 && ex !== idx) next[ex] = null
       next[idx] = p
       return next
     })
+    // Moving them off their old slot leaves that slot empty — drop any captaincy /
+    // duty it held so an unrelated player dropped there later doesn't inherit it.
+    if (existing >= 0 && existing !== idx) {
+      setCaptain((c) => (c === existing ? null : c))
+      setDuties((d) => clearDutiesAt(d, existing))
+    }
     setActiveSlot(null)
   }
 
@@ -814,6 +826,7 @@ export function LineupBuilderPage() {
     setPositions(Array(11).fill(null))
     setReleased([])
     setDuties({ ...NO_DUTIES })
+    clearArrows()
     setMenu(null)
     setSwapFrom(null)
   }
@@ -1067,10 +1080,16 @@ export function LineupBuilderPage() {
                       className={cn(
                         'flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-bold transition',
                         arrowKind === k
-                          ? 'border-transparent text-ink-950'
+                          ? 'border-transparent'
                           : 'border-ink-700 bg-ink-850 text-ink-300 hover:text-ink-100',
                       )}
-                      style={arrowKind === k ? { backgroundColor: ARROW_STYLES[k].color } : undefined}
+                      // Fixed dark label on the bright, non-theme fill — text-ink-950
+                      // would flip to near-white in light theme and vanish.
+                      style={
+                        arrowKind === k
+                          ? { backgroundColor: ARROW_STYLES[k].color, color: '#0e1626' }
+                          : undefined
+                      }
                     >
                       <span
                         className="h-0.5 w-4 rounded-full"
