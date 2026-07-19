@@ -72,12 +72,18 @@ export function HomePage() {
     <div className="space-y-6">
       {/* Matchday hero */}
       <section
-        className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
+        className="elevate relative overflow-hidden rounded-card border border-emerald-900/40"
+        style={{ backgroundImage: 'linear-gradient(125deg, #0c2b20 0%, #10231c 45%, #0e1626 100%)' }}
       >
-        <div className="absolute inset-0 mow-stripes" />
-        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
-        <BallMark size={200} className="pointer-events-none absolute -bottom-14 -left-10 text-brand-400/[0.04]" />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              'radial-gradient(72% 95% at 90% -12%, rgba(16,185,129,0.24), transparent 55%)',
+          }}
+        />
+        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-emerald-200/[0.07] sm:block" />
+        <BallMark size={210} className="pointer-events-none absolute -bottom-16 -right-10 text-emerald-400/[0.06]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4 px-6 py-8 sm:px-10">
           <div>
             <div className="flex items-center gap-2 text-brand-300">
