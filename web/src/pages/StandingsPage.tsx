@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Trophy } from 'lucide-react'
 import { useGameDetail, useGames } from '@/features/groups/hooks'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -57,13 +56,12 @@ export function StandingsPage() {
       {gameId != null && <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />}
 
       {gameDetail.data && gameDetail.data.standings.length > 0 && (
-        <Card className="overflow-hidden border-amber-500/20">
-          <div className="flex items-center gap-2 border-b border-amber-500/15 bg-amber-500/[0.06] px-4 py-3">
-            <Trophy className="h-4 w-4 text-amber-300" />
-            <h3 className="section-label text-sm text-amber-200">Sıralama</h3>
-          </div>
-          <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
-        </Card>
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">Sıralama</h3>
+          <Card className="overflow-hidden">
+            <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
+          </Card>
+        </div>
       )}
 
       {gameDetail.data && gameDetail.data.weeks.length > 0 && (
