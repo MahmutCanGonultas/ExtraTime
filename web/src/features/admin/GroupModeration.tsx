@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Pencil, Plus, Search, X } from 'lucide-react'
+import { ChevronDown, Gavel, Pencil, Plus, Search, X } from 'lucide-react'
 import {
   useAdminAddFixture,
   useAdminAdjustPoints,
@@ -10,6 +10,7 @@ import {
   useAdminRemoveFixture,
   useAdminRemoveMember,
   useAdminResetMemberPassword,
+  useAdminSetFixtureResult,
   useAdminSetPrediction,
 } from './hooks'
 import type { GameFixture, Outcome } from '@/features/groups/types'
@@ -221,18 +222,49 @@ function FixtureModRow({
           </button>
         )}
       </div>
-      {open && <FixturePredictionsEditor groupId={groupId} fixtureId={fixture.fixtureId} />}
+      {open && (
+        <FixturePredictionsEditor
+          groupId={groupId}
+          fixtureId={fixture.fixtureId}
+          homeName={fixture.homeName}
+          awayName={fixture.awayName}
+          homeScore={fixture.homeScore}
+          awayScore={fixture.awayScore}
+        />
+      )}
     </li>
   )
 }
 
-function FixturePredictionsEditor({ groupId, fixtureId }: { groupId: number; fixtureId: number }) {
+function FixturePredictionsEditor({
+  groupId,
+  fixtureId,
+  homeName,
+  awayName,
+  homeScore,
+  awayScore,
+}: {
+  groupId: number
+  fixtureId: number
+  homeName: string
+  awayName: string
+  homeScore: number | null
+  awayScore: number | null
+}) {
   const preds = useAdminFixturePredictions(groupId, fixtureId, true)
   const setPred = useAdminSetPrediction(groupId)
   if (preds.isLoading || !preds.data) return <Skeleton className="m-2 h-16" />
   return (
     <div className="space-y-1 border-t border-ink-800 px-2 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-ink-500">Tahminleri düzelt</div>
+      <ResultOverride
+        groupId={groupId}
+        fixtureId={fixtureId}
+        homeName={homeName}
+        awayName={awayName}
+        homeScore={homeScore}
+        awayScore={awayScore}
+      />
+      <div className="mt-2 text-[10px] uppercase tracking-wide text-ink-500">Tahminleri düzelt</div>
       {preds.data.map((m) => (
         <div key={m.userId} className="flex items-center gap-2 text-xs">
           <span className="w-24 truncate text-ink-200">{m.displayName}</span>
@@ -262,6 +294,74 @@ function FixturePredictionsEditor({ groupId, fixtureId }: { groupId: number; fix
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Hand-correct a match's score. Marks it finished + re-settles every prediction
+// on it (across all groups). Amber-tinted because it's a heavy, global action.
+function ResultOverride({
+  groupId,
+  fixtureId,
+  homeName,
+  awayName,
+  homeScore,
+  awayScore,
+}: {
+  groupId: number
+  fixtureId: number
+  homeName: string
+  awayName: string
+  homeScore: number | null
+  awayScore: number | null
+}) {
+  const [h, setH] = useState(homeScore != null ? String(homeScore) : '')
+  const [a, setA] = useState(awayScore != null ? String(awayScore) : '')
+  const [msg, setMsg] = useState<string | null>(null)
+  const setResult = useAdminSetFixtureResult(groupId)
+  const valid = h !== '' && a !== ''
+  const clean = (v: string) => v.replace(/\D/g, '').slice(0, 2)
+  function save() {
+    if (!valid) return
+    setMsg(null)
+    setResult.mutate(
+      { fixtureId, homeScore: Number(h), awayScore: Number(a) },
+      {
+        onSuccess: (d) => setMsg(`Kaydedildi · ${d.settled} tahmin yeniden puanlandı`),
+        onError: () => setMsg('Kaydedilemedi'),
+      },
+    )
+  }
+  return (
+    <div className="rounded-lg bg-amber-500/[0.06] p-2 ring-1 ring-amber-500/20">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+        <Gavel className="h-3 w-3" /> Maç sonucunu düzelt · biter + yeniden puanlar
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-right text-xs text-ink-200">{homeName}</span>
+        <input
+          inputMode="numeric"
+          value={h}
+          onChange={(e) => setH(clean(e.target.value))}
+          className="h-7 w-9 rounded bg-ink-850 text-center text-sm text-ink-100 ring-1 ring-ink-700 focus:outline-none focus:ring-amber-500"
+        />
+        <span className="text-ink-500">-</span>
+        <input
+          inputMode="numeric"
+          value={a}
+          onChange={(e) => setA(clean(e.target.value))}
+          className="h-7 w-9 rounded bg-ink-850 text-center text-sm text-ink-100 ring-1 ring-ink-700 focus:outline-none focus:ring-amber-500"
+        />
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-200">{awayName}</span>
+        <button
+          onClick={save}
+          disabled={!valid || setResult.isPending}
+          className="shrink-0 rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-ink-950 transition hover:bg-amber-400 disabled:opacity-40"
+        >
+          {setResult.isPending ? '...' : 'Kaydet'}
+        </button>
+      </div>
+      {msg && <div className="mt-1 text-[10px] font-medium text-amber-300">{msg}</div>}
     </div>
   )
 }

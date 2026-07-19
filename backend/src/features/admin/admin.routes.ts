@@ -18,7 +18,7 @@ import {
   syncTopAssists,
   syncTopScorers,
 } from '../football/sync/jobs'
-import { syncResultsAndSettle } from '../predictions/settle'
+import { settleFixture, syncResultsAndSettle } from '../predictions/settle'
 
 export const adminRouter = Router()
 
@@ -178,6 +178,32 @@ adminRouter.post(
       b.predictedAway ?? null,
     )
     res.status(201).json({ ok: true })
+  }),
+)
+
+// Correct a match result by hand and re-settle every prediction on it. Global (a
+// fixture is shared by all groups). Unlike the dev simulator this keeps the real
+// kickoff_at — it only fixes the score/status. Platform-admin JWT required.
+const fixtureResultSchema = z.object({
+  homeScore: z.number().int().min(0).max(99),
+  awayScore: z.number().int().min(0).max(99),
+  status: z.enum(['FT', 'AET', 'PEN']).default('FT'),
+})
+adminRouter.post(
+  '/fixtures/:id/result',
+  adminOnly,
+  asyncHandler(async (req, res) => {
+    const fixtureId = parseIdParam(req.params.id)
+    const { homeScore, awayScore, status } = fixtureResultSchema.parse(req.body)
+    const { rowCount } = await query(
+      `UPDATE fixtures
+          SET status = $2, home_score = $3, away_score = $4, updated_at = now()
+        WHERE id = $1`,
+      [fixtureId, status, homeScore, awayScore],
+    )
+    if ((rowCount ?? 0) === 0) throw AppError.notFound('Maç bulunamadı')
+    const settled = await settleFixture(fixtureId)
+    res.json({ ok: true, settled })
   }),
 )
 

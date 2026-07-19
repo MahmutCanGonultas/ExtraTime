@@ -141,6 +141,19 @@ export function useAdminSetPrediction(groupId: number) {
   })
 }
 
+// Correct a match's score by hand and re-settle every prediction on it.
+export function useAdminSetFixtureResult(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { fixtureId: number; homeScore: number; awayScore: number }) =>
+      api.post<{ settled: number }>(`/admin/fixtures/${input.fixtureId}/result`, input),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin-fixture-predictions', groupId, v.fixtureId] })
+      qc.invalidateQueries({ queryKey: ['admin-group', groupId] })
+    },
+  })
+}
+
 // ---- Platform overview ----
 
 export interface AdminStats {
