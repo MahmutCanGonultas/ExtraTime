@@ -33,8 +33,8 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="h-1 bg-brand-500" />
-      <header className="sticky top-0 z-30 border-b border-ink-800 bg-ink-950/90 backdrop-blur">
+      <div className="h-1 bg-gradient-to-r from-brand-600 via-brand-400 to-emerald-400" />
+      <header className="sticky top-0 z-30 border-b border-ink-800/70 bg-ink-950/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
           <NavLink to="/" className="shrink-0">
             <Brand markSize={24} />

@@ -22,11 +22,22 @@ const LEAGUE_COLOR: Record<number, string> = {
   135: '#3b82f6', // Serie A — blue
   61: '#14b8a6', // Ligue 1 — teal
   203: '#f43f5e', // Süper Lig — rose
+  // Continental cups
+  2: '#1d4ed8', // Champions League — blue
+  3: '#ea580c', // Europa League — orange
+  848: '#16a34a', // Conference League — green
+  1: '#7c3aed', // World Cup — violet
+  // Other top leagues
+  94: '#16a34a', // Primeira Liga — green
+  88: '#ea580c', // Eredivisie — orange
+  71: '#eab308', // Brasileirão — yellow
+  307: '#059669', // Saudi — emerald
+  253: '#2563eb', // MLS — blue
 }
 const CUPS = [2, 3, 848, 1] // Champions, Europa, Conference, World Cup
 const DOMESTIC_CUPS = [206, 45, 143, 137, 81, 66] // Türkiye Kupası, FA Cup, Copa del Rey, Coppa Italia, DFB Pokal, Coupe de France
 const OTHER = [94, 88, 71, 307, 253] // Portugal, Netherlands, Brazil, Saudi, MLS
-const SECOND = [40, 141, 136, 79, 62, 95, 89, 72, 204, 308] // second divisions
+const SECOND = [40, 141, 79, 95, 204] // remaining second divisions
 
 interface Comp {
   apiId: number
@@ -214,29 +225,29 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
 }
 
 function CompactLeagueCard({ c, accent, dim }: { c: Comp; accent?: boolean; dim?: boolean }) {
+  // Every league gets a signature colour so the grid reads as distinct identities,
+  // not a flat grey list — the same idea as the featured cards, scaled down.
+  const color = LEAGUE_COLOR[c.apiId] ?? (accent ? '#f59e0b' : '#10b981')
   return (
     <Link
       to={`/leagues/${c.current.id}`}
-      className={cnCompact(accent, dim)}
+      className={`group elevate relative flex items-center gap-3 overflow-hidden rounded-xl border border-ink-800 bg-ink-900 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-ink-700 ${dim ? 'opacity-90' : ''}`}
+      style={{ backgroundImage: `radial-gradient(120% 110% at 100% 0%, ${color}22, transparent 60%)` }}
     >
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-950/40 ring-1 ring-ink-800">
-        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={26} />
+      <div className="absolute inset-y-0 left-0 w-0.5" style={{ background: color }} />
+      <div
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ring-white/10"
+        style={{ background: `${color}1f` }}
+      >
+        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={28} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-ink-100">{c.head.name}</div>
+        <div className="truncate text-sm font-bold text-ink-100">{c.head.name}</div>
         <div className="truncate text-[11px] text-ink-500">
           {c.head.country} · {seasonLabel(c.current.season)}
         </div>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-ink-600" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-ink-500 transition group-hover:translate-x-0.5 group-hover:text-ink-300" />
     </Link>
   )
-}
-
-function cnCompact(accent?: boolean, dim?: boolean): string {
-  const base =
-    'flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition hover:bg-ink-850'
-  if (accent) return `${base} border-amber-500/30 bg-amber-500/[0.04] hover:border-amber-500/50`
-  if (dim) return `${base} border-ink-850 bg-ink-900/60 hover:border-ink-700`
-  return `${base} border-ink-800 bg-ink-900 hover:border-brand-500/40`
 }
