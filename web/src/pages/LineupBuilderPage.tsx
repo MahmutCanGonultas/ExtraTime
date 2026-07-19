@@ -225,6 +225,121 @@ function benchRole(pos: string | null): string {
 type Pos = { x: number; y: number }
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
 
+// Team-wide tactical instructions — the classic coach controls. They also reshape
+// the block on the pitch: mentality + line push the team up (toward the opponent)
+// or drop it deep, width spreads it across the flanks or squeezes it inside.
+type Mentality = 'attack' | 'balanced' | 'defend'
+type Line = 'high' | 'mid' | 'low'
+type Tempo = 'fast' | 'balanced' | 'slow'
+type Width = 'wide' | 'normal' | 'narrow'
+type Passing = 'short' | 'mixed' | 'long'
+interface Tactics {
+  mentality: Mentality
+  line: Line
+  tempo: Tempo
+  width: Width
+  passing: Passing
+}
+const DEFAULT_TACTICS: Tactics = {
+  mentality: 'balanced',
+  line: 'mid',
+  tempo: 'balanced',
+  width: 'normal',
+  passing: 'mixed',
+}
+
+// Special on-pitch duties beyond the captain: who takes penalties, free-kicks and
+// corners, plus the vice-captain. Each holds a slot index (0-10) or null.
+interface Duties {
+  penalty: number | null
+  freekick: number | null
+  corner: number | null
+  vice: number | null
+}
+const NO_DUTIES: Duties = { penalty: null, freekick: null, corner: null, vice: null }
+const DUTY_META: { key: keyof Duties; label: string; tag: string }[] = [
+  { key: 'penalty', label: 'Penaltıcı', tag: 'P' },
+  { key: 'freekick', label: 'Serbest vuruş', tag: 'SV' },
+  { key: 'corner', label: 'Kornerci', tag: 'K' },
+  { key: 'vice', label: 'Yardımcı kaptan', tag: 'YK' },
+]
+function normalizeDuties(d: Partial<Duties> | null | undefined): Duties {
+  if (!d || typeof d !== 'object') return { ...NO_DUTIES }
+  const n = (v: unknown): number | null => (typeof v === 'number' && v >= 0 && v < 11 ? v : null)
+  return { penalty: n(d.penalty), freekick: n(d.freekick), corner: n(d.corner), vice: n(d.vice) }
+}
+// Drop every duty that points at a slot (used when that player leaves the pitch).
+function clearDutiesAt(d: Duties, idx: number): Duties {
+  const out = { ...d }
+  for (const { key } of DUTY_META) if (out[key] === idx) out[key] = null
+  return out
+}
+// Follow a two-slot swap so each duty stays with its own player.
+function swapDuties(d: Duties, a: number, b: number): Duties {
+  const out = { ...d }
+  for (const { key } of DUTY_META) out[key] = d[key] === a ? b : d[key] === b ? a : d[key]
+  return out
+}
+
+// The segmented controls shown in the "Takım Talimatları" card, ordered low→high.
+const TACTIC_GROUPS: { key: keyof Tactics; label: string; options: { v: string; label: string }[] }[] = [
+  { key: 'mentality', label: 'Mentalite', options: [
+    { v: 'defend', label: 'Savunma' }, { v: 'balanced', label: 'Dengeli' }, { v: 'attack', label: 'Hücum' }] },
+  { key: 'line', label: 'Savunma çizgisi', options: [
+    { v: 'low', label: 'Alçak' }, { v: 'mid', label: 'Orta' }, { v: 'high', label: 'Yüksek' }] },
+  { key: 'tempo', label: 'Tempo', options: [
+    { v: 'slow', label: 'Sakin' }, { v: 'balanced', label: 'Dengeli' }, { v: 'fast', label: 'Hızlı' }] },
+  { key: 'width', label: 'Genişlik', options: [
+    { v: 'narrow', label: 'Dar' }, { v: 'normal', label: 'Normal' }, { v: 'wide', label: 'Geniş' }] },
+  { key: 'passing', label: 'Pas stili', options: [
+    { v: 'short', label: 'Kısa' }, { v: 'mixed', label: 'Karışık' }, { v: 'long', label: 'Uzun' }] },
+]
+
+function normalizeTactics(t: Partial<Tactics> | null | undefined): Tactics {
+  if (!t || typeof t !== 'object') return { ...DEFAULT_TACTICS }
+  const pick = <T extends string>(v: unknown, allowed: readonly T[], d: T): T =>
+    allowed.includes(v as T) ? (v as T) : d
+  return {
+    mentality: pick(t.mentality, ['attack', 'balanced', 'defend'] as const, 'balanced'),
+    line: pick(t.line, ['high', 'mid', 'low'] as const, 'mid'),
+    tempo: pick(t.tempo, ['fast', 'balanced', 'slow'] as const, 'balanced'),
+    width: pick(t.width, ['wide', 'normal', 'narrow'] as const, 'normal'),
+    passing: pick(t.passing, ['short', 'mixed', 'long'] as const, 'mixed'),
+  }
+}
+
+// Reshape the base formation to reflect the instructions. The GK stays home; a
+// freely-dragged override still wins over this (applied afterwards).
+function applyTactics(slots: Slot[], t: Tactics): Slot[] {
+  const yShift =
+    (t.mentality === 'attack' ? -4 : t.mentality === 'defend' ? 5 : 0) +
+    (t.line === 'high' ? -5 : t.line === 'low' ? 6 : 0)
+  const xScale = t.width === 'wide' ? 1.14 : t.width === 'narrow' ? 0.8 : 1
+  return slots.map((s) =>
+    s.role === 'GK'
+      ? s
+      : { ...s, x: clamp(50 + (s.x - 50) * xScale, 6, 94), y: clamp(s.y + yShift, 10, 88) },
+  )
+}
+
+// A short, human description of the chosen style, shown under the controls.
+function tacticsSummary(t: Tactics): string {
+  const M = {
+    attack: 'Öne çıkan, baskılı bir oyun',
+    balanced: 'Dengeli bir düzen',
+    defend: 'Temkinli, kompakt bir blok',
+  }
+  const L = { high: 'yüksek savunma çizgisiyle', mid: 'orta blokla', low: 'geri çekilen bir hatla' }
+  const T = { fast: 'yüksek tempoda', balanced: 'dengeli tempoda', slow: 'sakin tempoda' }
+  const W = { wide: 'kanatlara yayılır', normal: 'dengeli genişlikte durur', narrow: 'içe kapanır' }
+  const P = {
+    short: 'kısa paslarla topu tutar',
+    mixed: 'karışık paslarla dengeler',
+    long: 'uzun toplarla hızlı çıkar',
+  }
+  return `${M[t.mentality]} ${L[t.line]}; ${T[t.tempo]} ${W[t.width]} ve ${P[t.passing]}.`
+}
+
 // What is being dragged: a player already on a slot, or a bench player.
 type DragSource = { kind: 'slot'; index: number } | { kind: 'bench'; player: SquadPlayer }
 
@@ -246,6 +361,8 @@ interface SavedState {
   loadedTeamApiId: number | null
   loadedTeamName: string | null
   released: Released[]
+  tactics: Tactics
+  duties: Duties
 }
 
 // A named save slot (max MAX_SLOTS), persisted separately from the live state.
@@ -266,6 +383,8 @@ function emptyState(): SavedState {
     loadedTeamApiId: null,
     loadedTeamName: null,
     released: [],
+    tactics: { ...DEFAULT_TACTICS },
+    duties: { ...NO_DUTIES },
   }
 }
 
@@ -288,6 +407,8 @@ function normalizeState(parsed: Partial<SavedState> | null | undefined): SavedSt
     loadedTeamApiId: typeof parsed.loadedTeamApiId === 'number' ? parsed.loadedTeamApiId : null,
     loadedTeamName: typeof parsed.loadedTeamName === 'string' ? parsed.loadedTeamName : null,
     released: Array.isArray(parsed.released) ? (parsed.released as Released[]) : [],
+    tactics: normalizeTactics(parsed.tactics),
+    duties: normalizeDuties(parsed.duties),
   }
 }
 
@@ -430,6 +551,10 @@ export function LineupBuilderPage() {
   const [loadedTeamName, setLoadedTeamName] = useState<string | null>(() => initial.loadedTeamName)
   // Up to MAX_SLOTS named saved lineups.
   const [savedSlots, setSavedSlots] = useState<SavedSlot[]>(loadSlots)
+  // Team-wide instructions + special duties (set-piece takers, vice-captain).
+  const [tactics, setTactics] = useState<Tactics>(() => initial.tactics)
+  const [duties, setDuties] = useState<Duties>(() => initial.duties)
+  const [tacticsOpen, setTacticsOpen] = useState(false)
 
   const slots = useMemo(() => buildSlots(formation), [formation])
   const filled = players.filter(Boolean).length
@@ -447,16 +572,21 @@ export function LineupBuilderPage() {
       loadedTeamApiId,
       loadedTeamName,
       released,
+      tactics,
+      duties,
     }
     safeSetItem(STORAGE_KEY, JSON.stringify(state))
-  }, [formation, title, players, captain, positions, loadedSquad, loadedTeamApiId, loadedTeamName, released])
+  }, [formation, title, players, captain, positions, loadedSquad, loadedTeamApiId, loadedTeamName, released, tactics, duties])
 
   useEffect(() => {
     safeSetItem(SLOTS_KEY, JSON.stringify(savedSlots))
   }, [savedSlots])
 
-  // Effective on-pitch position: a freely-dragged override, else the formation slot.
-  const placedSlots = slots.map((s, i) => (positions[i] ? { ...s, ...positions[i]! } : s))
+  // The formation reshaped by the team instructions (block pushed up / dropped deep,
+  // spread wide / squeezed in). A freely-dragged override still wins over this.
+  const shapedSlots = useMemo(() => applyTactics(slots, tactics), [slots, tactics])
+  // Effective on-pitch position: a freely-dragged override, else the shaped slot.
+  const placedSlots = shapedSlots.map((s, i) => (positions[i] ? { ...s, ...positions[i]! } : s))
   const connections = tacticalConnections(formation, placedSlots)
 
   // Changing the formation snaps everyone back to that shape.
@@ -571,6 +701,8 @@ export function LineupBuilderPage() {
       loadedTeamApiId,
       loadedTeamName,
       released,
+      tactics,
+      duties,
     }
     return { name: title.trim() || `Kadro ${savedSlots.length + 1}`, savedAt: Date.now(), state }
   }
@@ -598,6 +730,8 @@ export function LineupBuilderPage() {
     setLoadedTeamApiId(s.loadedTeamApiId)
     setLoadedTeamName(s.loadedTeamName)
     setReleased(s.released)
+    setTactics(s.tactics ?? { ...DEFAULT_TACTICS })
+    setDuties(s.duties ?? { ...NO_DUTIES })
     setMenu(null)
     setSwapFrom(null)
     setActiveSlot(null)
@@ -632,10 +766,18 @@ export function LineupBuilderPage() {
       next[idx] = null
       return next
     })
+    // Drop any captaincy / special duty that pointed at the now-empty slot.
+    setCaptain((c) => (c === idx ? null : c))
+    setDuties((d) => clearDutiesAt(d, idx))
   }
 
   function toggleCaptain(idx: number) {
     setCaptain((c) => (c === idx ? null : idx))
+  }
+
+  // Assign a special duty to a slot (or clear it if it already holds that duty).
+  function toggleDuty(role: keyof Duties, idx: number) {
+    setDuties((d) => ({ ...d, [role]: d[role] === idx ? null : idx }))
   }
 
   // Trade two players' places. Each slot keeps its own on-pitch spot (and free
@@ -651,6 +793,7 @@ export function LineupBuilderPage() {
       return next
     })
     setCaptain((c) => (c === a ? b : c === b ? a : c))
+    setDuties((d) => swapDuties(d, a, b))
     setSwapFrom(null)
   }
 
@@ -670,6 +813,7 @@ export function LineupBuilderPage() {
     setCaptain(null)
     setPositions(Array(11).fill(null))
     setReleased([])
+    setDuties({ ...NO_DUTIES })
     setMenu(null)
     setSwapFrom(null)
   }
@@ -714,6 +858,7 @@ export function LineupBuilderPage() {
                 onRemoveArrow={removeArrow}
                 players={players}
                 captain={captain}
+                duties={duties}
                 teamApiId={loadedTeamApiId}
                 teamName={loadedTeamName}
                 swapFrom={swapFrom}
@@ -970,6 +1115,88 @@ export function LineupBuilderPage() {
             )}
           </Card>
 
+          <Card className="space-y-3 p-4">
+            <button
+              type="button"
+              onClick={() => setTacticsOpen((v) => !v)}
+              className="flex w-full items-center justify-between"
+            >
+              <span className="section-label text-ink-400">Takım Talimatları</span>
+              <ChevronDown
+                className={cn('h-4 w-4 text-ink-400 transition', tacticsOpen ? '' : '-rotate-90')}
+              />
+            </button>
+            {tacticsOpen && (
+              <div className="space-y-3">
+                {TACTIC_GROUPS.map((g) => (
+                  <div key={g.key}>
+                    <div className="mb-1.5 text-xs font-medium text-ink-300">{g.label}</div>
+                    <div className="grid grid-cols-3 gap-1 rounded-lg bg-ink-850 p-1">
+                      {g.options.map((o) => {
+                        const active = (tactics[g.key] as string) === o.v
+                        return (
+                          <button
+                            key={o.v}
+                            type="button"
+                            onClick={() => setTactics((t) => ({ ...t, [g.key]: o.v }) as Tactics)}
+                            className={cn(
+                              'rounded-md px-2 py-1.5 text-xs font-semibold transition',
+                              active
+                                ? 'bg-brand-500 text-ink-950 shadow-sm'
+                                : 'text-ink-300 hover:text-ink-100',
+                            )}
+                          >
+                            {o.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <p className="rounded-lg bg-ink-850 px-3 py-2 text-[11px] leading-relaxed text-ink-400">
+                  {tacticsSummary(tactics)}
+                </p>
+              </div>
+            )}
+          </Card>
+
+          {filled > 0 && (
+            <Card className="space-y-2 p-4">
+              <div className="section-label text-ink-400">Görevler</div>
+              <ul className="space-y-1.5 text-sm">
+                {[
+                  { label: 'Kaptan', icon: '👑', idx: captain },
+                  { label: 'Yardımcı kaptan', icon: '🧢', idx: duties.vice },
+                  { label: 'Penaltı', icon: '🎯', idx: duties.penalty },
+                  { label: 'Serbest vuruş', icon: '🌀', idx: duties.freekick },
+                  { label: 'Korner', icon: '🚩', idx: duties.corner },
+                ].map((r) => {
+                  const p = r.idx != null ? players[r.idx] : null
+                  return (
+                    <li key={r.label} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-ink-300">
+                        <span className="w-4 text-center">{r.icon}</span>
+                        {r.label}
+                      </span>
+                      <span
+                        className={cn(
+                          'truncate text-right font-semibold',
+                          p ? 'text-ink-100' : 'text-ink-600',
+                        )}
+                      >
+                        {p ? surname(p.name) : '—'}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="text-[11px] leading-relaxed text-ink-500">
+                Sahadaki bir oyuncuya dokun → menüden görev ata. Rozetler formada P (penaltı),
+                SV (serbest vuruş), K (korner), YK (yardımcı kaptan) olarak görünür.
+              </p>
+            </Card>
+          )}
+
           <Button variant="secondary" className="w-full" onClick={reset} disabled={filled === 0}>
             <Trash2 className="h-4 w-4" />
             Kadroyu temizle
@@ -981,6 +1208,12 @@ export function LineupBuilderPage() {
         <PlayerActionMenu
           player={players[menu.idx]!}
           isCaptain={captain === menu.idx}
+          dutyActive={{
+            penalty: duties.penalty === menu.idx,
+            freekick: duties.freekick === menu.idx,
+            corner: duties.corner === menu.idx,
+            vice: duties.vice === menu.idx,
+          }}
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(null)}
@@ -996,6 +1229,7 @@ export function LineupBuilderPage() {
             toggleCaptain(menu.idx)
             setMenu(null)
           }}
+          onDuty={(role) => toggleDuty(role, menu.idx)}
           onBench={() => {
             remove(menu.idx)
             setMenu(null)
@@ -1033,34 +1267,45 @@ export function LineupBuilderPage() {
   )
 }
 
+const DUTY_ICON: Record<keyof Duties, string> = {
+  penalty: '🎯',
+  freekick: '🌀',
+  corner: '🚩',
+  vice: '🧢',
+}
+
 function PlayerActionMenu({
   player,
   isCaptain,
+  dutyActive,
   x,
   y,
   onClose,
   onChange,
   onSwap,
   onCaptain,
+  onDuty,
   onBench,
   onSell,
   onLoan,
 }: {
   player: Placed
   isCaptain: boolean
+  dutyActive: Record<keyof Duties, boolean>
   x: number
   y: number
   onClose: () => void
   onChange: () => void
   onSwap: () => void
   onCaptain: () => void
+  onDuty: (role: keyof Duties) => void
   onBench: () => void
   onSell: () => void
   onLoan: () => void
 }) {
   const flag = flagEmoji(player.nationality ?? null)
   const left = Math.max(8, Math.min(x, window.innerWidth - 236))
-  const top = Math.max(8, Math.min(y, window.innerHeight - 356))
+  const top = Math.max(8, Math.min(y, window.innerHeight - 476))
   const items = [
     { icon: '🔀', label: 'Yer değiştir', onClick: onSwap },
     { icon: '🔁', label: 'Oyuncuyu değiştir', onClick: onChange },
@@ -1097,6 +1342,29 @@ function PlayerActionMenu({
               {it.label}
             </button>
           ))}
+        </div>
+        <div className="border-t border-ink-800 p-1.5">
+          <div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-ink-500">
+            Duran top & görev
+          </div>
+          {DUTY_META.map((d) => {
+            const on = dutyActive[d.key]
+            return (
+              <button
+                key={d.key}
+                onClick={() => onDuty(d.key)}
+                aria-pressed={on}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition',
+                  on ? 'bg-brand-500/15 text-brand-200' : 'text-ink-200 hover:bg-ink-800',
+                )}
+              >
+                <span className="w-5 text-center">{DUTY_ICON[d.key]}</span>
+                <span className="flex-1">{d.label}</span>
+                {on && <span className="text-xs font-black text-brand-300">✓</span>}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -1284,6 +1552,7 @@ function Pitch({
   onRemoveArrow,
   players,
   captain,
+  duties,
   teamApiId,
   teamName,
   swapFrom,
@@ -1305,6 +1574,7 @@ function Pitch({
   onRemoveArrow: (i: number) => void
   players: (Placed | null)[]
   captain: number | null
+  duties: Duties
   teamApiId: number | null
   teamName: string | null
   swapFrom: number | null
@@ -1532,6 +1802,8 @@ function Pitch({
           number={players[i]?.jerseyNumber ?? i + 1}
           size={chipSize}
           isCaptain={captain === i}
+          isVice={duties.vice === i}
+          setPieceTags={DUTY_META.filter((d) => d.key !== 'vice' && duties[d.key] === i).map((d) => d.tag)}
           isSwapSource={swapFrom === i}
           swapping={swapFrom !== null}
           pitchRef={ref}
@@ -1554,6 +1826,8 @@ function SlotChip({
   number,
   size,
   isCaptain,
+  isVice,
+  setPieceTags,
   isSwapSource,
   swapping,
   pitchRef,
@@ -1570,6 +1844,8 @@ function SlotChip({
   number: number
   size: { avatar: number; box: number; label: number; empty: number }
   isCaptain: boolean
+  isVice: boolean
+  setPieceTags: string[]
   isSwapSource: boolean
   swapping: boolean
   pitchRef: React.RefObject<HTMLDivElement | null>
@@ -1662,6 +1938,23 @@ function SlotChip({
             >
               {number}
             </span>
+            {(setPieceTags.length > 0 || isVice) && (
+              <span className="absolute -bottom-1 -right-1 flex gap-px">
+                {isVice && (
+                  <span className="grid h-4 min-w-[15px] place-items-center rounded bg-black/85 px-0.5 text-[8px] font-black text-sky-300 shadow ring-1 ring-white/10">
+                    YK
+                  </span>
+                )}
+                {setPieceTags.map((t) => (
+                  <span
+                    key={t}
+                    className="grid h-4 min-w-[15px] place-items-center rounded bg-black/85 px-0.5 text-[8px] font-black text-brand-300 shadow ring-1 ring-white/10"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </span>
+            )}
           </button>
           <button
             onClick={onRemove}
