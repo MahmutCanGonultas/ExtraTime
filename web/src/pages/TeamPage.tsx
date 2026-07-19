@@ -344,9 +344,9 @@ function StandingCard({ s }: { s: TeamStanding }) {
     { label: 'P', value: String(s.points), tone: 'text-amber-300' },
   ]
   return (
-    <Card className="overflow-hidden border-brand-500/15 bg-gradient-to-br from-brand-500/[0.06] to-ink-900">
+    <Card>
       <CardBody>
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           <TeamLogo apiId={s.leagueApiId} kind="league" size={18} />
           <span className="text-sm font-semibold text-ink-100">{s.leagueName}</span>
           <span className="text-xs text-ink-500">{seasonLabel(s.season)}</span>
@@ -356,10 +356,10 @@ function StandingCard({ s }: { s: TeamStanding }) {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-7 gap-1 rounded-xl bg-ink-950/60 p-3 text-center ring-1 ring-ink-800">
+        <div className="grid grid-cols-7 gap-1.5 text-center">
           {cols.map((c) => (
-            <div key={c.label}>
-              <div className={`score-num text-xl font-extrabold ${c.tone ?? 'text-ink-200'}`}>{c.value}</div>
+            <div key={c.label} className="rounded-xl bg-ink-850 py-2.5">
+              <div className={`score-num text-xl font-extrabold ${c.tone ?? 'text-ink-100'}`}>{c.value}</div>
               <div className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-500">{c.label}</div>
             </div>
           ))}
