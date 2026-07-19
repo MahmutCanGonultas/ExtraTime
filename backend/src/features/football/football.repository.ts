@@ -349,14 +349,9 @@ const GUESS_SEARCH_LEAGUES = [
   253, // MLS
   40, // Championship (England)
   141, // La Liga 2 (Spain)
-  136, // Serie B (Italy)
   79, // 2. Bundesliga (Germany)
-  62, // Ligue 2 (France)
   95, // Liga Portugal 2
-  89, // Eerste Divisie (Netherlands 2)
-  72, // Serie B (Brazil)
   204, // TFF 1. Lig (Turkey)
-  308, // Saudi First Division
 ]
 // The four biggest Turkish clubs, guessable in Kim Bu. This ONE list feeds both
 // the answer pool (getGuessPool default) and the search universe, so a Trabzonspor
@@ -370,7 +365,7 @@ const GUESS_EXTRA_CLUBS = GUESS_TURKISH_CLUBS
 // stray/erroneous MLS squad entry (e.g. Lewandowski briefly listed at an MLS
 // club) still reads as his real top-flight club, matching the answer pool, while
 // a genuine MLS-only player (Messi at Inter Miami) keeps his MLS club.
-const GUESS_SECONDARY_LEAGUES = [253, 40, 141, 136, 79, 62, 95, 89, 72, 204, 308]
+const GUESS_SECONDARY_LEAGUES = [253, 40, 141, 79, 95, 204]
 
 // Continental club cups (Champions / Europa / Conference League). A player's row
 // in one of these names the club he played that tie for, which can be a former

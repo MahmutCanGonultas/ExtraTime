@@ -25,17 +25,14 @@ export const CLUB_COMPETITIONS: Competition[] = [
   { apiFootballId: 71, name: 'Brasileirão', country: 'Brezilya' },
   { apiFootballId: 307, name: 'Suudi Pro Ligi', country: 'Suudi Arabistan' },
   { apiFootballId: 253, name: 'MLS', country: 'ABD' },
-  // Second divisions of the leagues above.
+  // Second divisions of the leagues above. (Serie B, Ligue 2, Brazil Serie B, the
+  // Saudi first division and the Dutch Eerste Divisie were removed — low interest,
+  // not worth the API cost.)
   { apiFootballId: 40, name: 'Championship', country: 'İngiltere' },
   { apiFootballId: 141, name: 'La Liga 2', country: 'İspanya' },
-  { apiFootballId: 136, name: 'Serie B', country: 'İtalya' },
   { apiFootballId: 79, name: '2. Bundesliga', country: 'Almanya' },
-  { apiFootballId: 62, name: 'Ligue 2', country: 'Fransa' },
   { apiFootballId: 95, name: 'Liga Portugal 2', country: 'Portekiz' },
-  { apiFootballId: 89, name: 'Eerste Divisie', country: 'Hollanda' },
-  { apiFootballId: 72, name: 'Brezilya Serie B', country: 'Brezilya' },
   { apiFootballId: 204, name: 'TFF 1. Lig', country: 'Türkiye' },
-  { apiFootballId: 308, name: 'Suudi 1. Lig', country: 'Suudi Arabistan' },
   { apiFootballId: 2, name: 'Şampiyonlar Ligi', country: 'Avrupa' },
   { apiFootballId: 3, name: 'UEFA Avrupa Ligi', country: 'Avrupa' },
   { apiFootballId: 848, name: 'UEFA Konferans Ligi', country: 'Avrupa' },
