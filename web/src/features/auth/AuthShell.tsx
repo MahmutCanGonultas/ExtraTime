@@ -1,19 +1,17 @@
 import type { ReactNode } from 'react'
 import { Target, Activity, Trophy } from 'lucide-react'
-import { Brand } from '@/components/Brand'
+import { Brand, BallMark } from '@/components/Brand'
 import { PitchBackdrop } from '@/components/PitchBackdrop'
 
-// Product highlights shown on the brand panel — so the sign-in screen reads like
-// a real product, not a bare form.
 const HIGHLIGHTS = [
-  { icon: Target, title: 'Skor tahmin oyunu', text: 'Grubunla her hafta maç skorlarını tahmin et, puan topla.' },
-  { icon: Activity, title: 'Canlı puan durumu', text: 'Maçlar oynanırken sıralama anında güncellenir.' },
-  { icon: Trophy, title: 'Haftalık şampiyonlar', text: 'Her hafta bir şampiyon, sezon sonunda kupa.' },
+  { icon: Target, text: 'Skor tahmini' },
+  { icon: Activity, text: 'Canlı puan durumu' },
+  { icon: Trophy, text: 'Haftalık şampiyon' },
 ]
 
-// The shell for the login + register screens: a floodlit-stadium brand panel on
-// the left (lg+), and the form card on the right. Collapses to just the form,
-// centred, on phones.
+// The login + register shell: a dramatic floodlit-pitch brand scene on the left
+// (desktop) beside a glassy form; on phones the scene becomes a compact artistic
+// hero above the form so mobile never looks bare.
 export function AuthShell({
   title,
   subtitle,
@@ -26,74 +24,103 @@ export function AuthShell({
   footer?: ReactNode
 }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* ── Brand / hero panel (desktop only) ── */}
-      <aside
-        className="relative hidden overflow-hidden lg:block"
-        style={{
-          backgroundImage: 'linear-gradient(140deg, #18402f 0%, #17352a 45%, #1a1f27 100%)',
-        }}
-      >
-        <div className="absolute inset-0 mow-stripes" />
-        {/* Floodlight glow from the top corner */}
+    <div className="relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[1.05fr_0.95fr]">
+      {/* ── Brand scene (desktop) ── */}
+      <aside className="relative hidden overflow-hidden lg:block">
         <div
-          className="pointer-events-none absolute inset-0"
+          className="absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(70% 55% at 85% -5%, rgba(194,245,66,0.20), transparent 60%)',
+              'linear-gradient(150deg, #0e2b1f 0%, #123524 38%, #15271e 70%, #12161d 100%)',
           }}
         />
-        <PitchBackdrop className="pointer-events-none absolute -right-16 top-1/2 h-[130%] w-[85%] -translate-y-1/2 text-brand-200/10" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'radial-gradient(58% 48% at 80% 6%, rgba(194,245,66,0.30), transparent 60%), radial-gradient(46% 40% at 12% 96%, rgba(168,230,10,0.12), transparent 60%)',
+          }}
+        />
+        <div className="absolute inset-0 mow-stripes opacity-70" />
+        <PitchBackdrop className="pointer-events-none absolute inset-y-0 -right-24 h-full w-[82%] text-white/[0.06]" />
+        <BallMark
+          size={560}
+          className="pointer-events-none absolute -bottom-44 -right-24 text-brand-400/[0.09]"
+        />
+        <BallMark
+          size={104}
+          className="animate-float pointer-events-none absolute right-24 top-24 text-brand-300/25"
+        />
 
-        <div className="relative flex h-full flex-col justify-between p-10 xl:p-14">
-          <Brand markSize={30} />
+        <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
+          <Brand markSize={34} />
 
           <div className="max-w-md">
-            <h2 className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-white xl:text-5xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-400/30 bg-brand-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-300">
+              Arkadaş ligi
+            </span>
+            <h2 className="mt-5 font-display text-5xl font-bold leading-[1.02] tracking-tight text-white xl:text-6xl">
               Maç senden
               <br />
-              <span className="text-brand-400">sorulur.</span>
+              <span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">
+                sorulur.
+              </span>
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-ink-300">
-              Arkadaş grubunun futbol tahmin ligi. Tahmin et, puanları topla, sezonun
-              şampiyonu ol.
+            <p className="mt-5 max-w-sm text-base leading-relaxed text-ink-300">
+              Grubunla skorları tahmin et, canlı puan durumunu izle, sezonun şampiyonu ol.
             </p>
-
-            <ul className="mt-8 space-y-4">
+            <div className="mt-8 flex flex-wrap gap-2.5">
               {HIGHLIGHTS.map((h) => (
-                <li key={h.title} className="flex items-start gap-3.5">
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 ring-1 ring-brand-500/25">
-                    <h.icon className="h-4.5 w-4.5 text-brand-300" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-ink-100">{h.title}</span>
-                    <span className="block text-[13px] leading-snug text-ink-400">{h.text}</span>
-                  </span>
-                </li>
+                <span
+                  key={h.text}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm font-medium text-ink-200 backdrop-blur-sm"
+                >
+                  <h.icon className="h-4 w-4 text-brand-300" /> {h.text}
+                </span>
               ))}
-            </ul>
+            </div>
           </div>
 
           <p className="text-xs text-ink-500">ExtraTime · arkadaşlar arası futbol ligi</p>
         </div>
       </aside>
 
-      {/* ── Form panel ── */}
-      <main className="relative flex items-center justify-center px-4 py-10 sm:px-8">
-        <div className="w-full max-w-sm">
-          {/* Brand mark on top for phones, where the hero panel is hidden. */}
-          <div className="mb-8 flex justify-center lg:hidden">
-            <Brand markSize={28} />
+      {/* ── Form ── */}
+      <main className="relative flex min-h-screen items-center justify-center px-4 py-10 sm:px-6 lg:min-h-0">
+        <div className="relative z-10 w-full max-w-sm">
+          {/* Compact artistic hero for phones (the desktop scene is hidden). */}
+          <div
+            className="relative mb-7 overflow-hidden rounded-3xl border border-brand-500/20 px-6 py-7 text-center lg:hidden"
+            style={{
+              backgroundImage: 'linear-gradient(150deg, #123524 0%, #16271e 55%, #12161d 100%)',
+            }}
+          >
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  'radial-gradient(72% 62% at 72% 0%, rgba(194,245,66,0.24), transparent 60%)',
+              }}
+            />
+            <div className="absolute inset-0 mow-stripes opacity-60" />
+            <BallMark
+              size={150}
+              className="pointer-events-none absolute -right-8 -top-10 text-brand-400/15"
+            />
+            <div className="relative flex flex-col items-center gap-2">
+              <Brand markSize={30} />
+              <p className="text-sm text-ink-300">Arkadaşlarınla futbol tahmin ligi</p>
+            </div>
           </div>
 
-          <div className="mb-6">
-            <h1 className="font-display text-3xl font-bold tracking-tight text-ink-100">{title}</h1>
+          <div className="mb-6 lg:mb-7">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white">{title}</h1>
             {subtitle && <p className="mt-1.5 text-sm text-ink-400">{subtitle}</p>}
           </div>
 
-          {/* The form itself, on a raised card with a thin volt top-accent. */}
-          <div className="relative overflow-hidden rounded-2xl border border-ink-800 bg-ink-900/70 p-6 shadow-2xl shadow-ink-950/50 ring-1 ring-white/5 backdrop-blur-sm sm:p-7">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-brand-500/70 to-transparent" />
+          {/* Glassy form card with a hairline volt top-accent. */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-950/60 backdrop-blur-xl sm:p-7">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-400/70 to-transparent" />
             {children}
           </div>
 

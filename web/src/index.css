@@ -146,6 +146,16 @@
     transform: scale(1);
   }
 }
+/* A slow drifting float for decorative marks (e.g. the login ball). */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
 @layer utilities {
   .animate-guess-in {
     animation: guessRowIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -154,9 +164,14 @@
   .animate-pop-in {
     animation: popIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+    will-change: transform;
+  }
   @media (prefers-reduced-motion: reduce) {
     .animate-guess-in,
-    .animate-pop-in {
+    .animate-pop-in,
+    .animate-float {
       animation: none;
     }
   }
