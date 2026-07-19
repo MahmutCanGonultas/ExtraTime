@@ -34,7 +34,6 @@ export function MemberAvatar({
   const preset = avatar ? AVATAR_BY_ID.get(avatar) : undefined
 
   if (preset) {
-    const Icon = preset.Icon
     return (
       <div
         className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full', className)}
@@ -51,16 +50,17 @@ export function MemberAvatar({
         <span
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{
-            backgroundImage: 'radial-gradient(65% 55% at 32% 24%, rgba(255,255,255,0.40), transparent 60%)',
+            backgroundImage: 'radial-gradient(65% 55% at 32% 24%, rgba(255,255,255,0.38), transparent 60%)',
           }}
         />
-        {/* Hairline light ring to crisp the edge against dark surfaces. */}
+        {/* Hairline light ring to crisp the edge against any surface. */}
         <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/25" />
-        <Icon
-          size={Math.round(size * 0.56)}
-          className="relative text-white"
-          style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))' }}
-        />
+        <span
+          className="relative leading-none"
+          style={{ fontSize: size * 0.56, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }}
+        >
+          {preset.emoji}
+        </span>
       </div>
     )
   }

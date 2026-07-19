@@ -7,7 +7,8 @@ export type Theme = 'light' | 'dark'
 const KEY = 'extratime:theme'
 
 export function getTheme(): Theme {
-  return safeGetItem(KEY) === 'dark' ? 'dark' : 'light'
+  // Default to the refined dark theme; light is opt-in via the toggle.
+  return safeGetItem(KEY) === 'light' ? 'light' : 'dark'
 }
 
 export function applyTheme(t: Theme): void {
