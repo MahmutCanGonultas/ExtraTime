@@ -12,6 +12,7 @@ import { Card, CardBody } from '@/components/ui/Card'
 import { useCountdown, formatCountdown } from '@/lib/useCountdown'
 import { formatDateTime, liveMinuteLabel, outcomeLabel } from '@/lib/format'
 import { ApiError } from '@/lib/api'
+import { cn } from '@/lib/cn'
 
 function pointsTone(points: number): 'win' | 'warning' | 'loss' {
   if (points >= 3) return 'win'
@@ -117,7 +118,13 @@ export function GamePredictCard({
           </span>
           <span className="flex items-center gap-1.5">
             {live ? (
-              <Badge tone="loss">{liveMinuteLabel(fixture.status, fixture.elapsed)}</Badge>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-bold text-loss">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-loss opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-loss" />
+                </span>
+                CANLI {liveMinuteLabel(fixture.status, fixture.elapsed)}
+              </span>
             ) : finished ? (
               <Badge tone="neutral">Bitti</Badge>
             ) : locked ? (
@@ -146,7 +153,12 @@ export function GamePredictCard({
             <span className="truncate text-sm font-medium text-ink-100">{fixture.homeName}</span>
           </div>
           {showResult ? (
-            <span className="shrink-0 text-lg font-bold tabular-nums text-ink-100">
+            <span
+              className={cn(
+                'score-num shrink-0 font-bold tabular-nums',
+                live ? 'text-xl text-amber-300' : 'text-lg text-ink-100',
+              )}
+            >
               {fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}
             </span>
           ) : (

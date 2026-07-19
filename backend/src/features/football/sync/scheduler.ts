@@ -34,9 +34,10 @@ export function startScheduler(): void {
   // bounded batch each run so it stays within budget.
   cron.schedule('20 18-23 * * *', () => void syncRecentMatchDetails())
 
-  // Live scores: every 2 minutes. syncLiveScores itself no-ops (zero API cost)
-  // when nothing is in progress, so this is cheap off match days.
-  cron.schedule('*/2 * * * *', () => void syncLiveScores())
+  // Live scores: every minute, so group predictions tick over quickly during a
+  // match. syncLiveScores no-ops (zero API cost) when nothing is in progress —
+  // cheap off match days — and an in-flight guard stops a slow run overlapping.
+  cron.schedule('* * * * *', () => void syncLiveScores())
 
   logger.info('Cron scheduler started')
 }

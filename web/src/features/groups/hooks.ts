@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { isFinished, isLive } from '@/features/football/matchStatus'
 import { setActiveGroupId } from './activeGroupStore'
 import type {
   Champion,
@@ -118,6 +119,19 @@ export function useGameDetail(groupId: number, gameId: number | null) {
     queryKey: ['game', groupId, gameId],
     queryFn: () => api.get<SeasonDetail>(`/groups/${groupId}/games/${gameId}`),
     enabled: groupId > 0 && gameId != null && gameId > 0,
+    // Live scores: while any of the game's matches is in progress (or has kicked
+    // off but isn't final yet), re-poll every 15s so scores tick over live. The
+    // poll also keeps the backend awake so its live-sync cron keeps running.
+    // Off otherwise, so idle groups don't hammer the API.
+    refetchInterval: (query) => {
+      const fixtures = query.state.data?.fixtures ?? []
+      const now = Date.now()
+      const anyActive = fixtures.some(
+        (f) => isLive(f.status) || (!isFinished(f.status) && new Date(f.kickoffAt).getTime() <= now),
+      )
+      return anyActive ? 15_000 : false
+    },
+    refetchIntervalInBackground: false,
   })
 }
 
