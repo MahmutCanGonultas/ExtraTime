@@ -95,6 +95,9 @@ export function useGuessPool(leagues: number[], clubs: number[]) {
     select: (d) => d.players,
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
+    // Keep the previous pool on screen while a new league/club toggle refetches, so
+    // editing the pool doesn't blank the whole page (and the controls) to a skeleton.
+    placeholderData: (prev) => prev,
     enabled: leagues.length > 0 || clubs.length > 0,
   })
 }

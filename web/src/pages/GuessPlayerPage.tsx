@@ -240,7 +240,9 @@ export function GuessPlayerPage() {
     setTerm('')
   }
 
-  if (isLoading) return <Skeleton className="h-96" />
+  // Only blank to a skeleton on the very first load — while re-fetching a new pool
+  // the previous pool (placeholderData) stays on screen so the controls don't vanish.
+  if (isLoading && !pool) return <Skeleton className="h-96" />
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!pool || pool.length === 0)
     return <EmptyState title="Oyun havuzu boş" description="Oyuncu verisi henüz hazır değil." />
