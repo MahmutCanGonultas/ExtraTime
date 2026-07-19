@@ -842,6 +842,32 @@ export function LineupBuilderPage() {
         </div>
       </header>
 
+      {/* Kadro yönetimi — isim / kaydet / hazır-kadro işleri mantıksal olarak en üstte,
+          böylece sağdaki taktik sütunu yalnızca sahaya dair kalır ve ferahlar. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="space-y-2 p-4">
+          <label className="block space-y-1.5">
+            <span className="section-label flex items-center gap-1.5 text-ink-400">
+              <PenLine className="h-3.5 w-3.5 text-brand-300" /> Kadro adı
+            </span>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} />
+          </label>
+          <p className="text-[11px] leading-relaxed text-ink-500">
+            Kadrona bir isim ver; kaydettiğinde bu adla saklanır.
+          </p>
+        </Card>
+
+        <SaveSlots
+          slots={savedSlots}
+          onSaveNew={saveNewSlot}
+          onOverwrite={overwriteSlot}
+          onLoad={loadSlot}
+          onDelete={deleteSlot}
+        />
+
+        <TeamLoader onLoad={setLoadTeam} />
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         {/* Pitch + bench strip — stacked on phones, side by side from sm up. */}
         <Card className="overflow-hidden p-3 sm:p-4">
@@ -930,25 +956,8 @@ export function LineupBuilderPage() {
           </div>
         </Card>
 
-        {/* Controls */}
+        {/* Tactical sidebar — only on-pitch tools now (kadro yönetimi yukarı taşındı). */}
         <div className="space-y-4">
-          <Card className="space-y-3 p-4">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-ink-200">Kadro adı</span>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} />
-            </label>
-          </Card>
-
-          <SaveSlots
-            slots={savedSlots}
-            onSaveNew={saveNewSlot}
-            onOverwrite={overwriteSlot}
-            onLoad={loadSlot}
-            onDelete={deleteSlot}
-          />
-
-          <TeamLoader onLoad={setLoadTeam} />
-
           {released.length > 0 && (
             <Card className="space-y-2.5 p-4 shadow-lg shadow-amber-950/10 ring-1 ring-amber-500/40">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
@@ -1000,72 +1009,53 @@ export function LineupBuilderPage() {
               />
             </button>
             {formOpen && (
-            <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(FORMATIONS) as FormationKey[]).map((key) => (
-                <button
-                  key={key}
-                  onClick={() => chooseFormation(key)}
-                  className={cn(
-                    'rounded-lg border px-2 py-2 text-sm font-semibold tabular-nums transition',
-                    key === formation
-                      ? 'border-brand-500 bg-brand-500 text-ink-950'
-                      : 'border-ink-700 bg-ink-850 text-ink-200 hover:border-ink-600 hover:bg-ink-800',
-                  )}
-                  title={key === '10-0-0' ? 'Otobüsü çek! (şaka dizilişi)' : undefined}
-                >
-                  {key === '10-0-0' ? '🧱 10-0-0' : key}
-                </button>
-              ))}
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(FORMATIONS) as FormationKey[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => chooseFormation(key)}
+                      className={cn(
+                        'rounded-lg border px-2 py-2 text-sm font-semibold tabular-nums transition',
+                        key === formation
+                          ? 'border-brand-500 bg-brand-500 text-ink-950'
+                          : 'border-ink-700 bg-ink-850 text-ink-200 hover:border-ink-600 hover:bg-ink-800',
+                      )}
+                      title={key === '10-0-0' ? 'Otobüsü çek! (şaka dizilişi)' : undefined}
+                    >
+                      {key === '10-0-0' ? '🧱 10-0-0' : key}
+                    </button>
+                  ))}
+                </div>
+                <p className="rounded-lg bg-ink-850 px-3 py-2 text-xs leading-relaxed text-ink-300">
+                  <span className="font-semibold text-brand-300">{formation}</span> —{' '}
+                  {FORMATION_NOTES[formation]}
+                </p>
+              </div>
+            )}
+          </Card>
+
+          {/* Taktik Tahtası — ok çizme artık kendi belirgin kartında, her zaman görünür. */}
+          <Card className="space-y-3 p-4 ring-1 ring-brand-500/30">
+            <div className="section-label flex items-center gap-1.5 text-brand-300">
+              <PenLine className="h-3.5 w-3.5" /> Taktik Tahtası
             </div>
-            <p className="rounded-lg bg-ink-850 px-3 py-2 text-xs leading-relaxed text-ink-300">
-              <span className="font-semibold text-brand-300">{formation}</span> — {FORMATION_NOTES[formation]}
-            </p>
+
             <button
               type="button"
-              onClick={() => setShowTactics((v) => !v)}
-              className="flex w-full items-center justify-between rounded-lg bg-ink-850 px-3 py-2 transition hover:bg-ink-800"
-              aria-pressed={showTactics}
-            >
-              <span className="text-sm font-medium text-ink-200">Taktik bağlantılar</span>
-              <span
-                className={cn(
-                  'relative h-5 w-9 shrink-0 rounded-full transition',
-                  showTactics ? 'bg-brand-500' : 'bg-ink-700',
-                )}
-              >
-                <span
-                  className={cn(
-                    'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all',
-                    showTactics ? 'left-4' : 'left-0.5',
-                  )}
-                />
-              </span>
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setArrowMode((v) => !v)}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition',
-                  arrowMode
-                    ? 'border-brand-500 bg-brand-500/15 text-brand-200'
-                    : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:text-ink-100',
-                )}
-              >
-                <PenLine className="h-4 w-4" /> {arrowMode ? 'Çizim açık' : 'Ok çiz'}
-              </button>
-              {arrows.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearArrows}
-                  className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-ink-400 transition hover:border-loss/50 hover:text-loss"
-                  title="Okları temizle"
-                >
-                  <Eraser className="h-4 w-4" />
-                </button>
+              onClick={() => setArrowMode((v) => !v)}
+              aria-pressed={arrowMode}
+              className={cn(
+                'flex w-full items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-sm font-bold transition active:scale-[0.99]',
+                arrowMode
+                  ? 'border-brand-500 bg-brand-500 text-ink-950 shadow-sm shadow-brand-500/25'
+                  : 'border-brand-500/60 bg-brand-500/10 text-brand-200 hover:bg-brand-500/20',
               )}
-            </div>
+            >
+              <PenLine className="h-4 w-4" />
+              {arrowMode ? 'Çizim açık — sahada sürükle' : 'Ok çiz'}
+            </button>
+
             {arrowMode && (
               <div className="space-y-2">
                 <div className="grid grid-cols-3 gap-1.5">
@@ -1101,18 +1091,52 @@ export function LineupBuilderPage() {
                 </div>
                 <p className="text-[11px] leading-relaxed text-ink-500">
                   Sahada sürükleyerek çiz —{' '}
-                  <span className="text-ink-300">{ARROW_STYLES[arrowKind].hint}</span>. Bitince çizimi
-                  kapat; bir oku silmek için üstüne tıkla.
+                  <span className="text-ink-300">{ARROW_STYLES[arrowKind].hint}</span>. Bir oku silmek
+                  için sahada üstüne tıkla.
                 </p>
               </div>
             )}
+
             {!arrowMode && arrows.length > 0 && (
               <p className="text-[11px] leading-relaxed text-ink-500">
-                Bir oku silmek için sahada üstüne tıkla · hepsini silmek için 🧽 sil.
+                {arrows.length} ok çizili · birini silmek için sahada üstüne tıkla.
               </p>
             )}
+
+            <div className="flex items-center gap-2 border-t border-ink-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowTactics((v) => !v)}
+                className="flex flex-1 items-center justify-between rounded-lg bg-ink-850 px-3 py-2 transition hover:bg-ink-800"
+                aria-pressed={showTactics}
+              >
+                <span className="text-sm font-medium text-ink-200">Taktik bağlantılar</span>
+                <span
+                  className={cn(
+                    'relative h-5 w-9 shrink-0 rounded-full transition',
+                    showTactics ? 'bg-brand-500' : 'bg-ink-700',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all',
+                      showTactics ? 'left-4' : 'left-0.5',
+                    )}
+                  />
+                </span>
+              </button>
+              {arrows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearArrows}
+                  className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-ink-400 transition hover:border-loss/50 hover:text-loss"
+                  title="Tüm okları sil"
+                  aria-label="Tüm okları sil"
+                >
+                  <Eraser className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            )}
           </Card>
 
           <Card className="space-y-3 p-4">
