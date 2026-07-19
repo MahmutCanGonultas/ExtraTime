@@ -262,50 +262,42 @@ export async function syncLiveScores(): Promise<SyncResult> {
 
 async function runLiveScores(): Promise<SyncResult> {
   return runJob('live', async () => {
-    // Run when something could be live now, OR when we still have a fixture marked
-    // live (which may actually have ended and needs reconciling to FT).
-    const maybe = await query(
-      `SELECT 1 FROM fixtures
-       WHERE (kickoff_at BETWEEN now() - interval '4 hours' AND now()
-              AND status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO'))
-          OR status = ANY($1)
-       LIMIT 1`,
-      [LIVE_STATUSES],
+    // ONLY the matches that are in a group game AND have kicked off but aren't
+    // final yet. We broadcast live scores solely for matches people are actually
+    // predicting — never the whole world's fixtures — to stay within the API
+    // budget. (This is the "sadece gruptaki maçlar" rule.)
+    const active = await query<{ apiId: number; fixtureId: number }>(
+      `SELECT DISTINCT f.api_football_id AS "apiId", f.id AS "fixtureId"
+       FROM group_fixtures gf JOIN fixtures f ON f.id = gf.fixture_id
+       WHERE f.status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO')
+         AND f.kickoff_at <= now()
+         AND f.kickoff_at > now() - interval '5 hours'`,
     )
-    if ((maybe.rowCount ?? 0) === 0) return 0
+    if (active.rows.length === 0) return 0
 
-    const live = await apiFootballGet<RawFixture[]>('fixtures', { live: 'all' })
-    const liveIds = new Set(live.map((f) => f.fixture.id))
     let updated = 0
-    const tracked: Array<{ apiId: number; fixtureId: number }> = []
-    for (const raw of live) {
-      const row = await updateFixtureFromRaw(raw)
-      if (row) {
-        updated += 1
-        tracked.push({ apiId: raw.fixture.id, fixtureId: row.id })
+    const live: Array<{ apiId: number; fixtureId: number }> = []
+    const apiIds = active.rows.map((r) => r.apiId)
+    // Fetch these specific fixtures' current state, batched (1 request per ~20).
+    for (let i = 0; i < apiIds.length; i += 20) {
+      const batch = apiIds.slice(i, i + 20)
+      const raws = await apiFootballGet<RawFixture[]>('fixtures', { ids: batch.join('-') })
+      for (const raw of raws) {
+        const row = await updateFixtureFromRaw(raw)
+        if (row) {
+          updated += 1
+          if (LIVE_STATUSES.includes(raw.fixture.status.short)) {
+            live.push({ apiId: raw.fixture.id, fixtureId: row.id })
+          }
+        }
       }
     }
 
-    // Reconcile: fixtures we still mark live but that are NO LONGER in live=all
-    // have ended — fetch their final status/score so they stop showing as live.
-    const stale = await query<{ api_football_id: number }>(
-      `SELECT api_football_id FROM fixtures WHERE status = ANY($1)`,
-      [LIVE_STATUSES],
-    )
-    const staleIds = stale.rows.map((r) => r.api_football_id).filter((id) => !liveIds.has(id))
-    for (let i = 0; i < staleIds.length; i += 20) {
-      const batch = staleIds.slice(i, i + 20)
-      const finals = await apiFootballGet<RawFixture[]>('fixtures', { ids: batch.join('-') })
-      for (const raw of finals) {
-        if (await updateFixtureFromRaw(raw)) updated += 1
-      }
-    }
-
-    // For each live match we track, refresh who scored (one request each).
-    if (tracked.length > 0) {
+    // Goals detail (who scored) only for the still-live group matches.
+    if (live.length > 0) {
       const client = await getPool()!.connect()
       try {
-        for (const t of tracked) {
+        for (const t of live) {
           const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', {
             fixture: t.apiId,
           })

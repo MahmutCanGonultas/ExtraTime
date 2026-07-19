@@ -9,7 +9,7 @@ import {
   syncTopAssists,
   syncTopScorers,
 } from './jobs'
-import { syncResultsAndSettle } from '../../predictions/settle'
+import { settleFinishedFixtures, syncResultsAndSettle } from '../../predictions/settle'
 
 // Internal cron. On free hosting the process may sleep, so the same jobs are
 // also reachable over HTTP (dual trigger) and woken by an external cron.
@@ -34,10 +34,14 @@ export function startScheduler(): void {
   // bounded batch each run so it stays within budget.
   cron.schedule('20 18-23 * * *', () => void syncRecentMatchDetails())
 
-  // Live scores: every minute, so group predictions tick over quickly during a
-  // match. syncLiveScores no-ops (zero API cost) when nothing is in progress —
-  // cheap off match days — and an in-flight guard stops a slow run overlapping.
-  cron.schedule('* * * * *', () => void syncLiveScores())
+  // Every minute: refresh live GROUP-match scores, then settle any match that has
+  // just finished so points + standings + weekly champions update automatically,
+  // without anyone triggering it. syncLiveScores no-ops (zero API cost) when no
+  // group match is in progress; settleFinishedFixtures is DB-only and idempotent.
+  cron.schedule('* * * * *', async () => {
+    await syncLiveScores()
+    await settleFinishedFixtures()
+  })
 
   logger.info('Cron scheduler started')
 }
