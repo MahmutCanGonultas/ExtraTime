@@ -54,19 +54,19 @@ export function GamePredictCard({
   const finished = isFinished(fixture.status)
   const showResult = live || finished
   const locked = !fixture.open
-  // A colour-coded border tells the state apart at a glance.
-  const statusBorder =
+  // A quiet left stripe tells the state apart without a loud full-colour border.
+  const statusStripe =
     finished && fixture.myPoints != null
       ? fixture.myPoints >= 3
-        ? 'border-emerald-500/45'
+        ? 'border-l-[3px] border-l-emerald-500'
         : fixture.myPoints > 0
-          ? 'border-amber-500/45'
-          : 'border-rose-500/45'
+          ? 'border-l-[3px] border-l-amber-500'
+          : 'border-l-[3px] border-l-rose-500'
       : live
-        ? 'border-amber-400/50'
+        ? 'border-l-[3px] border-l-rose-500'
         : !locked
-          ? 'border-brand-500/30'
-          : 'border-ink-800'
+          ? 'border-l-[3px] border-l-brand-500'
+          : ''
   // Predictions are final: once submitted, a member can no longer change it.
   const predicted = fixture.myOutcome != null
 
@@ -108,7 +108,7 @@ export function GamePredictCard({
   }
 
   return (
-    <Card className={`border transition duration-200 ${statusBorder}`}>
+    <Card className={cn('transition duration-200', statusStripe)}>
       <CardBody className="space-y-3">
         {/* header */}
         <div className="flex items-center justify-between text-xs">
