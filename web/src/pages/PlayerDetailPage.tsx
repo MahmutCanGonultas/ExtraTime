@@ -1,17 +1,15 @@
 import { Link, useParams } from 'react-router-dom'
-import { CalendarDays, Shirt, Sparkles, Target } from 'lucide-react'
 import { usePlayer } from '@/features/football/hooks'
 import type { PlayerSeason } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
-import { PitchBackdrop } from '@/components/PitchBackdrop'
 import { Card } from '@/components/ui/Card'
 import { Table, Th, Td, Tr } from '@/components/ui/Table'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 import { flagEmoji } from '@/lib/flags'
+import { cn } from '@/lib/cn'
 
-// The season key of the current campaign; a current-club row older than this
-// means the player has left/retired.
+// The current campaign; a current-club row older than this means the player left.
 const CURRENT_SEASON = 2026
 
 function seasonLabel(season: number): string {
@@ -28,161 +26,146 @@ export function PlayerDetailPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Oyuncu bulunamadı" />
 
+  // Inline identity facts.
   const facts = [
-    data.position && { label: 'Mevki', value: data.position },
-    data.nationality && {
-      label: 'Uyruk',
-      value: `${flagEmoji(data.nationality)} ${data.nationality}`.trim(),
-    },
-    data.age != null && { label: 'Yaş', value: String(data.age) },
-    data.height && { label: 'Boy', value: data.height },
-    data.weight && { label: 'Kilo', value: data.weight },
-    data.birthPlace && { label: 'Doğum yeri', value: data.birthPlace },
-  ].filter(Boolean) as Array<{ label: string; value: string }>
+    data.nationality && `${flagEmoji(data.nationality)} ${data.nationality}`.trim(),
+    data.position,
+    data.age != null && `${data.age} yaş`,
+    data.height,
+  ].filter(Boolean) as string[]
 
-  // Career totals across every season we hold — the "10-year" summary.
-  const totals = data.seasons.reduce(
+  // THIS SEASON only — summed across the competitions the player featured in this
+  // campaign (league + cups + Europe). This is the headline, not career totals.
+  const current = data.seasons.filter((s) => s.season === CURRENT_SEASON)
+  const cur = current.reduce(
     (a, s) => ({
       apps: a.apps + (s.appearances ?? 0),
       goals: a.goals + (s.goals ?? 0),
       assists: a.assists + (s.assists ?? 0),
+      minutes: a.minutes + (s.minutes ?? 0),
     }),
-    { apps: 0, goals: 0, assists: 0 },
+    { apps: 0, goals: 0, assists: 0, minutes: 0 },
   )
-  const distinctSeasons = new Set(data.seasons.map((s) => s.season)).size
-  const summary = [
-    { label: 'Sezon', value: distinctSeasons, Icon: CalendarDays, grad: 'from-violet-400 to-purple-600' },
-    { label: 'Maç', value: totals.apps, Icon: Shirt, grad: 'from-sky-400 to-blue-600' },
-    { label: 'Gol', value: totals.goals, Icon: Target, grad: 'from-brand-400 to-emerald-600' },
-    { label: 'Asist', value: totals.assists, Icon: Sparkles, grad: 'from-amber-300 to-orange-500' },
-  ]
-  // Peak-goals season, highlighted in the career table.
-  const peakGoals = Math.max(0, ...data.seasons.map((s) => s.goals ?? 0))
+  const ratings = current.map((s) => s.rating).filter((r): r is number => r != null)
+  const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null
+  const playedThisSeason = current.length > 0 && cur.apps > 0
+  const curTeam = current.find((s) => s.teamName)?.teamName
 
   const isFormer = data.currentTeamSeason != null && data.currentTeamSeason < CURRENT_SEASON
 
   return (
-    <div className="space-y-5">
-      {/* Hero */}
-      <section
-        className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
-      >
-        <div className="absolute inset-0 mow-stripes" />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              'radial-gradient(120% 85% at 85% -15%, rgba(194,245,66,0.18), transparent 55%)',
-          }}
+    <div className="mx-auto max-w-3xl space-y-8">
+      {/* Header — clean, no heavy gradient. */}
+      <div className="flex flex-wrap items-center gap-5">
+        <PlayerAvatar
+          playerApiId={data.playerApiId}
+          name={data.name}
+          size={88}
+          className="ring-1 ring-ink-800"
         />
-        {/* A big translucent flag disc anchors the hero and adds a splash of the
-            player's nationality colour instead of a flat green field. */}
-        {data.nationality && (
-          <div className="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 select-none text-[9rem] leading-none opacity-15 blur-[1px] sm:block">
-            {flagEmoji(data.nationality)}
-          </div>
-        )}
-        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
-        <div className="relative flex flex-wrap items-center gap-5 px-6 py-7 sm:px-8">
-          <PlayerAvatar
-            playerApiId={data.playerApiId}
-            name={data.name}
-            size={104}
-            className="ring-2 ring-brand-500/40"
-          />
-          <div className="min-w-0">
-            <h1 className="text-3xl font-extrabold tracking-tight text-ink-100">{data.name}</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
-              {facts.map((f) => (
-                <div key={f.label}>
-                  <div className="text-[11px] uppercase tracking-wide text-ink-500">{f.label}</div>
-                  <div className="text-sm font-medium text-ink-100">{f.value}</div>
-                </div>
-              ))}
-            </div>
-            {data.currentTeamName && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Link
-                  to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1.5 text-xs font-medium text-ink-200 transition hover:text-brand-300"
-                >
-                  {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={16} />}
-                  {data.currentTeamName}
-                  {isFormer && data.currentTeamSeason != null && (
-                    <span className="text-ink-400">· {seasonLabel(data.currentTeamSeason)}</span>
-                  )}
-                </Link>
-                {isFormer && (
-                  <span className="rounded-full bg-ink-950/40 px-2 py-0.5 text-[11px] text-ink-400">
-                    Güncel kadroda değil
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-ink-100">{data.name}</h1>
+          {facts.length > 0 && (
+            <p className="mt-1 text-sm text-ink-400">{facts.join(' · ')}</p>
+          )}
+          {data.currentTeamName && (
+            <Link
+              to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-ink-200 transition hover:text-brand-500"
+            >
+              {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={18} />}
+              {data.currentTeamName}
+              {isFormer && data.currentTeamSeason != null && (
+                <span className="text-ink-400">· {seasonLabel(data.currentTeamSeason)} (ayrıldı)</span>
+              )}
+            </Link>
+          )}
         </div>
-      </section>
-
-      {/* Career totals — a distinct colour + icon per stat, so the row reads at a glance */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {summary.map((s) => (
-          <Card key={s.label} className="overflow-hidden">
-            <div className="flex items-center gap-3 px-3 py-3.5 sm:px-4">
-              <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${s.grad} shadow-lg shadow-black/30 ring-1 ring-white/10`}
-              >
-                <s.Icon className="h-5 w-5 text-white drop-shadow" />
-              </div>
-              <div className="min-w-0">
-                <div className="score-num text-2xl font-extrabold leading-none tabular-nums text-ink-50 sm:text-3xl">
-                  {s.value}
-                </div>
-                <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{s.label}</div>
-              </div>
-            </div>
-          </Card>
-        ))}
       </div>
 
-      {/* Season-by-season history */}
-      <Card className="overflow-hidden">
-        <div className="section-label px-4 pt-3 text-ink-400">Kariyer · sezon sezon</div>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Sezon</Th>
-              <Th>Takım</Th>
-              <Th className="text-center">Maç</Th>
-              <Th className="hidden text-center sm:table-cell">Dk</Th>
-              <Th className="text-center">Gol</Th>
-              <Th className="text-center">Asist</Th>
-              <Th className="hidden text-center sm:table-cell">🟨</Th>
-              <Th className="hidden text-center sm:table-cell">🟥</Th>
-              <Th className="hidden text-center md:table-cell">Reyting</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.seasons.map((s) => (
-              <SeasonRow
-                key={`${s.leagueId}-${s.season}`}
-                s={s}
-                peak={peakGoals > 0 && (s.goals ?? 0) === peakGoals}
-              />
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      {/* THIS SEASON — the headline stats. */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
+          Bu sezon · {seasonLabel(CURRENT_SEASON)}
+        </h2>
+        {playedThisSeason ? (
+          <>
+            <Card className="grid grid-cols-4 divide-x divide-ink-800">
+              <Stat label="Maç" value={cur.apps} />
+              <Stat label="Gol" value={cur.goals} accent />
+              <Stat label="Asist" value={cur.assists} />
+              <Stat label="Reyting" value={avgRating != null ? avgRating.toFixed(1) : '—'} />
+            </Card>
+            {curTeam && (
+              <p className="mt-2 text-xs text-ink-500">
+                {curTeam} · {cur.minutes.toLocaleString('tr-TR')} dk
+              </p>
+            )}
+          </>
+        ) : (
+          <Card>
+            <p className="px-4 py-8 text-center text-sm text-ink-500">
+              Bu sezon için istatistik yok — aşağıda kariyer geçmişi var.
+            </p>
+          </Card>
+        )}
+      </section>
+
+      {/* Season-by-season history — secondary. */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
+          Kariyer geçmişi
+        </h2>
+        <Card className="overflow-hidden">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Sezon</Th>
+                <Th>Takım</Th>
+                <Th className="text-center">Maç</Th>
+                <Th className="text-center">Gol</Th>
+                <Th className="text-center">Asist</Th>
+                <Th className="hidden text-center sm:table-cell">Dk</Th>
+                <Th className="hidden text-center md:table-cell">Reyting</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.seasons.map((s) => (
+                <SeasonRow
+                  key={`${s.leagueId}-${s.season}`}
+                  s={s}
+                  current={s.season === CURRENT_SEASON}
+                />
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      </section>
     </div>
   )
 }
 
-function SeasonRow({ s, peak }: { s: PlayerSeason; peak?: boolean }) {
+function Stat({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
   return (
-    <Tr className={peak ? 'bg-brand-500/[0.07]' : undefined}>
+    <div className="px-3 py-4 text-center">
+      <div
+        className={cn(
+          'score-num text-3xl font-extrabold tabular-nums',
+          accent ? 'text-brand-500' : 'text-ink-100',
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{label}</div>
+    </div>
+  )
+}
+
+function SeasonRow({ s, current }: { s: PlayerSeason; current?: boolean }) {
+  return (
+    <Tr className={current ? 'bg-brand-500/[0.06]' : undefined}>
       <Td className="whitespace-nowrap text-ink-300">
-        <Link to={`/leagues/${s.leagueId}`} className="flex items-center gap-1.5 hover:text-brand-300">
-          {peak && <span className="text-amber-300" title="En golcü sezonu">★</span>}
+        <Link to={`/leagues/${s.leagueId}`} className="flex items-center gap-1.5 hover:text-brand-500">
           <TeamLogo apiId={s.leagueApiId} kind="league" size={16} />
           {seasonLabel(s.season)}
         </Link>
@@ -190,20 +173,18 @@ function SeasonRow({ s, peak }: { s: PlayerSeason; peak?: boolean }) {
       <Td>
         <Link
           to={s.teamId ? `/teams/${s.teamId}` : '#'}
-          className="flex items-center gap-2 hover:text-brand-300"
+          className="flex items-center gap-2 hover:text-brand-500"
         >
           {s.teamApiId != null && <TeamLogo apiId={s.teamApiId} size={18} />}
           <span className="truncate text-ink-100">{s.teamName ?? '—'}</span>
         </Link>
       </Td>
       <Td className="text-center text-ink-300">{s.appearances ?? '—'}</Td>
-      <Td className="hidden text-center text-ink-400 sm:table-cell">{s.minutes ?? '—'}</Td>
-      <Td className={`text-center font-bold ${peak ? 'text-brand-300' : 'text-ink-100'}`}>{s.goals ?? 0}</Td>
+      <Td className="text-center font-bold text-ink-100">{s.goals ?? 0}</Td>
       <Td className="text-center font-semibold text-ink-100">{s.assists ?? 0}</Td>
-      <Td className="hidden text-center text-ink-400 sm:table-cell">{s.yellowCards ?? 0}</Td>
-      <Td className="hidden text-center text-ink-400 sm:table-cell">{s.redCards ?? 0}</Td>
+      <Td className="hidden text-center text-ink-400 sm:table-cell">{s.minutes ?? '—'}</Td>
       <Td className="hidden text-center md:table-cell">
-        {s.rating != null ? <span className="font-medium text-brand-300">{s.rating.toFixed(2)}</span> : '—'}
+        {s.rating != null ? <span className="font-medium text-brand-500">{s.rating.toFixed(2)}</span> : '—'}
       </Td>
     </Tr>
   )
