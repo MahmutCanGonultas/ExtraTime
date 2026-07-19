@@ -265,6 +265,18 @@ export function useGroupStats(groupId: number) {
   })
 }
 
+export function useLeaveGroup(groupId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.del(`/groups/${groupId}/membership`),
+    onSuccess: () => {
+      setActiveGroupId(0) // fall back to whatever group remains (or none)
+      qc.invalidateQueries({ queryKey: ['my-groups'] })
+      qc.invalidateQueries({ queryKey: ['group', groupId] })
+    },
+  })
+}
+
 export function useRemoveMember(groupId: number) {
   const qc = useQueryClient()
   return useMutation({

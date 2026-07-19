@@ -8,6 +8,7 @@ import {
   useDeleteGroup,
   useGroup,
   useJoinGroup,
+  useLeaveGroup,
   useRegenerateInvite,
   useRemoveMember,
 } from '@/features/groups/hooks'
@@ -262,7 +263,11 @@ function GroupView({ group }: { group: GroupSummary }) {
 
       <AnotherGroupPanel />
 
-      {g?.isAdmin && <DeleteGroup groupId={group.id} name={g?.name ?? group.name} />}
+      {g?.isAdmin ? (
+        <DeleteGroup groupId={group.id} name={g?.name ?? group.name} />
+      ) : (
+        <LeaveGroup groupId={group.id} name={g?.name ?? group.name} />
+      )}
     </div>
   )
 }
@@ -293,6 +298,39 @@ function DeleteGroup({ groupId, name }: { groupId: number; name: string }) {
         ) : (
           <Button size="sm" variant="danger" onClick={() => setConfirming(true)}>
             Grubu Sil
+          </Button>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function LeaveGroup({ groupId, name }: { groupId: number; name: string }) {
+  const leave = useLeaveGroup(groupId)
+  const [confirming, setConfirming] = useState(false)
+
+  return (
+    <Card>
+      <CardBody className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-ink-100">Gruptan ayrıl</div>
+          <div className="text-xs text-ink-400">
+            Bu gruptan çıkarsın; bu gruptaki tahminlerin silinir.
+          </div>
+        </div>
+        {confirming ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-ink-300">“{name}” grubundan ayrıl?</span>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+              Vazgeç
+            </Button>
+            <Button size="sm" variant="danger" disabled={leave.isPending} onClick={() => leave.mutate()}>
+              Evet, ayrıl
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="secondary" onClick={() => setConfirming(true)}>
+            Gruptan ayrıl
           </Button>
         )}
       </CardBody>
