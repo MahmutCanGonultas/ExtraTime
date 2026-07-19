@@ -1527,6 +1527,18 @@ function TeamLoader({ onLoad }: { onLoad: (t: { id: number; name: string }) => v
   )
 }
 
+// Replace the browser's ugly default drag ghost (a translucent snapshot of the whole
+// chip/card) with a clean, round avatar preview centred under the cursor.
+function setAvatarDragImage(e: React.DragEvent, el: HTMLElement | null) {
+  if (!el || !e.dataTransfer) return
+  e.dataTransfer.effectAllowed = 'move'
+  try {
+    e.dataTransfer.setDragImage(el, el.offsetWidth / 2, el.offsetHeight / 2)
+  } catch {
+    /* setDragImage unsupported — fall back to the default ghost */
+  }
+}
+
 function BenchChip({
   player,
   onDragStart,
@@ -1541,10 +1553,14 @@ function BenchChip({
   const flag = flagEmoji(player.nationality)
   const roleKind = roleForPosition(player.position)
   const roleLabel = benchRole(player.position)
+  const avatarRef = useRef<HTMLDivElement>(null)
   return (
     <button
       draggable
-      onDragStart={onDragStart}
+      onDragStart={(e) => {
+        setAvatarDragImage(e, avatarRef.current)
+        onDragStart()
+      }}
       onClick={onClick}
       disabled={disabled}
       title={`${player.name} · ${roleLabel}${player.age != null ? ` · ${player.age} yaş` : ''}\nDokun → sahaya ekle (masaüstünde sürükle)`}
@@ -1553,7 +1569,7 @@ function BenchChip({
         roleKind ? ROLE_ACCENT[roleKind] : 'border-l-ink-600',
       )}
     >
-      <div className="relative shrink-0">
+      <div ref={avatarRef} className="relative shrink-0 rounded-full bg-ink-950/80">
         <PlayerAvatar playerApiId={player.playerApiId} name={player.name} size={34} />
         {flag && <span className="absolute -bottom-1 -right-1 text-xs leading-none">{flag}</span>}
       </div>
@@ -1908,6 +1924,7 @@ function SlotChip({
   // (opens the menu). Mouse keeps the native drag path.
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const draggedRef = useRef(false)
+  const avatarRef = useRef<HTMLDivElement>(null)
   function handlePointerDown(e: React.PointerEvent) {
     if (!dragEnabled || e.pointerType === 'mouse') return
     draggedRef.current = false
@@ -1955,7 +1972,10 @@ function SlotChip({
           <button
             onClick={handleClick}
             draggable
-            onDragStart={onDragStart}
+            onDragStart={(e) => {
+              setAvatarDragImage(e, avatarRef.current)
+              onDragStart()
+            }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -1967,6 +1987,7 @@ function SlotChip({
             title={swapping ? 'Yer değiştirmek için dokun' : 'Dokun: menü · sürükle: taşı'}
           >
             <div
+              ref={avatarRef}
               className={cn(
                 'grid place-items-center overflow-hidden rounded-full bg-ink-950/80 shadow-lg shadow-ink-950/60 ring-2',
                 isSwapSource ? 'ring-brand-400 ring-offset-2 ring-offset-emerald-900' : ROLE_RING[slot.role],
