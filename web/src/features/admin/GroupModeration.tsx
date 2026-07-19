@@ -42,7 +42,9 @@ export function GroupModeration() {
                   onClick={() => setOpenId((v) => (v === g.id ? null : g.id))}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left"
                 >
-                  <span className="text-sm font-semibold text-ink-100">{g.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-100">
+                    {g.name}
+                  </span>
                   <span className="text-xs text-ink-400">{g.memberCount} üye</span>
                   <Badge tone={g.activeSeasonTitle ? 'brand' : 'neutral'}>
                     {g.activeSeasonTitle ?? 'oyun yok'}
@@ -282,7 +284,7 @@ function FixturePredictionsEditor({
                 disabled={setPred.isPending}
                 onClick={() => setPred.mutate({ userId: m.userId, fixtureId, outcome: o })}
                 className={cn(
-                  'h-6 w-7 rounded text-[11px] font-bold transition disabled:opacity-40',
+                  'h-8 w-8 rounded text-[11px] font-bold transition disabled:opacity-40',
                   m.predictedOutcome === o
                     ? 'bg-brand-500/20 text-brand-300'
                     : 'bg-ink-850 text-ink-400 hover:text-ink-100',

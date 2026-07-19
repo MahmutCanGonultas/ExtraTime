@@ -104,7 +104,7 @@ function ActiveGameRow({ groupId, game, isAdmin }: { groupId: number; game: Seas
         ) : (
           <button
             onClick={() => setConfirming(true)}
-            className="mt-1.5 flex items-center gap-1 text-xs font-medium text-loss hover:brightness-110"
+            className="mt-1 flex min-h-[36px] items-center gap-1 text-xs font-medium text-loss hover:brightness-110"
           >
             <Flag className="h-3.5 w-3.5" /> Oyunu Bitir
           </button>

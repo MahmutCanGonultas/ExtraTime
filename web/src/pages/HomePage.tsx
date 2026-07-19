@@ -109,7 +109,7 @@ export function HomePage() {
             {liveCount > 0 && (
               <a
                 href="#canli"
-                className="flex items-center gap-2 rounded-full border border-loss/30 bg-loss/10 px-3 py-1.5 text-xs font-semibold text-loss"
+                className="flex items-center gap-2 rounded-full border border-loss/30 bg-loss/10 px-3 py-2 text-xs font-semibold text-loss"
               >
                 <LiveDot />
                 {liveCount} maç canlı

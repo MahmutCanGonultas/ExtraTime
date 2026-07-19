@@ -138,7 +138,7 @@ export function GamePredictCard({
               <button
                 onClick={onRemove}
                 title="Oyundan çıkar"
-                className="rounded p-0.5 text-ink-500 transition hover:text-loss"
+                className="-m-1 rounded p-2.5 text-ink-500 transition hover:text-loss"
               >
                 <X className="h-3.5 w-3.5" />
               </button>

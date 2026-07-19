@@ -174,7 +174,7 @@ function FixturesTab({ leagueId }: { leagueId: number }) {
           <button
             key={f}
             onClick={() => setStatus(f)}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+            className={`rounded-md px-3 py-2 text-xs font-medium transition ${
               status === f ? 'bg-ink-800 text-brand-300' : 'text-ink-400 hover:text-ink-200'
             }`}
           >
@@ -184,7 +184,7 @@ function FixturesTab({ leagueId }: { leagueId: number }) {
         <select
           value={teamId}
           onChange={(e) => setTeamId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="ml-auto rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-200 outline-none focus:border-brand-500"
+          className="ml-auto rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-xs text-ink-200 outline-none focus:border-brand-500"
         >
           <option value="all">Tüm takımlar</option>
           {teams.map((t) => (

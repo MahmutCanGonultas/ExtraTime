@@ -83,7 +83,7 @@ function AvatarForm({
             <div className="mt-0.5 text-xs text-ink-500">Bir tane seç, hemen kaydedilir.</div>
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-5">
           {AVATARS.map((a) => {
             const selected = a.id === current
             return (

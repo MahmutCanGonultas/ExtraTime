@@ -60,9 +60,9 @@ export function MatchPage() {
             {f.round ? ` · ${f.round}` : ''}
           </div>
           <div className="flex items-center justify-center gap-4">
-            <div className="flex flex-1 flex-col items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
               <TeamLogo apiId={f.home.apiFootballId} size={52} />
-              <span className="text-center text-sm font-medium text-ink-100">{f.home.name}</span>
+              <span className="w-full break-words text-center text-sm font-medium text-ink-100">{f.home.name}</span>
             </div>
             <div className="text-center">
               {showScore ? (
@@ -95,9 +95,9 @@ export function MatchPage() {
                 <div className="mt-1 text-xs text-ink-500">{formatDateTime(f.kickoffAt)}</div>
               )}
             </div>
-            <div className="flex flex-1 flex-col items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
               <TeamLogo apiId={f.away.apiFootballId} size={52} />
-              <span className="text-center text-sm font-medium text-ink-100">{f.away.name}</span>
+              <span className="w-full break-words text-center text-sm font-medium text-ink-100">{f.away.name}</span>
             </div>
           </div>
 

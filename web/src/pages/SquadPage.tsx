@@ -68,7 +68,7 @@ export function SquadPage() {
           <select
             value={data.season ?? ''}
             onChange={(e) => setSeason(Number(e.target.value))}
-            className="ml-auto rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-200 outline-none focus:border-brand-500"
+            className="ml-auto rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-200 outline-none focus:border-brand-500"
             aria-label="Sezon"
           >
             {data.seasons.map((s) => (

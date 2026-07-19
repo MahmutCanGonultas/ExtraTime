@@ -73,7 +73,7 @@ export function TeamPage() {
               <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-4xl">
+              <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg break-words sm:text-4xl">
                 {team.name}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
@@ -197,7 +197,7 @@ function TeamMatches({
   const list = (tab === 'upcoming' ? upcoming : recent).slice(0, 5)
   const btn = (active: boolean) =>
     cn(
-      'rounded-md px-3 py-1.5 text-xs font-semibold transition',
+      'rounded-md px-3 py-2 text-xs font-semibold transition',
       active ? 'bg-ink-700 text-ink-100 shadow-sm' : 'text-ink-400 hover:text-ink-200',
     )
   return (

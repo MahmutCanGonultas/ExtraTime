@@ -105,7 +105,7 @@ export function PlayerDetailPage() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Link
                   to={data.currentTeamId ? `/teams/${data.currentTeamId}` : '#'}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1 text-xs font-medium text-ink-200 transition hover:text-brand-300"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink-950/40 px-2.5 py-1.5 text-xs font-medium text-ink-200 transition hover:text-brand-300"
                 >
                   {data.currentTeamApiId != null && <TeamLogo apiId={data.currentTeamApiId} size={16} />}
                   {data.currentTeamName}

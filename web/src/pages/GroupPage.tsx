@@ -164,7 +164,7 @@ function GroupView({ group }: { group: GroupSummary }) {
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
             <Users className="h-3.5 w-3.5" /> Grup
           </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white drop-shadow">
+          <h1 className="mt-2 break-words text-2xl font-extrabold tracking-tight text-white drop-shadow sm:text-3xl">
             {g?.name ?? group.name}
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -353,7 +353,7 @@ function MemberCard({
           disabled={remove.isPending}
           title="Gruptan çıkar"
           aria-label={`${member.displayName} — gruptan çıkar`}
-          className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full border border-ink-700 bg-ink-950 text-ink-400 opacity-0 shadow transition hover:border-loss/50 hover:text-loss group-hover:opacity-100"
+          className="absolute -right-1.5 -top-1.5 grid h-8 w-8 place-items-center rounded-full border border-ink-700 bg-ink-950 text-ink-400 opacity-100 shadow transition hover:border-loss/50 hover:text-loss sm:opacity-0 sm:group-hover:opacity-100"
         >
           <X className="h-3.5 w-3.5" />
         </button>

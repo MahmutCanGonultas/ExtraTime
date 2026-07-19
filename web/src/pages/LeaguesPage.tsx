@@ -202,7 +202,7 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
             <Link
               key={s.id}
               to={`/leagues/${s.id}`}
-              className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 transition hover:border-ink-500 hover:text-ink-100"
+              className="rounded-md border border-ink-700 px-2.5 py-1.5 text-xs text-ink-300 transition hover:border-ink-500 hover:text-ink-100"
             >
               {seasonLabel(s.season)}
             </Link>
