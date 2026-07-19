@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, RefreshCw, Users, Crown, X, Ticket } from 'lucide-react'
+import { Copy, RefreshCw, Users, Crown, X } from 'lucide-react'
 import { MemberAvatar } from '@/components/MemberAvatar'
 import { cn } from '@/lib/cn'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
@@ -15,8 +15,6 @@ import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
 import { RivalryBook } from '@/features/groups/RivalryBook'
 import { GameManager } from '@/features/groups/GameManager'
-import { PitchBackdrop } from '@/components/PitchBackdrop'
-import { BallMark } from '@/components/Brand'
 import { useAuth } from '@/features/auth/AuthContext'
 import { ApiError } from '@/lib/api'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -59,28 +57,18 @@ function NoGroup() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Hero — a welcoming pitch banner instead of a bare heading. */}
-      <section
-        className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
-      >
-        <div className="absolute inset-0 mow-stripes" />
-        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
-        <BallMark size={190} className="pointer-events-none absolute -bottom-12 -left-8 text-brand-400/[0.04]" />
-        <div className="relative px-6 py-8 sm:px-8">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
-            <Users className="h-3.5 w-3.5" /> Grup
-          </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink-100">
-            Arkadaşlarınla oyna
-          </h1>
-          <p className="mt-2 max-w-md text-sm text-ink-300">
-            Bir grup kur, davet kodunu paylaş; maç sonuçlarını tahmin edip haftanın şampiyonunu
-            belirleyin.
-          </p>
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* Clean intro — no heavy banner. */}
+      <div>
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-400">
+          <Users className="h-3.5 w-3.5" /> Grup
         </div>
-      </section>
+        <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-ink-100">Arkadaşlarınla oyna</h1>
+        <p className="mt-2 max-w-md text-sm text-ink-400">
+          Bir grup kur, davet kodunu paylaş; maç sonuçlarını tahmin edip haftanın şampiyonunu
+          belirleyin.
+        </p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
@@ -143,84 +131,49 @@ function GroupView({ group }: { group: GroupSummary }) {
   const memberCount = members.length || group.memberCount
 
   return (
-    <div className="space-y-6">
-      {/* Hero — the group identity, member count and a stacked row of member
-          avatars so the group feels populated the moment you open it. */}
-      <section
-        className="relative overflow-hidden rounded-card border border-ink-800"
-        style={{ backgroundImage: 'linear-gradient(118deg, #18402f 0%, #1b2a22 48%, #222833 100%)' }}
-      >
-        <div className="absolute inset-0 mow-stripes" />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              'radial-gradient(80% 60% at 90% -10%, rgba(194,245,66,0.14), transparent 60%)',
-          }}
-        />
-        <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-brand-200/10 sm:block" />
-        <BallMark size={190} className="pointer-events-none absolute -bottom-12 -left-8 text-brand-400/[0.05]" />
-        <div className="relative px-6 py-7 sm:px-8">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
-            <Users className="h-3.5 w-3.5" /> Grup
-          </div>
-          <h1 className="mt-2 break-words text-2xl font-extrabold tracking-tight text-white drop-shadow sm:text-3xl">
-            {g?.name ?? group.name}
-          </h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-xs font-bold text-ink-950">
-              {memberCount} oyuncu
-            </span>
-            {members.length > 0 && (
-              <div className="flex items-center">
-                <div className="flex -space-x-2.5">
-                  {members.slice(0, 8).map((m) => (
-                    <MemberAvatar
-                      key={m.id}
-                      name={m.displayName}
-                      avatar={m.avatar}
-                      size={32}
-                      className="ring-2 ring-ink-950/80"
-                    />
-                  ))}
-                </div>
-                {members.length > 8 && (
-                  <span className="ml-2 text-xs font-medium text-ink-300">+{members.length - 8}</span>
-                )}
-              </div>
-            )}
-          </div>
+    <div className="mx-auto max-w-3xl space-y-8">
+      {/* Clean header — no heavy banner. */}
+      <div>
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-400">
+          <Users className="h-3.5 w-3.5" /> Grup
         </div>
-      </section>
+        <h1 className="mt-1.5 break-words text-3xl font-bold tracking-tight text-ink-100">
+          {g?.name ?? group.name}
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span className="text-sm text-ink-400">{memberCount} oyuncu</span>
+          {members.length > 0 && (
+            <div className="flex items-center">
+              <div className="flex -space-x-2.5">
+                {members.slice(0, 8).map((m) => (
+                  <MemberAvatar
+                    key={m.id}
+                    name={m.displayName}
+                    avatar={m.avatar}
+                    size={30}
+                    className="ring-2 ring-ink-900"
+                  />
+                ))}
+              </div>
+              {members.length > 8 && (
+                <span className="ml-2 text-xs font-medium text-ink-400">+{members.length - 8}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
-      <GameManager groupId={group.id} isAdmin={g?.isAdmin ?? false} currentUserId={user?.id} />
-
-      <RivalryBook groupId={group.id} />
-
-      {/* Invite code — a bold, on-brand card so sharing is the obvious next move. */}
+      {/* Invite code — a plain card. */}
       {g?.isAdmin && g.inviteCode && (
-        <section className="relative overflow-hidden rounded-card border border-brand-500/25 bg-gradient-to-br from-brand-500/[0.13] via-ink-900 to-ink-950 px-5 py-4 sm:px-6">
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundImage:
-                'radial-gradient(70% 130% at 0% 0%, rgba(194,245,66,0.16), transparent 55%)',
-            }}
-          />
-          <div className="relative flex flex-wrap items-center gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25">
-              <Ticket className="h-5 w-5" />
-            </span>
+        <Card>
+          <CardBody className="flex flex-wrap items-center gap-4">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-brand-300">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
                 Davet kodu
               </div>
-              <div className="font-mono text-2xl font-black tracking-[0.28em] text-ink-100">
+              <div className="font-mono text-2xl font-black tracking-[0.26em] text-ink-100">
                 {g.inviteCode}
               </div>
-              <p className="mt-0.5 text-xs text-ink-400">
-                Arkadaşlarına gönder, bu kodla gruba katılsınlar.
-              </p>
             </div>
             <div className="ml-auto flex gap-2">
               <Button size="sm" onClick={copyInvite}>
@@ -235,32 +188,32 @@ function GroupView({ group }: { group: GroupSummary }) {
                 <RefreshCw className="h-4 w-4" /> Yenile
               </Button>
             </div>
-          </div>
-        </section>
+          </CardBody>
+        </Card>
       )}
 
-      {/* Members — an avatar-forward grid of cards; you and the captain get their
-          own tint so the roster reads at a glance. */}
-      <Card>
-        <CardHeader
-          title={`Üyeler · ${memberCount}`}
-          action={<Users className="h-4 w-4 text-brand-300" />}
-        />
-        <CardBody>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
-            {members.map((m) => (
-              <MemberCard
-                key={m.id}
-                member={m}
-                groupId={group.id}
-                isAdminOfMember={m.id === g?.adminUserId}
-                isMe={m.id === user?.id}
-                canManage={(g?.isAdmin ?? false) && m.id !== g?.adminUserId}
-              />
-            ))}
-          </div>
-        </CardBody>
-      </Card>
+      <GameManager groupId={group.id} isAdmin={g?.isAdmin ?? false} currentUserId={user?.id} />
+
+      {/* Members */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
+          Üyeler · {memberCount}
+        </h2>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+          {members.map((m) => (
+            <MemberCard
+              key={m.id}
+              member={m}
+              groupId={group.id}
+              isAdminOfMember={m.id === g?.adminUserId}
+              isMe={m.id === user?.id}
+              canManage={(g?.isAdmin ?? false) && m.id !== g?.adminUserId}
+            />
+          ))}
+        </div>
+      </section>
+
+      <RivalryBook groupId={group.id} />
 
       {g?.isAdmin && <DeleteGroup groupId={group.id} name={g?.name ?? group.name} />}
     </div>
