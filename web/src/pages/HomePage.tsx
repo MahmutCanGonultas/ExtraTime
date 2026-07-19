@@ -38,6 +38,18 @@ const LEAGUE_COLOR: Record<number, string> = {
   3: '#f59e0b', // Europa League
 }
 
+// True when an ISO timestamp falls on today's local calendar date — so a match two
+// days out is never mislabelled "Günün maçı".
+function isTodayLocal(iso: string): boolean {
+  const d = new Date(iso)
+  const now = new Date()
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  )
+}
+
 export function HomePage() {
   const { user } = useAuth()
   const { active } = useActiveGroup()
@@ -61,7 +73,10 @@ export function HomePage() {
   const inHome = (f: Fixture) => HOME_LEAGUE_SET.has(f.leagueApiId)
   const upcomingShown = (upcoming.data ?? []).filter(inHome)
   const recentShown = (recent.data ?? []).filter(inHome)
+  // The next home-league match — labelled "Günün maçı" only when it's actually today,
+  // otherwise "Yaklaşan maç" (a July qualifier two days out is not the match of the day).
   const spotlight = upcomingShown[0] ?? null
+  const spotlightToday = spotlight ? isTodayLocal(spotlight.kickoffAt) : false
 
   // The eight featured competitions, current season, in our preferred order.
   const featured = HOME_LEAGUES.map((id) =>
@@ -142,10 +157,10 @@ export function HomePage() {
         </section>
       )}
 
-      {/* Match of the day */}
+      {/* Match of the day — only "günün maçı" when it's genuinely today */}
       {spotlight && (
         <section>
-          <SectionTitle>Günün maçı</SectionTitle>
+          <SectionTitle>{spotlightToday ? 'Günün maçı' : 'Yaklaşan maç'}</SectionTitle>
           <div className="mt-3">
             <MatchSpotlight fixture={spotlight} />
           </div>
