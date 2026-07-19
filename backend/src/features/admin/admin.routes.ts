@@ -18,7 +18,7 @@ import {
   syncTopAssists,
   syncTopScorers,
 } from '../football/sync/jobs'
-import { settleFixture, syncResultsAndSettle } from '../predictions/settle'
+import { settleFinishedFixtures, settleFixture, syncResultsAndSettle } from '../predictions/settle'
 
 export const adminRouter = Router()
 
@@ -330,7 +330,13 @@ adminRouter.post(
 
 adminRouter.post(
   '/sync/live',
-  asyncHandler(async (_req, res) => res.json(await syncLiveScores())),
+  asyncHandler(async (_req, res) => {
+    // Refresh live group scores AND settle anything that just finished, so an
+    // external trigger (GitHub Actions) both updates and settles in one call.
+    const live = await syncLiveScores()
+    const settled = await settleFinishedFixtures()
+    res.json({ ...live, settled })
+  }),
 )
 adminRouter.post(
   '/sync/squads',
