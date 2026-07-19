@@ -521,6 +521,16 @@ export function LineupBuilderPage() {
     if (src?.kind === 'slot') remove(src.index)
   }
 
+  // Touch/pen drag: free-position a slot player anywhere on the pitch (HTML5
+  // drag-and-drop is dead on touch, so chips drive this via pointer events).
+  function repositionSlot(idx: number, x: number, y: number) {
+    setPositions((prev) => {
+      const next = [...prev]
+      next[idx] = { x: clamp(x, 5, 95), y: clamp(y, 6, 94) }
+      return next
+    })
+  }
+
   // Load a team's current squad onto the pitch (best player per slot role); the
   // rest of the squad becomes the bench.
   const [loadTeam, setLoadTeam] = useState<{ id: number; name: string } | null>(null)
@@ -719,11 +729,12 @@ export function LineupBuilderPage() {
                 onCaptain={toggleCaptain}
                 onDragStart={(i) => setDragSource({ kind: 'slot', index: i })}
                 onDropAt={dropAt}
+                onReposition={repositionSlot}
               />
               <p className="mt-2 text-center text-[11px] text-ink-500">
                 {swapFrom !== null
                   ? 'Yer değiştirmek için başka bir oyuncuya (veya boş mevkiye) dokun'
-                  : 'Oyuncuya dokun → işlemler menüsü (yer değiştir, kaptan, çıkar) · masaüstünde sürükleyerek de taşıyabilirsin'}
+                  : 'Oyuncuya dokun → işlemler menüsü · sürükleyerek sahada istediğin yere taşı'}
               </p>
             </div>
 
@@ -1285,6 +1296,7 @@ function Pitch({
   onCaptain,
   onDragStart,
   onDropAt,
+  onReposition,
 }: {
   slots: Slot[]
   connections: Array<[number, number]>
@@ -1305,6 +1317,7 @@ function Pitch({
   onCaptain: (i: number) => void
   onDragStart: (i: number) => void
   onDropAt: (x: number, y: number) => void
+  onReposition: (i: number, x: number, y: number) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState<Arrow | null>(null)
@@ -1524,11 +1537,14 @@ function Pitch({
           isCaptain={captain === i}
           isSwapSource={swapFrom === i}
           swapping={swapFrom !== null}
+          pitchRef={ref}
+          dragEnabled={!arrowMode && swapFrom === null}
           onClick={() => onSlot(i)}
           onMenu={(e) => onMenu(i, e)}
           onRemove={() => onRemove(i)}
           onCaptain={() => onCaptain(i)}
           onDragStart={() => onDragStart(i)}
+          onReposition={(x, y) => onReposition(i, x, y)}
         />
       ))}
     </div>
@@ -1543,11 +1559,14 @@ function SlotChip({
   isCaptain,
   isSwapSource,
   swapping,
+  pitchRef,
+  dragEnabled,
   onClick,
   onMenu,
   onRemove,
   onCaptain,
   onDragStart,
+  onReposition,
 }: {
   slot: Slot
   player: Placed | null
@@ -1556,12 +1575,57 @@ function SlotChip({
   isCaptain: boolean
   isSwapSource: boolean
   swapping: boolean
+  pitchRef: React.RefObject<HTMLDivElement | null>
+  dragEnabled: boolean
   onClick: () => void
   onMenu: (e: React.MouseEvent) => void
   onRemove: () => void
   onCaptain: () => void
   onDragStart: () => void
+  onReposition: (x: number, y: number) => void
 }) {
+  // Pointer drag for touch/pen (native HTML5 drag is dead on touch): move the chip
+  // to follow the finger. A tap that never moves past the threshold is still a tap
+  // (opens the menu). Mouse keeps the native drag path.
+  const startRef = useRef<{ x: number; y: number } | null>(null)
+  const draggedRef = useRef(false)
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!dragEnabled || e.pointerType === 'mouse') return
+    draggedRef.current = false
+    startRef.current = { x: e.clientX, y: e.clientY }
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {
+      /* capture unsupported — drag just won't track, tap still works */
+    }
+  }
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!startRef.current || !pitchRef.current) return
+    const dx = e.clientX - startRef.current.x
+    const dy = e.clientY - startRef.current.y
+    if (!draggedRef.current && Math.hypot(dx, dy) < 7) return
+    draggedRef.current = true
+    const r = pitchRef.current.getBoundingClientRect()
+    onReposition(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100)
+  }
+  function handlePointerUp(e: React.PointerEvent) {
+    startRef.current = null
+    try {
+      ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+  }
+  function handleClick(e: React.MouseEvent) {
+    // A finished pointer-drag must not also open the menu.
+    if (draggedRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      draggedRef.current = false
+      return
+    }
+    onMenu(e)
+  }
   return (
     <div
       className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-[left,top] duration-200"
@@ -1570,14 +1634,18 @@ function SlotChip({
       {player ? (
         <div className="group relative flex flex-col items-center">
           <button
-            onClick={onMenu}
+            onClick={handleClick}
             draggable
             onDragStart={onDragStart}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            style={{ touchAction: dragEnabled ? 'none' : undefined }}
             className={cn(
               'relative cursor-grab transition hover:scale-105 active:cursor-grabbing',
               swapping && !isSwapSource && 'hover:scale-110',
             )}
-            title={swapping ? 'Yer değiştirmek için dokun' : 'Dokun: işlemler menüsü'}
+            title={swapping ? 'Yer değiştirmek için dokun' : 'Dokun: menü · sürükle: taşı'}
           >
             <div
               className={cn(
