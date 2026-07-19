@@ -10,57 +10,91 @@
      "broadcast scoreboard" character. */
   --font-display: 'Oswald', 'Arial Narrow', 'Helvetica Neue', var(--font-sans);
 
-  /* Surfaces and text, dark to light. A soft "dimmed" dark (charcoal, not black)
-     so it's easy on the eyes; cards sit a shade lighter than the canvas. */
-  --color-ink-950: #1a1f27;
-  --color-ink-900: #222833;
-  --color-ink-850: #2a313d;
-  --color-ink-800: #323a47;
-  --color-ink-750: #3b4451;
-  --color-ink-700: #454f5d;
-  --color-ink-600: #545f6d;
-  --color-ink-500: #67727f;
-  --color-ink-400: #8a95a3;
-  --color-ink-300: #a8b2bf;
-  --color-ink-200: #ccd3dc;
-  --color-ink-100: #e6ebf0;
+  /* Surfaces + text — the DEFAULT (dark "modern") theme: a slate-blue tinted dark,
+     lighter and less oppressive than flat charcoal. Components use ink-950 (canvas)
+     → ink-100 (primary text); the light theme just overrides these variables under
+     :root[data-theme="light"], which flips the whole app with zero component edits. */
+  --color-ink-950: #0e1626;
+  --color-ink-900: #16213a;
+  --color-ink-850: #1c2942;
+  --color-ink-800: #26344f;
+  --color-ink-750: #31425f;
+  --color-ink-700: #3e5273;
+  --color-ink-600: #52678c;
+  --color-ink-500: #647a9e;
+  --color-ink-400: #8697b4;
+  --color-ink-300: #a8b5cc;
+  --color-ink-200: #cad3e1;
+  --color-ink-100: #e9eef7;
 
-  /* Brand — electric "volt" lime. Bold, sporty, unmistakable (not generic emerald). */
-  --color-brand-300: #d8ff5e;
-  --color-brand-400: #c2f542;
-  --color-brand-500: #a8e60a;
-  --color-brand-600: #8bc300;
-  --color-brand-700: #6c9600;
+  /* Accent — refined emerald "pitch" green. Mature and readable in BOTH themes,
+     without the harsh neon of the old volt lime. */
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
 
   /* Result semantics (win / draw / loss) */
   --color-win: #22c55e;
-  --color-draw: #8a97a6;
-  --color-loss: #f05252;
+  --color-draw: #94a3b8;
+  --color-loss: #f43f5e;
 
-  --radius-card: 0.85rem;
+  --radius-card: 0.9rem;
+}
+
+/* ── Light theme ("aydınlık & ferah") — override the same tokens so every
+   bg-ink-900 becomes white, text-ink-100 becomes dark, etc. ── */
+:root[data-theme='light'] {
+  --color-ink-950: #eef1f6; /* canvas */
+  --color-ink-900: #ffffff; /* cards */
+  --color-ink-850: #f3f5f9;
+  --color-ink-800: #e3e8ef; /* borders / hairlines */
+  --color-ink-750: #d4dbe5;
+  --color-ink-700: #c0c9d6;
+  --color-ink-600: #97a2b2;
+  --color-ink-500: #75808f;
+  --color-ink-400: #5b6675; /* muted text */
+  --color-ink-300: #444e5c;
+  --color-ink-200: #2c3440;
+  --color-ink-100: #171c24; /* primary text */
+
+  --color-brand-300: #34d399;
+  --color-brand-400: #10b981;
+  --color-brand-500: #059669;
+  --color-brand-600: #047857;
+  --color-brand-700: #065f46;
 }
 
 @layer base {
   html {
     color-scheme: dark;
   }
+  html[data-theme='light'] {
+    color-scheme: light;
+  }
   body {
     margin: 0;
     min-height: 100vh;
     background-color: var(--color-ink-950);
-    /* Soft floodlight glows over the dimmed base — a hint of volt, easy on the eyes. */
+    /* Soft emerald floodlight glows over the base — a hint of pitch green. */
     background-image:
-      radial-gradient(1200px 640px at 50% -10%, rgba(168, 230, 10, 0.1), transparent 60%),
-      radial-gradient(900px 700px at 100% 3%, rgba(194, 245, 66, 0.05), transparent 55%),
-      radial-gradient(1000px 820px at 0% 100%, rgba(168, 230, 10, 0.045), transparent 55%);
+      radial-gradient(1200px 640px at 50% -10%, rgba(16, 185, 129, 0.1), transparent 60%),
+      radial-gradient(900px 700px at 100% 3%, rgba(52, 211, 153, 0.06), transparent 55%),
+      radial-gradient(1000px 820px at 0% 100%, rgba(16, 185, 129, 0.05), transparent 55%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     color: var(--color-ink-100);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  /* Faint dot-grid texture across the whole page so empty areas read as premium,
-     not dead black. Sits behind the app content. */
+  /* Light theme: an airy, near-white canvas with the faintest green wash. */
+  html[data-theme='light'] body {
+    background-image:
+      radial-gradient(1200px 640px at 50% -10%, rgba(16, 185, 129, 0.07), transparent 60%),
+      radial-gradient(1000px 820px at 100% 100%, rgba(37, 99, 235, 0.04), transparent 55%);
+  }
+  /* Faint dot-grid texture so empty areas read as premium, not dead flat. */
   body::before {
     content: '';
     position: fixed;
@@ -69,6 +103,9 @@
     pointer-events: none;
     background-image: radial-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1.4px);
     background-size: 24px 24px;
+  }
+  html[data-theme='light'] body::before {
+    background-image: radial-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1.4px);
   }
   a {
     color: inherit;

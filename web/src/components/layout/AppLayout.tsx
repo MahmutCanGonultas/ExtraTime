@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
 import { SearchBar } from '@/features/football/SearchBar'
 import { Brand, BallMark } from '@/components/Brand'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { cn } from '@/lib/cn'
 
 const baseNav = [
@@ -54,6 +55,7 @@ export function AppLayout() {
               <SearchBar />
             </div>
             <GroupSwitcher />
+            <ThemeToggle />
             <NavLink
               to="/settings"
               className="flex items-center gap-1.5 text-ink-300 transition hover:text-ink-100"
@@ -112,7 +114,8 @@ export function AppLayout() {
             <div className="my-3 border-t border-ink-800" />
             <div className="flex items-center justify-between gap-3">
               <GroupSwitcher />
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <ThemeToggle />
                 <NavLink
                   to="/settings"
                   onClick={() => setMenuOpen(false)}

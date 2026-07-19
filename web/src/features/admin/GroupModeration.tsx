@@ -358,7 +358,7 @@ function ResultOverride({
         <button
           onClick={save}
           disabled={!valid || setResult.isPending}
-          className="shrink-0 rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-ink-950 transition hover:bg-amber-400 disabled:opacity-40"
+          className="shrink-0 rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-amber-950 transition hover:bg-amber-400 disabled:opacity-40"
         >
           {setResult.isPending ? '...' : 'Kaydet'}
         </button>

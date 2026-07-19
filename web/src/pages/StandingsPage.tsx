@@ -36,7 +36,7 @@ export function StandingsPage() {
     )
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       {activeGames.length > 1 && (
         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
           {activeGames.map((g) => (

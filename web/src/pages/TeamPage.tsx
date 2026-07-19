@@ -163,7 +163,7 @@ function TrophyShelf({ won, total, teamId }: { won: WonTrophy[]; total: number; 
             <div className="flex h-[72px] w-full items-end justify-center">
               <TrophyImage src={it.img} label={it.label} />
             </div>
-            <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-black tabular-nums text-ink-950 shadow">
+            <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-black tabular-nums text-amber-950 shadow">
               &times;{it.count}
             </span>
           </div>

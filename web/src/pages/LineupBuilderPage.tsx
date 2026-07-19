@@ -191,10 +191,10 @@ const ROLE_RING: Record<Role, string> = {
 }
 
 const ROLE_BADGE: Record<Role, string> = {
-  GK: 'bg-amber-400 text-ink-950',
-  DEF: 'bg-sky-400 text-ink-950',
+  GK: 'bg-amber-400 text-amber-950',
+  DEF: 'bg-sky-400 text-sky-950',
   MID: 'bg-brand-400 text-ink-950',
-  ATT: 'bg-rose-400 text-ink-950',
+  ATT: 'bg-rose-400 text-rose-950',
 }
 
 const ROLE_SHORT: Record<Role, string> = { GK: 'KAL', DEF: 'DEF', MID: 'OS', ATT: 'FOR' }
