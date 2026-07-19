@@ -5,10 +5,10 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand-500 text-ink-950 hover:bg-brand-400 outline-brand-400',
-  secondary: 'border border-ink-700 bg-ink-750 text-ink-100 hover:bg-ink-700 outline-ink-500',
-  ghost: 'text-ink-200 hover:bg-ink-800 outline-ink-500',
-  danger: 'bg-loss text-white hover:brightness-110 outline-loss',
+  primary: 'bg-brand-500 text-ink-950 shadow-sm shadow-brand-500/25 hover:bg-brand-400 outline-brand-400',
+  secondary: 'border border-ink-700 bg-ink-850 text-ink-100 hover:bg-ink-800 outline-ink-500',
+  ghost: 'text-ink-200 hover:bg-ink-850 outline-ink-500',
+  danger: 'bg-loss text-white shadow-sm shadow-loss/25 hover:brightness-110 outline-loss',
 }
 
 const sizes: Record<Size, string> = {
@@ -26,9 +26,9 @@ export function Button({ variant = 'primary', size = 'md', className, ...props }
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition active:scale-[0.98]',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-        'disabled:cursor-not-allowed disabled:opacity-50',
+        'disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',
         variants[variant],
         sizes[size],
         className,
