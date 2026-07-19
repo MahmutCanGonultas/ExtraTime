@@ -1,20 +1,22 @@
 import { useSearchParams } from 'react-router-dom'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import { PredictionsPage } from './PredictionsPage'
+import { StandingsPage } from './StandingsPage'
 import { GroupPage } from './GroupPage'
 import { Tabs } from '@/components/ui/Tabs'
 import { Skeleton } from '@/components/ui/feedback'
 
-// Predictions and group management are two views of the SAME group, so they live
-// under one "Grup" section with tabs instead of two separate nav items: you
-// predict on the Tahminler tab, and the leader manages games/members on the Grup
-// tab. The active tab lives in the URL (?t=manage) so it's linkable — e.g. the
-// active-game card's "Tahminler" button can deep-link back to the play tab. When
+// One "Grup" section, three focused tabs so no single screen is crowded:
+//   Tahminler — just the matches you predict
+//   Puanlar   — live standings, weekly champions and the full point history
+//   Grup      — members, invite code, game management
+// The active tab lives in the URL (?t=table / ?t=manage) so it's linkable. When
 // there is no group yet, GroupPage shows the create/join flow.
 export function GroupHubPage() {
   const { active, isLoading } = useActiveGroup()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('t') === 'manage' ? 'manage' : 'play'
+  const t = params.get('t')
+  const tab = t === 'manage' ? 'manage' : t === 'table' ? 'table' : 'play'
 
   if (isLoading) return <Skeleton className="h-64" />
   if (!active) return <GroupPage />
@@ -24,12 +26,13 @@ export function GroupHubPage() {
       <Tabs
         items={[
           { key: 'play', label: 'Tahminler' },
+          { key: 'table', label: 'Puanlar' },
           { key: 'manage', label: 'Grup' },
         ]}
         active={tab}
-        onChange={(key) => setParams(key === 'manage' ? { t: 'manage' } : {}, { replace: true })}
+        onChange={(key) => setParams(key === 'play' ? {} : { t: key }, { replace: true })}
       />
-      {tab === 'play' ? <PredictionsPage /> : <GroupPage />}
+      {tab === 'play' ? <PredictionsPage /> : tab === 'table' ? <StandingsPage /> : <GroupPage />}
     </div>
   )
 }

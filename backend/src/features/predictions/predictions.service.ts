@@ -198,6 +198,97 @@ export async function getFixturePredictions(groupId: number, fixtureId: number, 
   return { locked, predictions }
 }
 
+// A single point-changing event in a game's history: either a settled prediction
+// (the member earned it off a match) or an admin adjustment (the admin gave it).
+export interface PointEvent {
+  type: 'prediction' | 'adjustment'
+  at: string
+  userId: number
+  displayName: string
+  avatar: string | null
+  points: number
+  // prediction only
+  fixtureId?: number
+  homeName?: string
+  awayName?: string
+  homeScore?: number | null
+  awayScore?: number | null
+  predictedOutcome?: MatchOutcome
+  predictedHome?: number | null
+  predictedAway?: number | null
+  // adjustment only
+  reason?: string | null
+  byName?: string | null
+}
+
+/** Full point history for a game: every settled prediction + every admin
+ *  adjustment, newest first, so a member can see exactly who got which points and
+ *  whether they earned them or the admin gave them. */
+export async function getPointsHistory(
+  groupId: number,
+  requesterId: number,
+  seasonId: number,
+): Promise<PointEvent[]> {
+  if (!(await isMember(groupId, requesterId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const preds = await query<{
+    at: Date
+    userId: number
+    displayName: string
+    avatar: string | null
+    points: number
+    fixtureId: number
+    homeName: string
+    awayName: string
+    homeScore: number | null
+    awayScore: number | null
+    predictedOutcome: MatchOutcome
+    predictedHome: number | null
+    predictedAway: number | null
+  }>(
+    `SELECT p.settled_at AS at, p.user_id AS "userId", u.display_name AS "displayName", u.avatar,
+            p.points_awarded AS points, f.id AS "fixtureId",
+            ht.name AS "homeName", at.name AS "awayName",
+            f.home_score AS "homeScore", f.away_score AS "awayScore",
+            p.predicted_outcome AS "predictedOutcome",
+            p.predicted_home AS "predictedHome", p.predicted_away AS "predictedAway"
+     FROM predictions p
+     JOIN group_fixtures gf ON gf.fixture_id = p.fixture_id AND gf.group_id = p.group_id
+     JOIN users u ON u.id = p.user_id
+     JOIN fixtures f ON f.id = p.fixture_id
+     JOIN teams ht ON ht.id = f.home_team_id
+     JOIN teams at ON at.id = f.away_team_id
+     WHERE p.group_id = $1 AND gf.season_id = $2 AND p.settled_at IS NOT NULL
+     ORDER BY p.settled_at DESC`,
+    [groupId, seasonId],
+  )
+  const adjs = await query<{
+    at: Date
+    userId: number
+    displayName: string
+    avatar: string | null
+    points: number
+    reason: string | null
+    byName: string | null
+  }>(
+    `SELECT pa.created_at AS at, pa.user_id AS "userId", u.display_name AS "displayName", u.avatar,
+            pa.delta AS points, pa.reason, b.display_name AS "byName"
+     FROM point_adjustments pa
+     JOIN users u ON u.id = pa.user_id
+     LEFT JOIN users b ON b.id = pa.created_by
+     WHERE pa.group_id = $1 AND pa.season_id = $2
+     ORDER BY pa.created_at DESC`,
+    [groupId, seasonId],
+  )
+  const events: PointEvent[] = [
+    ...preds.rows.map((r) => ({ ...r, type: 'prediction' as const, at: r.at.toISOString() })),
+    ...adjs.rows.map((r) => ({ ...r, type: 'adjustment' as const, at: r.at.toISOString() })),
+  ]
+  events.sort((a, b) => (a.at < b.at ? 1 : -1))
+  return events
+}
+
 export type { LeaderboardEntry } from './leaderboard'
 
 /** Standings for the group's current game (active season, or the last finished

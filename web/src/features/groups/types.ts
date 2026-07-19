@@ -167,6 +167,27 @@ export interface MemberPrediction {
   pointsAwarded: number | null
 }
 
+// One point-changing event in a game's history: a settled prediction (earned) or
+// an admin adjustment (given).
+export interface PointEvent {
+  type: 'prediction' | 'adjustment'
+  at: string
+  userId: number
+  displayName: string
+  avatar: string | null
+  points: number
+  fixtureId?: number
+  homeName?: string
+  awayName?: string
+  homeScore?: number | null
+  awayScore?: number | null
+  predictedOutcome?: Outcome
+  predictedHome?: number | null
+  predictedAway?: number | null
+  reason?: string | null
+  byName?: string | null
+}
+
 export interface FixturePredictions {
   locked: boolean
   predictions: MemberPrediction[]

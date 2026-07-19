@@ -11,6 +11,7 @@ import type {
   LeaderboardEntry,
   MyPrediction,
   Outcome,
+  PointEvent,
   ProvisionalEntry,
   Rivalry,
   SeasonDetail,
@@ -132,6 +133,16 @@ export function useGameDetail(groupId: number, gameId: number | null) {
       return anyActive ? 15_000 : false
     },
     refetchIntervalInBackground: false,
+  })
+}
+
+export function useGameHistory(groupId: number, gameId: number | null) {
+  return useQuery({
+    queryKey: ['game-history', groupId, gameId],
+    queryFn: () =>
+      api.get<{ events: PointEvent[] }>(`/groups/${groupId}/games/${gameId}/history`),
+    select: (d) => d.events,
+    enabled: groupId > 0 && gameId != null && gameId > 0,
   })
 }
 

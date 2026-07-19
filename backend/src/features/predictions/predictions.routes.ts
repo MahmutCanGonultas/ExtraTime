@@ -76,6 +76,17 @@ predictionsRouter.get(
   }),
 )
 
+// Point-by-point history for a game: every settled prediction (who scored what
+// off which match) plus every admin adjustment (who gave it, why).
+predictionsRouter.get(
+  '/:groupId/games/:gameId/history',
+  asyncHandler(async (req, res) => {
+    const groupId = parseIdParam(req.params.groupId)
+    const gameId = parseIdParam(req.params.gameId)
+    res.json({ events: await predictions.getPointsHistory(groupId, req.userId!, gameId) })
+  }),
+)
+
 predictionsRouter.get(
   '/:groupId/stats',
   asyncHandler(async (req, res) => {
