@@ -70,7 +70,11 @@ export function useCreateGroup() {
   return useMutation({
     mutationFn: (name: string) =>
       api.post<{ group: { id: number; name: string; inviteCode: string } }>('/groups', { name }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-groups'] }),
+    // Switch straight to the freshly created group so the app follows the user.
+    onSuccess: (res) => {
+      setActiveGroupId(res.group.id)
+      qc.invalidateQueries({ queryKey: ['my-groups'] })
+    },
   })
 }
 
@@ -79,7 +83,11 @@ export function useJoinGroup() {
   return useMutation({
     mutationFn: (inviteCode: string) =>
       api.post<{ group: { id: number; name: string } }>('/groups/join', { inviteCode }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-groups'] }),
+    // Switch straight to the group we just joined (also enables joining a 2nd group).
+    onSuccess: (res) => {
+      setActiveGroupId(res.group.id)
+      qc.invalidateQueries({ queryKey: ['my-groups'] })
+    },
   })
 }
 
@@ -261,7 +269,21 @@ export function useRemoveMember(groupId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (userId: number) => api.del(`/groups/${groupId}/members/${userId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['group', groupId] }),
+    // Removing a member changes membership-driven views too — refresh the group,
+    // its games, both standings tables and rivalries so nobody lingers with stale
+    // points in the Puanlar tab.
+    onSuccess: () => {
+      for (const key of [
+        ['group', groupId],
+        ['games', groupId],
+        ['game', groupId],
+        ['leaderboard', groupId],
+        ['leaderboard-live', groupId],
+        ['rivalries', groupId],
+      ]) {
+        qc.invalidateQueries({ queryKey: key })
+      }
+    },
   })
 }
 

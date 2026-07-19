@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, RefreshCw, Users, Crown, X } from 'lucide-react'
+import { Copy, RefreshCw, Users, Crown, X, Plus } from 'lucide-react'
 import { MemberAvatar } from '@/components/MemberAvatar'
 import { cn } from '@/lib/cn'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
@@ -31,6 +31,28 @@ export function GroupPage() {
 }
 
 function NoGroup() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div>
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
+          <Users className="h-3.5 w-3.5" /> Grup
+        </div>
+        <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink-100 sm:text-5xl">
+          Arkadaşlarınla oyna
+        </h1>
+        <p className="mt-2 max-w-md text-sm text-ink-400">
+          Bir grup kur, davet kodunu paylaş; maç sonuçlarını tahmin edip haftanın şampiyonunu
+          belirleyin.
+        </p>
+      </div>
+      <GroupForms />
+    </div>
+  )
+}
+
+// The create + join forms, reused by the no-group screen AND (collapsed) from inside
+// a group so a member can always join or start another group.
+function GroupForms() {
   const create = useCreateGroup()
   const join = useJoinGroup()
   const [name, setName] = useState('')
@@ -57,19 +79,7 @@ function NoGroup() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* Clean intro — no heavy banner. */}
-      <div>
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-400">
-          <Users className="h-3.5 w-3.5" /> Grup
-        </div>
-        <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-ink-100">Arkadaşlarınla oyna</h1>
-        <p className="mt-2 max-w-md text-sm text-ink-400">
-          Bir grup kur, davet kodunu paylaş; maç sonuçlarını tahmin edip haftanın şampiyonunu
-          belirleyin.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader title="Grup kur" />
@@ -111,6 +121,28 @@ function NoGroup() {
   )
 }
 
+// Collapsed entry point, shown inside an existing group, to join/create another one.
+function AnotherGroupPanel() {
+  const [open, setOpen] = useState(false)
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 text-sm font-semibold text-brand-300 transition hover:text-brand-200"
+      >
+        <Plus className={cn('h-4 w-4 transition', open && 'rotate-45')} />
+        {open ? 'Kapat' : 'Başka gruba katıl veya yeni grup kur'}
+      </button>
+      {open && (
+        <div className="mt-4">
+          <GroupForms />
+        </div>
+      )}
+    </section>
+  )
+}
+
 function GroupView({ group }: { group: GroupSummary }) {
   const { user } = useAuth()
   const detail = useGroup(group.id)
@@ -121,10 +153,21 @@ function GroupView({ group }: { group: GroupSummary }) {
 
   function copyInvite() {
     if (!g?.inviteCode) return
-    navigator.clipboard.writeText(g.inviteCode).then(() => {
+    const code = g.inviteCode
+    const done = () => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    })
+    }
+    // Clipboard API is unavailable in insecure contexts / when permission is
+    // denied — fall back to a prompt the admin can copy from manually.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(code)
+        .then(done)
+        .catch(() => window.prompt('Davet kodunu kopyala:', code))
+    } else {
+      window.prompt('Davet kodunu kopyala:', code)
+    }
   }
 
   const members = g?.members ?? []
@@ -132,16 +175,16 @@ function GroupView({ group }: { group: GroupSummary }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      {/* Clean header — no heavy banner. */}
+      {/* Header — stronger type hierarchy so the name and section titles carry. */}
       <div>
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-400">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
           <Users className="h-3.5 w-3.5" /> Grup
         </div>
-        <h1 className="mt-1.5 break-words text-3xl font-bold tracking-tight text-ink-100">
+        <h1 className="mt-2 break-words font-display text-4xl font-extrabold tracking-tight text-ink-100 sm:text-5xl">
           {g?.name ?? group.name}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-ink-400">{memberCount} oyuncu</span>
+          <span className="text-sm font-medium text-ink-300">{memberCount} oyuncu</span>
           {members.length > 0 && (
             <div className="flex items-center">
               <div className="flex -space-x-2.5">
@@ -196,8 +239,10 @@ function GroupView({ group }: { group: GroupSummary }) {
 
       {/* Members */}
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
-          Üyeler · {memberCount}
+        <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
+          <span className="h-4 w-1 rounded-full bg-gradient-to-b from-brand-400 to-brand-600" />
+          Üyeler
+          <span className="text-sm font-medium text-ink-500">· {memberCount}</span>
         </h2>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
           {members.map((m) => (
@@ -214,6 +259,8 @@ function GroupView({ group }: { group: GroupSummary }) {
       </section>
 
       <RivalryBook groupId={group.id} />
+
+      <AnotherGroupPanel />
 
       {g?.isAdmin && <DeleteGroup groupId={group.id} name={g?.name ?? group.name} />}
     </div>
@@ -288,9 +335,9 @@ function MemberCard({
         )}
       />
       <div className="min-w-0 w-full">
-        <div className="truncate text-sm font-semibold text-ink-100">
+        <div className="truncate text-[15px] font-bold text-ink-100">
           {member.displayName}
-          {isMe && <span className="ml-1 text-xs font-normal text-brand-300">(sen)</span>}
+          {isMe && <span className="ml-1 text-xs font-medium text-brand-300">(sen)</span>}
         </div>
         {isAdminOfMember ? (
           <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
