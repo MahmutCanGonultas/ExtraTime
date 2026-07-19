@@ -187,7 +187,7 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
 
       <Link
         to={`/leagues/${c.current.id}`}
-        className="relative mt-5 flex items-center justify-between rounded-xl px-3.5 py-3 font-semibold text-ink-950 transition hover:brightness-110"
+        className="relative mt-5 flex items-center justify-between rounded-xl px-3.5 py-3 font-semibold text-[#0e1626] transition hover:brightness-110"
         style={{ background: color }}
       >
         <span className="text-sm">{seasonLabel(c.current.season)} sezonu</span>

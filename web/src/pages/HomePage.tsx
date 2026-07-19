@@ -84,10 +84,10 @@ export function HomePage() {
               <BallMark size={16} />
               <span className="text-[11px] font-bold uppercase tracking-[0.25em]">EXTRATIME</span>
             </div>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink-100 sm:text-4xl">
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
               Merhaba, {user?.displayName ?? 'oyuncu'}
             </h1>
-            <p className="mt-2 text-sm text-ink-300">
+            <p className="mt-2 text-sm text-white/70">
               {active ? (
                 <>
                   {active.name}

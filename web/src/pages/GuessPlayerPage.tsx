@@ -484,7 +484,7 @@ function MysteryPhoto({ player, revealed }: { player: GuessPoolPlayer | null; re
         </div>
       )}
       {!revealed && (
-        <span className="absolute bottom-2 right-2 rounded-lg bg-ink-950/70 px-2 py-0.5 text-xl font-black text-white/80">
+        <span className="absolute bottom-2 right-2 rounded-lg bg-black/60 px-2 py-0.5 text-xl font-black text-white/80">
           ?
         </span>
       )}

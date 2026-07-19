@@ -73,7 +73,7 @@ export function TeamPage() {
               <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg break-words sm:text-4xl">
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink-100 drop-shadow-lg break-words sm:text-4xl">
                 {team.name}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-200">
@@ -296,7 +296,7 @@ function TeamInfoCard({ team }: { team: Team }) {
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900 via-ink-900/60 to-transparent px-3 pb-2 pt-8">
             {team.stadiumName && (
-              <span className="text-sm font-semibold text-white drop-shadow">{team.stadiumName}</span>
+              <span className="text-sm font-semibold text-ink-100 drop-shadow">{team.stadiumName}</span>
             )}
           </div>
         </div>

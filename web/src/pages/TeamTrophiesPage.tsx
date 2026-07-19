@@ -44,7 +44,7 @@ export function TeamTrophiesPage() {
               <TeamLogo apiId={team.apiFootballId} size={56} />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+              <h1 className="text-2xl font-extrabold tracking-tight text-ink-100 sm:text-3xl">
                 Kupa Dolabı
               </h1>
               <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-amber-300">

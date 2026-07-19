@@ -70,7 +70,7 @@ export function LeagueDetailPage() {
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+            <h1 className="text-2xl font-extrabold tracking-tight text-ink-100 sm:text-3xl">
               {league?.name ?? 'Lig'}
             </h1>
             {league && (

@@ -114,7 +114,7 @@ export function AuthShell({
           </div>
 
           <div className="mb-6 lg:mb-7">
-            <h1 className="font-display text-3xl font-bold tracking-tight text-white">{title}</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-ink-100">{title}</h1>
             {subtitle && <p className="mt-1.5 text-sm text-ink-400">{subtitle}</p>}
           </div>
 

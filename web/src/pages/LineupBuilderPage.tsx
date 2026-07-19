@@ -1251,10 +1251,7 @@ function BenchChip({
         <span className="mt-0.5 flex items-center gap-1">
           {roleKind && (
             <span
-              className={cn(
-                'rounded px-1 text-[9px] font-black leading-tight text-ink-950',
-                ROLE_DOT[roleKind],
-              )}
+              className={cn('rounded px-1 text-[9px] font-black leading-tight', ROLE_BADGE[roleKind])}
             >
               {ROLE_SHORT[roleKind]}
             </span>
@@ -1407,7 +1404,7 @@ function Pitch({
       {/* Loaded team's identity — a clear crest + name badge in the corner, so
           it's obvious whose squad is on the pitch (no buried watermark). */}
       {teamApiId != null && (
-        <div className="pointer-events-none absolute left-2.5 top-2.5 z-10 flex items-center gap-1.5 rounded-lg bg-ink-950/75 px-2 py-1 ring-1 ring-white/15 backdrop-blur-sm">
+        <div className="pointer-events-none absolute left-2.5 top-2.5 z-10 flex items-center gap-1.5 rounded-lg bg-black/70 px-2 py-1 ring-1 ring-white/15 backdrop-blur-sm">
           <TeamLogo apiId={teamApiId} size={20} />
           {teamName && (
             <span className="max-w-[140px] truncate text-[11px] font-bold text-white">{teamName}</span>
@@ -1688,7 +1685,7 @@ function SlotChip({
             👑
           </button>
           <span
-            className="mt-1.5 flex items-center gap-1 truncate rounded-md bg-ink-950/85 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10"
+            className="mt-1.5 flex items-center gap-1 truncate rounded-md bg-black/75 px-2 py-0.5 text-[11px] font-bold text-white shadow ring-1 ring-white/10"
             style={{ maxWidth: size.label }}
           >
             {isCaptain && <span className="text-amber-300">©</span>}

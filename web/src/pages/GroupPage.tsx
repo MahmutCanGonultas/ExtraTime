@@ -215,7 +215,7 @@ function GroupView({ group }: { group: GroupSummary }) {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-brand-300">
                 Davet kodu
               </div>
-              <div className="font-mono text-2xl font-black tracking-[0.28em] text-white">
+              <div className="font-mono text-2xl font-black tracking-[0.28em] text-ink-100">
                 {g.inviteCode}
               </div>
               <p className="mt-0.5 text-xs text-ink-400">
