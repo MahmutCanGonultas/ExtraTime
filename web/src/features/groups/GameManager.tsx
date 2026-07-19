@@ -68,9 +68,9 @@ function ActiveGameRow({ groupId, game, isAdmin }: { groupId: number; game: Seas
   const finish = useFinishGame(groupId, game.id)
   const [confirming, setConfirming] = useState(false)
   return (
-    <div className="rounded-lg bg-ink-850 px-3 py-2.5">
+    <div className="rounded-xl border border-brand-500/25 bg-brand-500/[0.06] px-3 py-2.5">
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/30">
           <Play className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -125,7 +125,7 @@ function FinishedGameRow({
   const [open, setOpen] = useState(false)
   const detail = useGameDetail(groupId, open ? game.id : null)
   return (
-    <div className="rounded-lg bg-ink-850">
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05]">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
         <Trophy className="h-4 w-4 shrink-0 text-amber-300" />
         <span className="text-sm font-medium text-ink-100">{game.title}</span>
