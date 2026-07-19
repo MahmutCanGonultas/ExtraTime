@@ -168,6 +168,16 @@ groupsRouter.post(
   }),
 )
 
+// A member leaves the group themselves (not the admin). Members — uses req.userId.
+groupsRouter.delete(
+  '/:id/membership',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    await groups.leaveGroup(id, req.userId!)
+    res.status(204).send()
+  }),
+)
+
 // Delete the whole group — leader only.
 groupsRouter.delete(
   '/:id',

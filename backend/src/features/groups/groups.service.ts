@@ -25,29 +25,37 @@ export interface GroupSummary {
 }
 
 export async function createGroup(name: string, adminUserId: number): Promise<GroupSummary> {
-  // Retry on the rare invite-code collision (UNIQUE violation).
+  // Retry on the rare invite-code collision (UNIQUE violation). All three inserts
+  // run in ONE transaction so a mid-way failure can't leave an orphan group with no
+  // members or season.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const inviteCode = randomFromAlphabet(8)
+    const client = await getPool()!.connect()
     try {
-      const { rows } = await query<{ id: number }>(
+      await client.query('BEGIN')
+      const { rows } = await client.query<{ id: number }>(
         `INSERT INTO groups (name, invite_code, admin_user_id) VALUES ($1, $2, $3) RETURNING id`,
         [name.trim(), inviteCode, adminUserId],
       )
       const groupId = rows[0].id
-      await query(
+      await client.query(
         `INSERT INTO group_members (group_id, user_id) VALUES ($1, $2)
          ON CONFLICT (group_id, user_id) DO NOTHING`,
         [groupId, adminUserId],
       )
       // Every group starts with an open first game the leader fills with matches.
-      await query(`INSERT INTO group_seasons (group_id, title, status) VALUES ($1, $2, 'active')`, [
+      await client.query(`INSERT INTO group_seasons (group_id, title, status) VALUES ($1, $2, 'active')`, [
         groupId,
         '1. Oyun',
       ])
+      await client.query('COMMIT')
       return { id: groupId, name: name.trim(), inviteCode, adminUserId }
     } catch (err) {
+      await client.query('ROLLBACK').catch(() => {})
       if (isUniqueViolation(err)) continue
       throw err
+    } finally {
+      client.release()
     }
   }
   throw new Error('Could not generate a unique invite code')
@@ -185,11 +193,58 @@ export async function regenerateInvite(groupId: number): Promise<string> {
   throw new Error('Could not generate a unique invite code')
 }
 
+/** Remove a user from a group AND clean up everything keyed to their membership —
+ *  predictions, point adjustments and jokers in that group — in one transaction, so
+ *  no orphan picks keep inflating prediction counts or reappear if they rejoin. */
+async function purgeMembership(groupId: number, userId: number): Promise<void> {
+  const client = await getPool()!.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM predictions WHERE group_id = $1 AND user_id = $2`, [groupId, userId])
+    await client.query(`DELETE FROM point_adjustments WHERE group_id = $1 AND user_id = $2`, [
+      groupId,
+      userId,
+    ])
+    await client.query(
+      `DELETE FROM season_jokers WHERE user_id = $2
+         AND season_id IN (SELECT id FROM group_seasons WHERE group_id = $1)`,
+      [groupId, userId],
+    )
+    await client.query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [
+      groupId,
+      userId,
+    ])
+    await client.query('COMMIT')
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 export async function removeMember(groupId: number, targetUserId: number, adminUserId: number): Promise<void> {
   if (targetUserId === adminUserId) {
     throw AppError.badRequest('The admin cannot be removed from the group')
   }
-  await query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId])
+  await purgeMembership(groupId, targetUserId)
+}
+
+/** A member leaves the group on their own. The admin cannot leave (they must delete
+ *  or hand over the group first). Cleans up their picks like removeMember does. */
+export async function leaveGroup(groupId: number, userId: number): Promise<void> {
+  const { rows } = await query<{ admin_user_id: number }>(
+    `SELECT admin_user_id FROM groups WHERE id = $1`,
+    [groupId],
+  )
+  if (!rows[0]) throw AppError.notFound('Group not found')
+  if (rows[0].admin_user_id === userId) {
+    throw AppError.badRequest('Grup başkanı gruptan ayrılamaz — önce grubu silmelisin')
+  }
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.notFound('You are not a member of this group')
+  }
+  await purgeMembership(groupId, userId)
 }
 
 /** Delete a whole group. ON DELETE CASCADE removes its members, seasons, curated
@@ -449,7 +504,7 @@ export async function adminRemoveMember(groupId: number, targetUserId: number): 
   )
   if (!rows[0]) throw AppError.notFound('Group not found')
   if (rows[0].admin_user_id === targetUserId) throw AppError.badRequest('Grup başkanı çıkarılamaz')
-  await query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId])
+  await purgeMembership(groupId, targetUserId)
 }
 
 /** Add (positive) or remove (negative) points for a member in the current game. */

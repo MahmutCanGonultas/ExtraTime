@@ -42,6 +42,16 @@ export async function registerUser(
 ): Promise<AuthResult> {
   const normalizedEmail = email.trim().toLowerCase()
   const name = displayName.trim()
+
+  // ADMIN_EMAILS accounts are provisioned deliberately (register first, THEN add the
+  // address to the env) — never mintable through open self-registration, or anyone
+  // could claim an as-yet-unused admin email and self-promote to platform admin. We
+  // reuse the exact "already registered" conflict so it can't be used as an oracle to
+  // tell admin emails apart from ordinary taken ones.
+  if (isAdminEmail(normalizedEmail)) {
+    throw AppError.conflict('This email is already registered')
+  }
+
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
 
   try {

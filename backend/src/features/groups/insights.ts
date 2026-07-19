@@ -35,6 +35,11 @@ export async function getMemberTrophies(groupId: number, userId: number, request
   if (!(await isMember(groupId, requesterId))) {
     throw AppError.forbidden('You are not a member of this group')
   }
+  // The TARGET must also belong to the group — otherwise the display-name lookup
+  // below would disclose any platform user's name to any member (IDOR / enumeration).
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.notFound('That user is not a member of this group')
+  }
   const champs = await query(
     `SELECT title, champion_points AS "points", finished_at AS "finishedAt"
      FROM group_seasons
