@@ -176,44 +176,53 @@ function GroupView({ group }: { group: GroupSummary }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      {/* Header — stronger type hierarchy so the name and section titles carry. */}
-      <div>
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">
-          <Users className="h-3.5 w-3.5" /> Grup
-        </div>
-        <h1 className="mt-2 break-words font-display text-4xl font-extrabold tracking-tight text-ink-100 sm:text-5xl">
-          {g?.name ?? group.name}
-        </h1>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-ink-300">{memberCount} oyuncu</span>
-          {members.length > 0 && (
-            <div className="flex items-center">
-              <div className="flex -space-x-2.5">
-                {members.slice(0, 8).map((m) => (
-                  <MemberAvatar
-                    key={m.id}
-                    name={m.displayName}
-                    avatar={m.avatar}
-                    size={30}
-                    className="ring-2 ring-ink-900"
-                  />
-                ))}
+      {/* Hero — the group's identity, with colour + depth. */}
+      <div
+        className="elevate relative overflow-hidden rounded-card border border-ink-800 p-6 sm:p-7"
+        style={{ backgroundImage: 'linear-gradient(130deg, #0c2b20 0%, #10233d 52%, #1b1740 100%)' }}
+      >
+        <div className="pointer-events-none absolute -right-10 -top-12 h-48 w-48 rounded-full bg-brand-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-14 left-1/4 h-44 w-44 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-300">
+            <Users className="h-3.5 w-3.5" /> Grup
+          </div>
+          <h1 className="mt-2 break-words font-display text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+            {g?.name ?? group.name}
+          </h1>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {members.length > 0 && (
+              <div className="flex items-center">
+                <div className="flex -space-x-2.5">
+                  {members.slice(0, 8).map((m) => (
+                    <MemberAvatar
+                      key={m.id}
+                      name={m.displayName}
+                      avatar={m.avatar}
+                      size={32}
+                      className="ring-2 ring-ink-950/70"
+                    />
+                  ))}
+                </div>
+                {members.length > 8 && (
+                  <span className="ml-2 text-xs font-semibold text-white/70">+{members.length - 8}</span>
+                )}
               </div>
-              {members.length > 8 && (
-                <span className="ml-2 text-xs font-medium text-ink-400">+{members.length - 8}</span>
-              )}
-            </div>
-          )}
+            )}
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white ring-1 ring-white/15">
+              {memberCount} oyuncu
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Invite code — a plain card. */}
+      {/* Invite code — a warm, unmistakable "share this" card. */}
       {g?.isAdmin && g.inviteCode && (
-        <Card>
+        <Card className="border-amber-500/30 bg-amber-500/[0.05]">
           <CardBody className="flex flex-wrap items-center gap-4">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-                Davet kodu
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                <Copy className="h-3.5 w-3.5" /> Davet kodu
               </div>
               <div className="font-mono text-2xl font-black tracking-[0.26em] text-ink-100">
                 {g.inviteCode}
@@ -338,6 +347,14 @@ function LeaveGroup({ groupId, name }: { groupId: number; name: string }) {
   )
 }
 
+// A varied palette so the members grid reads as a colourful roster, not a grey wall.
+const MEMBER_COLORS = ['#60a5fa', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185', '#4ade80', '#38bdf8', '#f59e0b']
+function memberAccent(id: number, isAdminOfMember: boolean, isMe: boolean): string {
+  if (isAdminOfMember) return '#fbbf24' // gold for the leader
+  if (isMe) return '#34d399' // brand green for you
+  return MEMBER_COLORS[Math.abs(id) % MEMBER_COLORS.length]
+}
+
 function MemberCard({
   member,
   groupId,
@@ -352,26 +369,18 @@ function MemberCard({
   canManage: boolean
 }) {
   const remove = useRemoveMember(groupId)
+  const accent = memberAccent(member.id, isAdminOfMember, isMe)
 
   return (
     <div
-      className={cn(
-        'group relative flex flex-col items-center gap-2 rounded-xl border p-3 pt-4 text-center transition',
-        isAdminOfMember
-          ? 'border-amber-500/30 bg-gradient-to-b from-amber-500/[0.10] to-ink-900'
-          : isMe
-            ? 'border-brand-500/35 bg-gradient-to-b from-brand-500/[0.10] to-ink-900'
-            : 'border-ink-800 bg-ink-900/50',
-      )}
+      className="group elevate relative flex flex-col items-center gap-2 overflow-hidden rounded-xl border border-ink-800 bg-ink-900 p-3 pt-5 text-center transition hover:-translate-y-0.5"
+      style={{ backgroundImage: `radial-gradient(130% 80% at 50% 0%, ${accent}22, transparent 62%)` }}
     >
-      <MemberAvatar
-        name={member.displayName}
-        avatar={member.avatar}
-        size={52}
-        className={cn(
-          isAdminOfMember ? 'ring-2 ring-amber-400/60' : isMe ? 'ring-2 ring-brand-400/60' : '',
-        )}
-      />
+      {/* signature colour bar */}
+      <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
+      <span className="rounded-full" style={{ boxShadow: `0 0 0 2px ${accent}` }}>
+        <MemberAvatar name={member.displayName} avatar={member.avatar} size={50} />
+      </span>
       <div className="min-w-0 w-full">
         <div className="truncate text-[15px] font-bold text-ink-100">
           {member.displayName}
@@ -382,7 +391,12 @@ function MemberCard({
             <Crown className="h-2.5 w-2.5" /> Başkan
           </span>
         ) : (
-          <span className="mt-1 inline-block text-[10px] uppercase tracking-wide text-ink-500">Üye</span>
+          <span
+            className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            style={{ backgroundColor: `${accent}22`, color: accent }}
+          >
+            Üye
+          </span>
         )}
       </div>
       {canManage && (
