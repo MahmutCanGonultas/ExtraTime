@@ -35,8 +35,10 @@ export function StandingsPage() {
       />
     )
 
+  const d = gameDetail.data
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {activeGames.length > 1 && (
         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
           {activeGames.map((g) => (
@@ -54,31 +56,40 @@ export function StandingsPage() {
         </div>
       )}
 
-      {gameId != null && <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />}
-
-      {gameDetail.data && gameDetail.data.standings.length > 0 && (
-        <div>
-          <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
-            <Trophy className="h-4 w-4 text-amber-400" />
-            Sıralama
-          </h3>
-          <Card className="overflow-hidden">
-            <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
-          </Card>
+      {/* Two columns on desktop so the page fills the width — the ranking on the
+          left, the weekly/history detail on the right — instead of a narrow strip. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          {gameId != null && (
+            <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />
+          )}
+          {d && d.standings.length > 0 && (
+            <div>
+              <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
+                <Trophy className="h-4 w-4 text-amber-400" />
+                Sıralama
+              </h3>
+              <Card className="overflow-hidden">
+                <Leaderboard entries={d.standings} currentUserId={user?.id} />
+              </Card>
+            </div>
+          )}
         </div>
-      )}
 
-      {gameDetail.data && gameDetail.data.weeks.length > 0 && (
-        <WeeklyChampions
-          weeks={gameDetail.data.weeks}
-          overallLeader={gameDetail.data.standings[0] ?? null}
-          currentUserId={user?.id}
-        />
-      )}
-
-      {gameId != null && <PointsHistory groupId={groupId} gameId={gameId} currentUserId={user?.id} />}
-
-      <HowToPlay />
+        <div className="space-y-6">
+          {d && d.weeks.length > 0 && (
+            <WeeklyChampions
+              weeks={d.weeks}
+              overallLeader={d.standings[0] ?? null}
+              currentUserId={user?.id}
+            />
+          )}
+          {gameId != null && (
+            <PointsHistory groupId={groupId} gameId={gameId} currentUserId={user?.id} />
+          )}
+          <HowToPlay />
+        </div>
+      </div>
     </div>
   )
 }

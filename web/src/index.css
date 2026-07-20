@@ -14,11 +14,11 @@
      lighter and less oppressive than flat charcoal. Components use ink-950 (canvas)
      → ink-100 (primary text); the light theme just overrides these variables under
      :root[data-theme="light"], which flips the whole app with zero component edits. */
-  --color-ink-950: #080d1a;
-  --color-ink-900: #172440;
-  --color-ink-850: #1f2f50;
-  --color-ink-800: #2b3d61;
-  --color-ink-750: #35486d;
+  --color-ink-950: #0e1626;
+  --color-ink-900: #16213a;
+  --color-ink-850: #1c2942;
+  --color-ink-800: #26344f;
+  --color-ink-750: #31425f;
   --color-ink-700: #3e5273;
   --color-ink-600: #52678c;
   --color-ink-500: #647a9e;
@@ -43,10 +43,8 @@
   /* Generous, modern rounding + a soft layered elevation (not a flat Bootstrap
      box-shadow). Overridden lighter for the light theme below. */
   --radius-card: 1.1rem;
-  --shadow-card:
-    0 1px 1px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.45),
-    0 18px 44px -18px rgba(0, 0, 0, 0.75);
-  --shadow-pop: 0 8px 26px -6px rgba(0, 0, 0, 0.65);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 6px 20px -6px rgba(0, 0, 0, 0.55);
 }
 
 /* ── Light theme ("aydınlık & ferah") — override the same tokens so every
@@ -97,14 +95,11 @@
     margin: 0;
     min-height: 100vh;
     background-color: var(--color-ink-950);
-    /* Coloured floodlights over the deep base: emerald pitch-glow up top, a cool
-       indigo + sky wash in the corners — so the dark canvas has depth and hue
-       variety instead of one flat colour. */
+    /* Soft emerald floodlight glows over the base — a hint of pitch green. */
     background-image:
-      radial-gradient(1200px 640px at 50% -12%, rgba(16, 185, 129, 0.13), transparent 60%),
-      radial-gradient(880px 720px at 100% 4%, rgba(99, 102, 241, 0.1), transparent 55%),
-      radial-gradient(1000px 820px at 0% 100%, rgba(56, 189, 248, 0.07), transparent 55%),
-      radial-gradient(760px 620px at 100% 100%, rgba(16, 185, 129, 0.06), transparent 55%);
+      radial-gradient(1200px 640px at 50% -10%, rgba(16, 185, 129, 0.1), transparent 60%),
+      radial-gradient(900px 700px at 100% 3%, rgba(52, 211, 153, 0.06), transparent 55%),
+      radial-gradient(1000px 820px at 0% 100%, rgba(16, 185, 129, 0.05), transparent 55%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     color: var(--color-ink-100);

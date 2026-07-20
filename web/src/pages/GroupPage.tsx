@@ -176,43 +176,36 @@ function GroupView({ group }: { group: GroupSummary }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      {/* Hero — the group's identity, with colour + depth. */}
-      <div
-        className="elevate relative overflow-hidden rounded-card border border-ink-800 p-6 sm:p-7"
-        style={{ backgroundImage: 'linear-gradient(130deg, #0c2b20 0%, #10233d 52%, #1b1740 100%)' }}
-      >
-        <div className="pointer-events-none absolute -right-10 -top-12 h-48 w-48 rounded-full bg-brand-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-14 left-1/4 h-44 w-44 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="relative">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-300">
-            <Users className="h-3.5 w-3.5" /> Grup
-          </div>
-          <h1 className="mt-2 break-words font-display text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-            {g?.name ?? group.name}
-          </h1>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            {members.length > 0 && (
-              <div className="flex items-center">
-                <div className="flex -space-x-2.5">
-                  {members.slice(0, 8).map((m) => (
-                    <MemberAvatar
-                      key={m.id}
-                      name={m.displayName}
-                      avatar={m.avatar}
-                      size={32}
-                      className="ring-2 ring-ink-950/70"
-                    />
-                  ))}
-                </div>
-                {members.length > 8 && (
-                  <span className="ml-2 text-xs font-semibold text-white/70">+{members.length - 8}</span>
-                )}
+      {/* Header — clean, on the normal canvas (no dark block), strong type. */}
+      <div>
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-300">
+          <Users className="h-3.5 w-3.5" /> Grup
+        </div>
+        <h1 className="mt-2 break-words font-display text-4xl font-extrabold tracking-tight text-ink-100 sm:text-5xl">
+          {g?.name ?? group.name}
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {members.length > 0 && (
+            <div className="flex items-center">
+              <div className="flex -space-x-2.5">
+                {members.slice(0, 8).map((m) => (
+                  <MemberAvatar
+                    key={m.id}
+                    name={m.displayName}
+                    avatar={m.avatar}
+                    size={32}
+                    className="ring-2 ring-ink-950"
+                  />
+                ))}
               </div>
-            )}
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white ring-1 ring-white/15">
-              {memberCount} oyuncu
-            </span>
-          </div>
+              {members.length > 8 && (
+                <span className="ml-2 text-xs font-semibold text-ink-400">+{members.length - 8}</span>
+              )}
+            </div>
+          )}
+          <span className="rounded-full bg-ink-850 px-3 py-1 text-xs font-bold text-ink-200 ring-1 ring-ink-800">
+            {memberCount} oyuncu
+          </span>
         </div>
       </div>
 
