@@ -23,7 +23,7 @@ export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours,
   66: { leagueTitles: [1980, 1909, 1899, 1898, 1896, 1895, 1893], domesticCups: [1956, 1919, 1912, 1904, 1896, 1894, 1886], championsLeague: [1981], europaLeague: [2025], uefaSuperCup: [1982] },
   79: { leagueTitles: [2020, 2010, 1953, 1945], domesticCups: [2010, 1954, 1952, 1947, 1946, 1945] },
   80: { leagueTitles: [2007, 2006, 2005, 2004, 2003, 2002, 2001], domesticCups: [2011, 2007, 1972, 1966, 1963] },
-  81: { leagueTitles: [2009, 1992, 1991, 1990, 1989, 1988, 1971, 1970, 1947, 1936], domesticCups: [1988, 1975, 1971, 1968, 1942, 1937, 1934, 1926, 1925, 1923], championsLeague: [1992] },
+  81: { leagueTitles: [2009, 1991, 1990, 1989, 1988, 1971, 1970, 1947, 1936], domesticCups: [1988, 1975, 1971, 1968, 1942, 1937, 1934, 1926, 1925, 1923], championsLeague: [1992] }, // count 9: removed the stripped 1992-93 title
   85: { leagueTitles: [2025, 2023, 2022, 2021, 2019, 2018, 2017, 2015, 2014, 2013, 2012, 1993, 1985], domesticCups: [2024, 2023, 2020, 2019, 2017, 2016, 2015, 2014, 2009, 2005, 2003, 1997, 1994, 1992, 1982, 1981], championsLeague: [2025, 2024], cupWinnersCup: [1995] },
   91: { leagueTitles: [2016, 1999, 1996, 1987, 1981, 1977, 1962, 1960], domesticCups: [1990, 1984, 1979, 1962, 1959] },
   94: { domesticCups: [2018, 1970, 1964] },
