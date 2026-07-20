@@ -6,7 +6,7 @@ import type { TeamHonours } from './teamTrophies'
 // trophy cabinet's "Detaylı" view; the authoritative counts live in teamTrophies.
 export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours, number[]>>> = {
   33: { leagueTitles: [2012, 2010, 2008, 2007, 2006, 2002, 2000, 1999, 1998, 1996, 1995, 1993, 1992, 1966, 1964, 1956, 1955, 1951, 1910, 1907], domesticCups: [2023, 2015, 2003, 1998, 1995, 1993, 1989, 1984, 1982, 1976, 1962, 1947, 1908], championsLeague: [2007, 1998, 1967], europaLeague: [2016], cupWinnersCup: [1990], uefaSuperCup: [1991], clubWorldCup: [2008, 1999] },
-  34: { leagueTitles: [1992, 1926, 1908, 1906, 1904], domesticCups: [1954, 1951, 1950, 1931, 1923, 1909] },
+  34: { leagueTitles: [1926, 1908, 1906, 1904], domesticCups: [1954, 1951, 1950, 1931, 1923, 1909] }, // count 4: removed spurious 1992
   39: { leagueTitles: [1958, 1957, 1953], domesticCups: [1959, 1948, 1907, 1892] },
   40: { leagueTitles: [2024, 2019, 1989, 1987, 1985, 1983, 1982, 1981, 1979, 1978, 1976, 1975, 1972, 1965, 1963, 1946, 1922, 1921, 1905, 1900], domesticCups: [2021, 2005, 2000, 1991, 1988, 1985, 1973, 1964], championsLeague: [2018, 2004, 1983, 1980, 1977, 1976], europaLeague: [2000, 1975, 1972], uefaSuperCup: [2019, 2001, 1977], clubWorldCup: [2019] },
   42: { leagueTitles: [2025, 2003, 2001, 1997, 1990, 1988, 1970, 1952, 1947, 1937, 1934, 1933, 1932, 1930], domesticCups: [2019, 2016, 2014, 2013, 2004, 2002, 2001, 1997, 1992, 1978, 1970, 1949, 1935, 1929], cupWinnersCup: [1993] },
@@ -79,6 +79,28 @@ export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours,
   1063: { leagueTitles: [1980, 1975, 1974, 1973, 1969, 1968, 1967, 1966, 1963, 1956], domesticCups: [1976, 1974, 1973, 1969, 1967, 1961] },
   1346: { domesticCups: [1986] },
   7411: { domesticCups: [2001, 1996] },
+  // Clubs that had counts but no year detail — filled with their major-honour years
+  // (season-START year, matching this file's convention), each array length verified
+  // against the curated count in teamTrophies.
+  83: {
+    leagueTitles: [2000, 1994, 1982, 1979, 1976, 1972, 1965, 1964],
+    domesticCups: [2021, 1999, 1998, 1978],
+  }, // Nantes (8 + 4)
+  84: { leagueTitles: [1958, 1955, 1951, 1950], domesticCups: [1996, 1953, 1951] }, // Nice (4 + 3)
+  97: { domesticCups: [2001] }, // Lorient
+  112: { domesticCups: [1987, 1983] }, // Metz
+  490: { leagueTitles: [1969] }, // Cagliari
+  504: { leagueTitles: [1984] }, // Hellas Verona
+  517: { domesticCups: [1940] }, // Venezia
+  532: {
+    leagueTitles: [2003, 2001, 1970, 1946, 1943, 1941],
+    domesticCups: [2018, 2007, 1998, 1978, 1966, 1953, 1948, 1940],
+    europaLeague: [2003],
+    cupWinnersCup: [1979],
+    uefaSuperCup: [2004, 1980],
+  }, // Valencia (6 + 8 + 1 + 1 + 2)
+  564: { leagueTitles: [2019] }, // İstanbul Başakşehir
+  994: { domesticCups: [1969, 1968] }, // Göztepe
 }
 
 export function getTeamHonourYears(
