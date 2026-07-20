@@ -46,7 +46,7 @@ export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours,
   175: { leagueTitles: [1981, 1978] },
   192: { leagueTitles: [1962], domesticCups: [1982, 1977, 1976, 1967] },
   487: { domesticCups: [2018, 2012, 2008, 2003, 1999, 1997, 1958], cupWinnersCup: [1998], uefaSuperCup: [1999] },
-  489: { domesticCups: [2002, 1976, 1972, 1971, 1966], championsLeague: [2006, 2002, 1993, 1989, 1988, 1968, 1962], cupWinnersCup: [1972, 1967], uefaSuperCup: [1994, 1990, 1989], clubWorldCup: [2007, 1990, 1989, 1969] },
+  489: { leagueTitles: [2021, 2010, 2003, 1998, 1995, 1993, 1992, 1991, 1987, 1978, 1967, 1961, 1958, 1956, 1954, 1950, 1907, 1906, 1901], domesticCups: [2002, 1976, 1972, 1971, 1966], championsLeague: [2006, 2002, 1993, 1989, 1988, 1968, 1962], cupWinnersCup: [1972, 1967], uefaSuperCup: [2007, 2003, 1994, 1990, 1989], clubWorldCup: [2007, 1990, 1989, 1969] }, // AC Milan — leagueTitles from Wikidata (19), Super Cup completed to 5
   492: { domesticCups: [2019, 2013, 2011, 1986, 1975, 1961], europaLeague: [1988] },
   495: { domesticCups: [1936] },
   496: { domesticCups: [2020, 2017, 2016, 2015, 2014, 1994, 1989, 1982, 1978, 1964, 1959, 1958, 1941, 1937], championsLeague: [1995, 1984], europaLeague: [1992, 1989, 1976], cupWinnersCup: [1983], uefaSuperCup: [1996, 1984], clubWorldCup: [1996, 1985] },
