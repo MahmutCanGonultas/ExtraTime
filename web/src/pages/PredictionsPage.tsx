@@ -51,7 +51,7 @@ export function PredictionsPage() {
   const predicted = openGames.filter((f) => f.myOutcome != null).length
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       {activeGames.length === 0 ? (
         <EmptyState
           title="Açık oyun yok"
@@ -155,7 +155,7 @@ export function PredictionsPage() {
                       Tahmin bekleyenler
                       <span className="text-sm font-medium text-ink-500">· {openGames.length}</span>
                     </h3>
-                    <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       {openGames.map((f) => (
                         <GamePredictCard
                           key={f.fixtureId}
@@ -176,7 +176,7 @@ export function PredictionsPage() {
                       Sonuçlanan
                       <span className="text-sm font-medium text-ink-500">· {closedGames.length}</span>
                     </h3>
-                    <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       {closedGames.map((f) => (
                         <GamePredictCard key={f.fixtureId} fixture={f} groupId={groupId} gameId={gameId!} />
                       ))}
