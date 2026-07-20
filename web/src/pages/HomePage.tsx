@@ -101,11 +101,17 @@ export function HomePage() {
         <BallMark size={210} className="pointer-events-none absolute -bottom-16 -right-10 text-emerald-400/[0.06]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4 px-6 py-8 sm:px-10">
           <div>
-            <div className="flex items-center gap-2 text-brand-300">
-              <BallMark size={16} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.25em]">EXTRATIME</span>
+            {/* Big, epic brand lock-up — the stopwatch mark with an emerald glow. */}
+            <div className="flex items-center gap-3">
+              <BallMark
+                size={48}
+                className="text-brand-400 drop-shadow-[0_0_18px_rgba(16,185,129,0.5)]"
+              />
+              <span className="font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                EXTRA<span className="text-brand-400">TIME</span>
+              </span>
             </div>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
               Merhaba, {user?.displayName ?? 'oyuncu'}
             </h1>
             <p className="mt-2 text-sm text-white/70">
