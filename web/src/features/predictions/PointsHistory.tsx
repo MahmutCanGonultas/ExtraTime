@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { History, Gavel, Target } from 'lucide-react'
 import { useGameHistory } from '@/features/groups/hooks'
 import type { PointEvent } from '@/features/groups/types'
@@ -67,8 +68,33 @@ function HistoryRow({ e, isMe }: { e: PointEvent; isMe: boolean }) {
   )
 }
 
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition',
+        active
+          ? 'border-sky-400/50 bg-sky-500/20 text-sky-100'
+          : 'border-ink-700 bg-ink-900 text-ink-300 hover:border-ink-600 hover:text-ink-100',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 // Full audit of how every point in the game was earned: settled predictions (self)
-// and admin adjustments (given), newest first.
+// and admin adjustments (given), newest first — filterable per person.
 export function PointsHistory({
   groupId,
   gameId,
@@ -80,21 +106,59 @@ export function PointsHistory({
 }) {
   const q = useGameHistory(groupId, gameId)
   const events = q.data ?? []
+  const [filter, setFilter] = useState<number | 'all'>('all')
+
+  // The distinct people who appear in the history, for the per-person filter.
+  const members = useMemo(() => {
+    const m = new Map<number, { userId: number; displayName: string; avatar: string | null }>()
+    for (const e of events) {
+      if (!m.has(e.userId)) {
+        m.set(e.userId, { userId: e.userId, displayName: e.displayName, avatar: e.avatar })
+      }
+    }
+    return [...m.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'))
+  }, [events])
+
+  const shown = filter === 'all' ? events : events.filter((e) => e.userId === filter)
+
   return (
     <Card className="overflow-hidden border-sky-500/20">
       <div className="flex items-center gap-2 border-b border-sky-500/15 bg-sky-500/[0.06] px-4 py-3">
         <History className="h-4 w-4 text-sky-300" />
         <h3 className="section-label text-sm text-sky-200">Puan Geçmişi</h3>
       </div>
+
+      {members.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto border-b border-ink-850 px-3 py-2">
+          <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
+            Herkes
+          </FilterChip>
+          {members.map((m) => (
+            <FilterChip
+              key={m.userId}
+              active={filter === m.userId}
+              onClick={() => setFilter(m.userId)}
+            >
+              <MemberAvatar name={m.displayName} avatar={m.avatar} size={18} />
+              <span className="max-w-[90px] truncate">
+                {m.userId === currentUserId ? 'Sen' : m.displayName}
+              </span>
+            </FilterChip>
+          ))}
+        </div>
+      )}
+
       {q.isLoading ? (
         <Skeleton className="m-3 h-24" />
       ) : events.length === 0 ? (
         <p className="px-4 py-6 text-center text-sm text-ink-500">
           Henüz puan kazanılmadı. Maçlar sonuçlandıkça burada listelenir.
         </p>
+      ) : shown.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-ink-500">Bu oyuncu için kayıt yok.</p>
       ) : (
         <ul className="max-h-[520px] divide-y divide-ink-850 overflow-y-auto">
-          {events.map((e, i) => (
+          {shown.map((e, i) => (
             <HistoryRow key={i} e={e} isMe={e.userId === currentUserId} />
           ))}
         </ul>
