@@ -15,6 +15,7 @@ import type {
   RawSquad,
   RawStandingsLeague,
   RawTopScorer,
+  RawTransfer,
 } from '../types'
 import {
   CONFIGURED_LEAGUE_API_IDS,
@@ -390,6 +391,51 @@ export async function syncPlayersFor(
     page += 1
   } while (page <= total)
   return n
+}
+
+// Full career: fetch one player's transfer history from API-Football (1 request) and
+// cache it. Called lazily the first time a player's detail page is opened. A short-
+// lived connection with an 'error' listener survives a Neon socket drop.
+export async function syncPlayerTransfers(playerApiId: number): Promise<number> {
+  const raw = await apiFootballGet<Array<{ transfers?: RawTransfer[] }>>('transfers', {
+    player: playerApiId,
+  })
+  const transfers = raw?.[0]?.transfers ?? []
+  const client = await getPool()!.connect()
+  client.on('error', (err) => logger.error({ err, playerApiId }, 'transfers client error'))
+  try {
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM player_transfers WHERE player_api_id = $1`, [playerApiId])
+    for (const t of transfers) {
+      await client.query(
+        `INSERT INTO player_transfers
+           (player_api_id, transfer_date, type, in_team_api_id, in_team_name, out_team_api_id, out_team_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          playerApiId,
+          t.date || null,
+          t.type || null,
+          t.teams?.in?.id ?? null,
+          t.teams?.in?.name ?? null,
+          t.teams?.out?.id ?? null,
+          t.teams?.out?.name ?? null,
+        ],
+      )
+    }
+    await client.query(
+      `INSERT INTO player_transfer_sync (player_api_id, synced_at, transfer_count)
+       VALUES ($1, now(), $2)
+       ON CONFLICT (player_api_id) DO UPDATE SET synced_at = now(), transfer_count = EXCLUDED.transfer_count`,
+      [playerApiId, transfers.length],
+    )
+    await client.query('COMMIT')
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw err
+  } finally {
+    client.release()
+  }
+  return transfers.length
 }
 
 // The season key for the current (2026-27) campaign.

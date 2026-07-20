@@ -133,3 +133,14 @@ export interface RawFixtureStatistic {
   team: { id: number; name: string | null }
   statistics: Array<{ type: string; value: number | string | null }>
 }
+
+// One transfer from API-Football's /transfers?player= response (each player object
+// carries a `transfers` array). Used to reconstruct the player's full club history.
+export interface RawTransfer {
+  date: string | null
+  type: string | null
+  teams: {
+    in: { id: number | null; name: string | null } | null
+    out: { id: number | null; name: string | null } | null
+  }
+}

@@ -297,6 +297,16 @@ export interface PlayerProfile {
   seasons: PlayerSeason[]
 }
 
+export interface CareerClub {
+  teamApiId: number | null
+  teamName: string
+  since: string | null
+}
+export interface PlayerCareer {
+  synced: boolean
+  clubs: CareerClub[]
+}
+
 export interface GuessPoolPlayer {
   playerApiId: number
   name: string

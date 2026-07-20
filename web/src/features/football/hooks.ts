@@ -9,6 +9,7 @@ import type {
   League,
   MatchEvent,
   MatchStat,
+  PlayerCareer,
   PlayerProfile,
   PlayerRow,
   SearchResults,
@@ -118,6 +119,18 @@ export function usePlayer(playerApiId: number) {
     queryKey: ['player', playerApiId],
     queryFn: () => api.get<{ player: PlayerProfile }>(`/players/${playerApiId}`),
     select: (d) => d.player,
+    enabled: Number.isFinite(playerApiId) && playerApiId > 0,
+  })
+}
+
+// Full career clubs. The first request may take a beat (backend lazily fetches the
+// transfer history once, then caches it) — cached long after.
+export function usePlayerCareer(playerApiId: number) {
+  return useQuery({
+    queryKey: ['player-career', playerApiId],
+    queryFn: () => api.get<{ career: PlayerCareer }>(`/players/${playerApiId}/career`),
+    select: (d) => d.career,
+    staleTime: 24 * 60 * 60_000,
     enabled: Number.isFinite(playerApiId) && playerApiId > 0,
   })
 }

@@ -5,6 +5,8 @@ import { AppError } from '../../lib/errors'
 import * as repo from './football.repository'
 import { getTeamHonours } from './teamTrophies'
 import { getTeamHonourYears } from './teamTrophyYears'
+import { syncPlayerTransfers } from './sync/jobs'
+import { logger } from '../../lib/logger'
 
 export const footballRouter = Router()
 
@@ -120,6 +122,25 @@ footballRouter.get(
     const player = await repo.getPlayerProfile(parseId(req.params.apiId))
     if (!player) throw AppError.notFound('Player not found')
     res.json({ player })
+  }),
+)
+
+// Full career: every club from the start of the player's career. Cache-first — the
+// first time a player is opened we lazily fetch their transfer history (1 request),
+// cache it, then serve from the DB forever. A failed fetch still returns whatever we
+// can derive from the season rows we already hold.
+footballRouter.get(
+  '/players/:apiId/career',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.apiId)
+    if (!(await repo.hasTransferSync(id))) {
+      try {
+        await syncPlayerTransfers(id)
+      } catch (err) {
+        logger.warn({ playerApiId: id, err }, 'transfer lazy-fill failed')
+      }
+    }
+    res.json({ career: await repo.getPlayerCareer(id) })
   }),
 )
 

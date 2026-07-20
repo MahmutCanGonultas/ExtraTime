@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
-import { usePlayer } from '@/features/football/hooks'
-import type { PlayerSeason } from '@/features/football/types'
+import { usePlayer, usePlayerCareer } from '@/features/football/hooks'
+import type { CareerClub, PlayerSeason } from '@/features/football/types'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
@@ -21,6 +21,7 @@ export function PlayerDetailPage() {
   const { apiId } = useParams()
   const playerApiId = Number(apiId)
   const { data, isLoading, isError, refetch } = usePlayer(playerApiId)
+  const career = usePlayerCareer(playerApiId)
 
   if (isLoading) return <Skeleton className="h-64" />
   if (isError) return <ErrorState onRetry={() => refetch()} />
@@ -111,6 +112,13 @@ export function PlayerDetailPage() {
         )}
       </section>
 
+      {/* Every club from the start of the career (transfers + our season rows). */}
+      <CareerClubs
+        clubs={career.data?.clubs ?? []}
+        loading={career.isLoading}
+        currentTeamApiId={data.currentTeamApiId}
+      />
+
       {/* Season-by-season history — secondary. */}
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
@@ -142,6 +150,63 @@ export function PlayerDetailPage() {
         </Card>
       </section>
     </div>
+  )
+}
+
+function CareerClubs({
+  clubs,
+  loading,
+  currentTeamApiId,
+}: {
+  clubs: CareerClub[]
+  loading: boolean
+  currentTeamApiId: number | null
+}) {
+  if (!loading && clubs.length === 0) return null
+  return (
+    <section>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
+        Oynadığı kulüpler
+        {clubs.length > 0 && <span className="ml-1 text-ink-600">· {clubs.length}</span>}
+      </h2>
+      {loading && clubs.length === 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-[46px] w-32" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {clubs.map((c, i) => {
+            const isCurrent = c.teamApiId != null && c.teamApiId === currentTeamApiId
+            return (
+              <div
+                key={`${c.teamApiId ?? 'x'}-${i}`}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl border px-3 py-2 transition',
+                  isCurrent
+                    ? 'border-brand-500/40 bg-brand-500/10'
+                    : 'border-ink-800 bg-ink-900 hover:border-ink-700',
+                )}
+              >
+                {c.teamApiId != null && <TeamLogo apiId={c.teamApiId} size={22} />}
+                <div className="min-w-0">
+                  <div
+                    className={cn(
+                      'truncate text-sm font-semibold',
+                      isCurrent ? 'text-brand-200' : 'text-ink-100',
+                    )}
+                  >
+                    {c.teamName}
+                  </div>
+                  {c.since && <div className="text-[10px] tabular-nums text-ink-500">{c.since}</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 

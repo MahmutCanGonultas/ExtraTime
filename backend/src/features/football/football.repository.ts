@@ -968,3 +968,81 @@ export async function getFixtureGoals(fixtureId: number): Promise<FixtureGoal[]>
   )
   return rows
 }
+
+// ---------------------------------------------------------------------------
+// Player career — every club from the start of the career.
+// ---------------------------------------------------------------------------
+
+export interface PlayerCareer {
+  synced: boolean // have we fetched this player's transfers yet?
+  clubs: Array<{ teamApiId: number | null; teamName: string; since: string | null }>
+}
+
+export async function hasTransferSync(playerApiId: number): Promise<boolean> {
+  const { rowCount } = await query(`SELECT 1 FROM player_transfer_sync WHERE player_api_id = $1`, [
+    playerApiId,
+  ])
+  return (rowCount ?? 0) > 0
+}
+
+// Merge two sources into one chronological list of every club the player has been
+// at: the transfer chain (reaches back furthest) and the season rows we already
+// hold (covers the very latest club even before its transfer is recorded). Each
+// club is kept once, positioned at its earliest appearance.
+export async function getPlayerCareer(playerApiId: number): Promise<PlayerCareer> {
+  const synced = await hasTransferSync(playerApiId)
+
+  const tr = await query<{
+    transferDate: string | null
+    inId: number | null
+    inName: string | null
+    outId: number | null
+    outName: string | null
+  }>(
+    `SELECT transfer_date AS "transferDate", in_team_api_id AS "inId", in_team_name AS "inName",
+            out_team_api_id AS "outId", out_team_name AS "outName"
+     FROM player_transfers WHERE player_api_id = $1
+     ORDER BY transfer_date ASC NULLS FIRST, id ASC`,
+    [playerApiId],
+  )
+
+  const seasons = await query<{ teamApiId: number | null; teamName: string | null; season: number }>(
+    // Exclude national-team rows (World Cup, api 1) — those are not clubs.
+    `SELECT p.team_api_id AS "teamApiId", p.team_name AS "teamName", MIN(p.season) AS season
+     FROM players p JOIN leagues l ON l.id = p.league_id
+     WHERE p.player_api_id = $1 AND p.team_name IS NOT NULL AND l.api_football_id <> 1
+     GROUP BY p.team_api_id, p.team_name`,
+    [playerApiId],
+  )
+
+  type Acc = { teamApiId: number | null; teamName: string; since: string | null; sort: number }
+  const map = new Map<string, Acc>()
+  const keyOf = (id: number | null, name: string) =>
+    id != null ? `id:${id}` : `n:${name.toLowerCase()}`
+  const consider = (id: number | null, name: string | null, since: string | null, sort: number) => {
+    if (!name) return
+    const k = keyOf(id, name)
+    const existing = map.get(k)
+    if (!existing || sort < existing.sort) {
+      map.set(k, { teamApiId: id, teamName: name, since: since ?? existing?.since ?? null, sort })
+    }
+  }
+
+  for (const r of tr.rows) {
+    const dt = r.transferDate ? new Date(r.transferDate) : null
+    const valid = dt && !Number.isNaN(dt.getTime())
+    const year = valid ? String(dt!.getFullYear()) : null
+    const t = valid ? dt!.getTime() : 0
+    consider(r.outId, r.outName, year, t - 1) // club they left sorts just before the one they joined
+    consider(r.inId, r.inName, year, t)
+  }
+  for (const s of seasons.rows) {
+    const t = Date.UTC(Number(s.season), 6, 1) // ~July 1 of that season
+    consider(s.teamApiId, s.teamName, String(s.season), t)
+  }
+
+  const clubs = [...map.values()]
+    .sort((a, b) => a.sort - b.sort)
+    .map((c) => ({ teamApiId: c.teamApiId, teamName: c.teamName, since: c.since }))
+  return { synced, clubs }
+}
