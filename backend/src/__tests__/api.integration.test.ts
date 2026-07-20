@@ -131,6 +131,17 @@ describe('API integration (in-memory Postgres)', () => {
     expect(mine.points).toBe(5)
     expect(mine.exactCount).toBe(1)
 
+    // Settling the same final result again is IDEMPOTENT — points must not double.
+    const resettle = await api('POST', '/api/v1/admin/dev/simulate-result', {
+      sync: true,
+      body: { fixtureId: 1, homeScore: 2, awayScore: 1 },
+    })
+    expect(resettle.status).toBe(200)
+    const lb2 = await api('GET', `/api/v1/groups/${groupId}/leaderboard`, { token })
+    const mine2 = lb2.json.leaderboard.find((e: { userId: number }) => e.userId === userId)
+    expect(mine2.points).toBe(5)
+    expect(mine2.exactCount).toBe(1)
+
     // Finishing the game crowns the leader as champion.
     const finish = await api('POST', `/api/v1/groups/${groupId}/games/${gameId}/finish`, { token })
     expect(finish.status).toBe(200)
