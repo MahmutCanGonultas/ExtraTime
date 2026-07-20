@@ -56,16 +56,31 @@ export async function upsertPrediction(
   }
 
   // Predictions are FINAL: a member submits once and cannot change it afterwards.
-  // ON CONFLICT DO NOTHING returns no row when one already exists.
+  // The lock is re-checked ATOMICALLY inside the write (INSERT ... SELECT ... WHERE the
+  // match is still open against the DB clock), so a match that kicks off in the tiny
+  // gap after the gate SELECT above cannot slip a late prediction in. No row comes
+  // back either when the row already exists (ON CONFLICT) OR when that lock failed.
   const { rows } = await query<SavedPrediction>(
     `INSERT INTO predictions (user_id, group_id, fixture_id, predicted_outcome, predicted_home, predicted_away)
-     VALUES ($1, $2, $3, $4, $5, $6)
+     SELECT $1::bigint, $2::bigint, $3::bigint, $4::text, $5::smallint, $6::smallint
+     FROM fixtures f
+     WHERE f.id = $3 AND f.status = 'NS' AND f.kickoff_at > now()
      ON CONFLICT (user_id, group_id, fixture_id) DO NOTHING
      RETURNING id, predicted_outcome AS "outcome",
                predicted_home AS "predictedHome", predicted_away AS "predictedAway"`,
     [userId, groupId, fixtureId, outcome, predictedHome, predictedAway],
   )
-  if (!rows[0]) throw AppError.conflict('Tahminini zaten girdin; tahmin değiştirilemez')
+  if (!rows[0]) {
+    // Distinguish "already predicted" from "locked in the race" for a clear message.
+    const existing = await query(
+      `SELECT 1 FROM predictions WHERE user_id = $1 AND group_id = $2 AND fixture_id = $3`,
+      [userId, groupId, fixtureId],
+    )
+    if ((existing.rowCount ?? 0) > 0) {
+      throw AppError.conflict('Tahminini zaten girdin; tahmin değiştirilemez')
+    }
+    throw AppError.locked('This match is locked; predictions can no longer be entered or changed')
+  }
   return rows[0]
 }
 

@@ -16,10 +16,15 @@ export function createApp() {
   app.set('trust proxy', 1)
   app.disable('x-powered-by')
   app.use(helmet())
+  // Auth is a Bearer JWT in the Authorization header — never a cookie — so CORS does
+  // NOT need credentials. Dropping credentials removes the "reflect any origin WITH
+  // credentials" risk: even when CORS_ORIGIN is '*' (reflecting the caller's origin),
+  // a cross-site page can't ride a user's session because it can't read the token
+  // from the user's same-origin localStorage. Set CORS_ORIGIN to a real allowlist in
+  // production to lock it down further.
   app.use(
     cors({
       origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(',').map((o) => o.trim()),
-      credentials: true,
     }),
   )
   app.use(express.json())

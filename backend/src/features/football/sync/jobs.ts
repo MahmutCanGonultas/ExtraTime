@@ -294,19 +294,22 @@ async function runLiveScores(): Promise<SyncResult> {
       }
     }
 
-    // Goals detail (who scored) only for the still-live group matches.
-    if (live.length > 0) {
-      const client = await getPool()!.connect()
-      try {
-        for (const t of live) {
-          const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', {
-            fixture: t.apiId,
-          })
+    // Goals detail (who scored) only for the still-live group matches. Fetch each
+    // match's events first, THEN take a short-lived connection for just that write —
+    // never hold one pooled client across the slow API round-trips (a Neon idle drop
+    // mid-loop would otherwise kill the whole tick). Matches syncPlayersFor's pattern.
+    for (const t of live) {
+      const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', {
+        fixture: t.apiId,
+      })
+      await withDbRetry(async () => {
+        const client = await getPool()!.connect()
+        try {
           await replaceFixtureGoals(client, t.fixtureId, events)
+        } finally {
+          client.release()
         }
-      } finally {
-        client.release()
-      }
+      })
     }
     return updated
   })

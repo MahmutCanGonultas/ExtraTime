@@ -7,6 +7,11 @@ import { signToken } from '../../lib/jwt'
 
 const SALT_ROUNDS = 10
 
+// A real bcrypt hash to compare against when the email is unknown, so a failed login
+// takes the same ~time whether the email exists or not (no timing oracle). Computed
+// once at startup.
+const DUMMY_HASH = bcrypt.hashSync('extratime-constant-time-login-placeholder', SALT_ROUNDS)
+
 // Platform admins bootstrap from ADMIN_EMAILS (the app owner's email is baked
 // into the env so there is always at least one admin who cannot be locked out).
 export function isAdminEmail(email: string): boolean {
@@ -86,9 +91,11 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
     normalizedEmail,
   ])
   const row = rows[0]
-  // Same error whether the email is unknown or the password is wrong, so an
-  // attacker cannot tell which emails exist.
-  if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+  // Always run bcrypt (against the real hash, or a dummy when the email is unknown)
+  // so the response time — and the error — are identical whether or not the email
+  // exists. No timing/enumeration oracle.
+  const passwordOk = await bcrypt.compare(password, row?.password_hash ?? DUMMY_HASH)
+  if (!row || !passwordOk) {
     throw AppError.unauthorized('Invalid email or password')
   }
   const user: PublicUser = {
