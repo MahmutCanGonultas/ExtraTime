@@ -304,9 +304,13 @@ async function runLiveScores(): Promise<SyncResult> {
       })
       await withDbRetry(async () => {
         const client = await getPool()!.connect()
+        // Guard against a Neon socket drop mid-write emitting an unhandled 'error'.
+        const onError = (err: unknown) => logger.error({ err, fixtureId: t.fixtureId }, 'live-events client error')
+        client.on('error', onError)
         try {
           await replaceFixtureGoals(client, t.fixtureId, events)
         } finally {
+          client.off('error', onError)
           client.release()
         }
       })
@@ -321,8 +325,10 @@ export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number)
   // A checked-out client that loses its connection mid-operation (e.g. Neon
   // resetting the socket) emits 'error'; without a listener that crashes the
   // whole process. Log it instead — the in-flight query still rejects and is
-  // handled by the caller.
-  client.on('error', (err) => logger.error({ err, fixtureId }, 'fixture-detail client error'))
+  // handled by the caller. Remove the listener on release so a REUSED pooled
+  // client doesn't accumulate one listener per call (the MaxListeners leak).
+  const onError = (err: unknown) => logger.error({ err, fixtureId }, 'fixture-detail client error')
+  client.on('error', onError)
   try {
     const events = await apiFootballGet<RawFixtureEvent[]>('fixtures/events', { fixture: apiFixtureId })
     const stats = await apiFootballGet<RawFixtureStatistic[]>('fixtures/statistics', {
@@ -333,6 +339,7 @@ export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number)
     await client.query('UPDATE fixtures SET detail_synced_at = now() WHERE id = $1', [fixtureId])
     return ne + ns
   } finally {
+    client.off('error', onError)
     client.release()
   }
 }
@@ -405,7 +412,8 @@ export async function syncPlayerTransfers(playerApiId: number): Promise<number> 
   })
   const transfers = raw?.[0]?.transfers ?? []
   const client = await getPool()!.connect()
-  client.on('error', (err) => logger.error({ err, playerApiId }, 'transfers client error'))
+  const onError = (err: unknown) => logger.error({ err, playerApiId }, 'transfers client error')
+  client.on('error', onError)
   try {
     await client.query('BEGIN')
     await client.query(`DELETE FROM player_transfers WHERE player_api_id = $1`, [playerApiId])
@@ -436,6 +444,7 @@ export async function syncPlayerTransfers(playerApiId: number): Promise<number> 
     await client.query('ROLLBACK').catch(() => {})
     throw err
   } finally {
+    client.off('error', onError)
     client.release()
   }
   return transfers.length
