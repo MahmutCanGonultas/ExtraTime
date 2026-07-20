@@ -54,7 +54,8 @@ export function GamePredictCard({
   const finished = isFinished(fixture.status)
   const showResult = live || finished
   const locked = !fixture.open
-  // A quiet left stripe tells the state apart without a loud full-colour border.
+  // A left stripe plus a faint matching wash tell the state apart at a glance
+  // (green win / amber part / red miss / red live) without a loud full-colour card.
   const statusStripe =
     finished && fixture.myPoints != null
       ? fixture.myPoints >= 3
@@ -67,6 +68,16 @@ export function GamePredictCard({
         : !locked
           ? 'border-l-[3px] border-l-brand-500'
           : ''
+  const statusWash =
+    finished && fixture.myPoints != null
+      ? fixture.myPoints >= 3
+        ? 'bg-emerald-500/[0.05]'
+        : fixture.myPoints > 0
+          ? 'bg-amber-500/[0.05]'
+          : 'bg-rose-500/[0.05]'
+      : live
+        ? 'bg-rose-500/[0.05]'
+        : ''
   // Predictions are final: once submitted, a member can no longer change it.
   const predicted = fixture.myOutcome != null
 
@@ -108,7 +119,7 @@ export function GamePredictCard({
   }
 
   return (
-    <Card className={cn('transition duration-200', statusStripe)}>
+    <Card className={cn('transition duration-200', statusStripe, statusWash)}>
       <CardBody className="space-y-3">
         {/* header */}
         <div className="flex items-center justify-between text-xs">
@@ -150,7 +161,7 @@ export function GamePredictCard({
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TeamLogo apiId={fixture.homeApiId} size={26} />
-            <span className="truncate text-sm font-medium text-ink-100">{fixture.homeName}</span>
+            <span className="truncate text-sm font-bold text-ink-100">{fixture.homeName}</span>
           </div>
           {showResult ? (
             <span
@@ -165,7 +176,7 @@ export function GamePredictCard({
             <span className="shrink-0 text-xs text-ink-500">{formatDateTime(fixture.kickoffAt)}</span>
           )}
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-            <span className="truncate text-right text-sm font-medium text-ink-100">
+            <span className="truncate text-right text-sm font-bold text-ink-100">
               {fixture.awayName}
             </span>
             <TeamLogo apiId={fixture.awayApiId} size={26} />

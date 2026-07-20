@@ -95,10 +95,26 @@ export function WeeklyChampions({
                         s.userId === currentUserId && 'font-semibold text-brand-300',
                       )}
                     >
-                      <span className="w-4 shrink-0 text-xs text-ink-500">{idx + 1}</span>
+                      <span
+                        className={cn(
+                          'w-4 shrink-0 text-xs font-bold tabular-nums',
+                          idx === 0 ? 'text-amber-300' : 'text-ink-500',
+                        )}
+                      >
+                        {idx + 1}
+                      </span>
                       <MemberAvatar name={s.displayName} avatar={s.avatar} size={28} />
-                      <span className="min-w-0 flex-1 truncate text-ink-100">{s.displayName}</span>
-                      <span className="score-num shrink-0 text-ink-200">{s.points}</span>
+                      <span className="min-w-0 flex-1 truncate font-semibold text-ink-100">
+                        {s.displayName}
+                      </span>
+                      <span
+                        className={cn(
+                          'score-num shrink-0 font-bold tabular-nums',
+                          idx === 0 ? 'text-amber-300' : 'text-brand-400',
+                        )}
+                      >
+                        {s.points}
+                      </span>
                     </li>
                   ))}
                 </ul>

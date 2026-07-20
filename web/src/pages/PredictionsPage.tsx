@@ -150,8 +150,10 @@ export function PredictionsPage() {
               <>
                 {openGames.length > 0 && (
                   <section>
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
-                      Tahmin bekleyenler · {openGames.length}
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
+                      <span className="h-4 w-1 rounded-full bg-gradient-to-b from-brand-400 to-brand-600" />
+                      Tahmin bekleyenler
+                      <span className="text-sm font-medium text-ink-500">· {openGames.length}</span>
                     </h3>
                     <div className="space-y-4">
                       {openGames.map((f) => (
@@ -169,8 +171,10 @@ export function PredictionsPage() {
 
                 {closedGames.length > 0 && (
                   <section>
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">
-                      Sonuçlanan · {closedGames.length}
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-200">
+                      <span className="h-4 w-1 rounded-full bg-ink-600" />
+                      Sonuçlanan
+                      <span className="text-sm font-medium text-ink-500">· {closedGames.length}</span>
                     </h3>
                     <div className="space-y-4">
                       {closedGames.map((f) => (

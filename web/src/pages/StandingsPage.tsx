@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trophy } from 'lucide-react'
 import { useGameDetail, useGames } from '@/features/groups/hooks'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -57,7 +58,10 @@ export function StandingsPage() {
 
       {gameDetail.data && gameDetail.data.standings.length > 0 && (
         <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-400">Sıralama</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
+            <Trophy className="h-4 w-4 text-amber-400" />
+            Sıralama
+          </h3>
           <Card className="overflow-hidden">
             <Leaderboard entries={gameDetail.data.standings} currentUserId={user?.id} />
           </Card>

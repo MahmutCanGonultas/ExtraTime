@@ -33,9 +33,19 @@ export function LiveStandings({
         {entries.map((e, i) => (
           <li
             key={e.userId}
-            className={cn('flex items-center gap-3 px-4 py-2', e.userId === currentUserId && 'bg-brand-500/[0.06]')}
+            className={cn(
+              'flex items-center gap-3 px-4 py-2.5',
+              e.userId === currentUserId ? 'bg-brand-500/10' : i === 0 && 'bg-amber-400/[0.06]',
+            )}
           >
-            <span className="score-num w-5 text-center text-sm text-ink-400">{i + 1}</span>
+            <span
+              className={cn(
+                'score-num w-5 text-center text-sm font-bold tabular-nums',
+                i === 0 ? 'text-amber-300' : 'text-ink-400',
+              )}
+            >
+              {i + 1}
+            </span>
             {e.direction > 0 ? (
               <ArrowUp className="h-3.5 w-3.5 text-brand-400" />
             ) : e.direction < 0 ? (
@@ -43,10 +53,23 @@ export function LiveStandings({
             ) : (
               <Minus className="h-3.5 w-3.5 text-ink-600" />
             )}
-            <MemberAvatar name={e.displayName} avatar={e.avatar} size={28} />
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-100">{e.displayName}</span>
-            {e.livePoints > 0 && <span className="text-xs font-semibold text-brand-300">+{e.livePoints}</span>}
-            <span className="score-num text-lg text-ink-100">{e.points}</span>
+            <MemberAvatar name={e.displayName} avatar={e.avatar} size={30} />
+            <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink-100">
+              {e.displayName}
+            </span>
+            {e.livePoints > 0 && (
+              <span className="rounded-md bg-brand-500/15 px-1.5 py-0.5 text-xs font-bold text-brand-300">
+                +{e.livePoints}
+              </span>
+            )}
+            <span
+              className={cn(
+                'score-num text-lg font-extrabold tabular-nums',
+                i === 0 ? 'text-amber-300' : 'text-brand-400',
+              )}
+            >
+              {e.points}
+            </span>
           </li>
         ))}
       </ul>
