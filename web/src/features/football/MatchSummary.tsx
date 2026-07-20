@@ -1,4 +1,5 @@
 import { TeamLogo } from '@/components/TeamLogo'
+import { cn } from '@/lib/cn'
 import type { Fixture, MatchEvent, MatchStat } from './types'
 
 // Detailed summary for a finished match: a home-vs-away statistics comparison
@@ -85,28 +86,58 @@ function EventTimeline({ events, home, away }: { events: MatchEvent[]; home: Fix
     <ul className="divide-y divide-ink-850">
       {shown.map((e, i) => {
         const isHome = e.teamApiId === home.apiFootballId
+        const isGoal = e.type === 'Goal' && e.detail !== 'Missed Penalty'
         const min = e.minute != null ? `${e.minute}${e.extraMinute ? `+${e.extraMinute}` : ''}'` : ''
-        const note =
-          e.type === 'Goal' && e.assistName
-            ? `${e.assistName} (asist)`
-            : e.type === 'subst' && e.assistName
-              ? `${e.assistName} çıktı`
-              : e.detail === 'Own Goal'
-                ? 'kendi kalesine'
-                : e.detail === 'Penalty'
-                  ? 'penaltı'
+        const assist = e.type === 'Goal' ? e.assistName : null
+        const tag =
+          e.detail === 'Own Goal'
+            ? 'kendi kalesine'
+            : e.detail === 'Penalty'
+              ? 'penaltı'
+              : e.detail === 'Missed Penalty'
+                ? 'kaçan penaltı'
+                : e.type === 'subst' && e.assistName
+                  ? `${e.assistName} çıktı`
                   : null
         return (
           <li
             key={i}
-            className={`flex items-center gap-2 px-4 py-2 text-sm ${isHome ? '' : 'flex-row-reverse text-right'}`}
+            className={cn(
+              'flex items-center gap-2 px-4',
+              // Goals carry visual weight (tinted row, more padding); cards/subs stay quiet.
+              isGoal ? 'bg-brand-500/[0.07] py-2.5' : 'py-2',
+              isHome ? '' : 'flex-row-reverse text-right',
+            )}
           >
             <span className="w-9 shrink-0 text-xs tabular-nums text-ink-500">{min}</span>
-            <span className="shrink-0">{eventIcon(e)}</span>
-            <TeamLogo apiId={isHome ? home.apiFootballId : away.apiFootballId} size={14} />
-            <div className={`min-w-0 flex-1 ${isHome ? '' : 'text-right'}`}>
-              <span className="text-ink-100">{e.playerName ?? '—'}</span>
-              {note && <span className="ml-1 text-xs text-ink-500">· {note}</span>}
+            <span className={cn('shrink-0', isGoal ? 'text-lg' : 'text-sm')}>{eventIcon(e)}</span>
+            <TeamLogo apiId={isHome ? home.apiFootballId : away.apiFootballId} size={isGoal ? 16 : 14} />
+            <div className={cn('min-w-0 flex-1', isHome ? '' : 'text-right')}>
+              <div
+                className={cn(
+                  isGoal ? 'text-[15px] font-bold text-ink-100' : 'text-sm text-ink-200',
+                )}
+              >
+                {e.playerName ?? '—'}
+                {tag && e.type !== 'subst' && (
+                  <span className="ml-1 text-[11px] font-medium text-ink-500">· {tag}</span>
+                )}
+              </div>
+              {/* Assist — its own line, brand-tinted so the provider stands out too. */}
+              {assist && (
+                <div
+                  className={cn(
+                    'mt-0.5 flex items-center gap-1 text-xs font-semibold text-brand-300',
+                    !isHome && 'flex-row-reverse',
+                  )}
+                >
+                  <span>👟</span>
+                  <span className="truncate">asist · {assist}</span>
+                </div>
+              )}
+              {e.type === 'subst' && tag && (
+                <div className="mt-0.5 text-xs text-ink-500">{tag}</div>
+              )}
             </div>
           </li>
         )
