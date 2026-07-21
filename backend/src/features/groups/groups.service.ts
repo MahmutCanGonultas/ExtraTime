@@ -267,6 +267,42 @@ const FIXTURE_FIELDS = `
 
 /** Add a fixture to a specific game. A match can belong to only ONE game per group
  *  (predictions are keyed by group+fixture). Admin-only (enforced by route). */
+/** Append an admin action to the group's audit trail. Best-effort — a logging
+ *  failure must never break the real action it records. */
+async function logAudit(
+  groupId: number,
+  actorId: number | null,
+  action: string,
+  summary: string,
+): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO group_audit_log (group_id, actor_user_id, action, summary) VALUES ($1, $2, $3, $4)`,
+      [groupId, actorId, action, summary],
+    )
+  } catch {
+    /* audit logging never breaks the action */
+  }
+}
+
+async function matchLabel(fixtureId: number): Promise<string> {
+  const { rows } = await query<{ home: string; away: string }>(
+    `SELECT ht.name AS home, at.name AS away
+     FROM fixtures f JOIN teams ht ON ht.id = f.home_team_id JOIN teams at ON at.id = f.away_team_id
+     WHERE f.id = $1`,
+    [fixtureId],
+  )
+  return rows[0] ? `${rows[0].home} - ${rows[0].away}` : `#${fixtureId}`
+}
+
+async function memberName(userId: number): Promise<string> {
+  const { rows } = await query<{ name: string }>(
+    `SELECT display_name AS name FROM users WHERE id = $1`,
+    [userId],
+  )
+  return rows[0]?.name ?? `#${userId}`
+}
+
 export async function addGroupFixture(
   groupId: number,
   gameId: number,
@@ -296,6 +332,7 @@ export async function addGroupFixture(
      VALUES ($1, $2, $3, $4) ON CONFLICT (season_id, fixture_id) DO NOTHING`,
     [gameId, groupId, fixtureId, addedBy],
   )
+  await logAudit(groupId, addedBy, 'fixture_add', `Maç eklendi: ${await matchLabel(fixtureId)}`)
 }
 
 /** Remove a fixture from a game, dropping any predictions on it. */
@@ -303,8 +340,10 @@ export async function removeGroupFixture(
   groupId: number,
   gameId: number,
   fixtureId: number,
+  actorId: number,
 ): Promise<void> {
   await assertActiveGame(groupId, gameId)
+  const label = await matchLabel(fixtureId)
   const client = await getPool()!.connect()
   try {
     await client.query('BEGIN')
@@ -323,6 +362,7 @@ export async function removeGroupFixture(
   } finally {
     client.release()
   }
+  await logAudit(groupId, actorId, 'fixture_remove', `Maç çıkarıldı: ${label}`)
 }
 
 /** The curated matches of a season, each with the given viewer's own prediction.
@@ -399,7 +439,11 @@ export interface Champion {
 }
 
 /** End a specific game: crown the points leader and lock it. */
-export async function finishGame(groupId: number, gameId: number): Promise<Champion | null> {
+export async function finishGame(
+  groupId: number,
+  gameId: number,
+  actorId: number,
+): Promise<Champion | null> {
   await assertActiveGame(groupId, gameId)
   const standings = await seasonLeaderboard(groupId, gameId)
   const winner = standings[0] ?? null
@@ -410,11 +454,16 @@ export async function finishGame(groupId: number, gameId: number): Promise<Champ
      WHERE id = $1`,
     [gameId, winner?.userId ?? null, winner?.points ?? null],
   )
+  await logAudit(groupId, actorId, 'game_finish', `Oyun bitti — Şampiyon: ${winner?.displayName ?? '—'}`)
   return winner ? { userId: winner.userId, displayName: winner.displayName, points: winner.points } : null
 }
 
 /** Start a fresh game. A group can run SEVERAL at once, so there is no guard. */
-export async function createGame(groupId: number, title?: string): Promise<SeasonRef> {
+export async function createGame(
+  groupId: number,
+  title: string | undefined,
+  actorId: number,
+): Promise<SeasonRef> {
   const { rows: countRows } = await query<{ count: number }>(
     `SELECT COUNT(*)::int AS count FROM group_seasons WHERE group_id = $1`,
     [groupId],
@@ -425,7 +474,26 @@ export async function createGame(groupId: number, title?: string): Promise<Seaso
      RETURNING id, title, status`,
     [groupId, finalTitle],
   )
+  await logAudit(groupId, actorId, 'game_create', `Oyun açıldı: ${finalTitle}`)
   return rows[0]
+}
+
+/** The group's admin-action history (newest first) with the acting admin's name. */
+export async function getAuditLog(groupId: number, userId: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  const { rows } = await query(
+    `SELECT al.id, al.action, al.summary, al.created_at AS "createdAt",
+            COALESCE(u.display_name, 'Silinmiş üye') AS "actorName"
+     FROM group_audit_log al
+     LEFT JOIN users u ON u.id = al.actor_user_id
+     WHERE al.group_id = $1
+     ORDER BY al.created_at DESC
+     LIMIT 60`,
+    [groupId],
+  )
+  return rows
 }
 
 /** Every game the group has run, newest first — the history list. */
@@ -532,6 +600,13 @@ export async function addPointAdjustment(
     `INSERT INTO point_adjustments (group_id, season_id, user_id, delta, reason, created_by)
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [groupId, seasonId, userId, delta, reason, createdBy],
+  )
+  const who = await memberName(userId)
+  await logAudit(
+    groupId,
+    createdBy,
+    'point_adjust',
+    `${who} · ${delta > 0 ? '+' : ''}${delta} puan${reason ? ` — ${reason}` : ''}`,
   )
 }
 

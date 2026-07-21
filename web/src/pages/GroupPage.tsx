@@ -4,6 +4,7 @@ import { MemberAvatar } from '@/components/MemberAvatar'
 import { cn } from '@/lib/cn'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
 import {
+  useAuditLog,
   useCreateGroup,
   useDeleteGroup,
   useGroup,
@@ -14,6 +15,7 @@ import {
 } from '@/features/groups/hooks'
 import type { GroupMember } from '@/features/groups/types'
 import type { GroupSummary } from '@/features/groups/types'
+import { formatDateTime } from '@/lib/format'
 import { RivalryBook } from '@/features/groups/RivalryBook'
 import { GameManager } from '@/features/groups/GameManager'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -261,6 +263,8 @@ function GroupView({ group }: { group: GroupSummary }) {
         </div>
       </section>
 
+      <AuditLog groupId={group.id} />
+
       <RivalryBook groupId={group.id} />
 
       <AnotherGroupPanel />
@@ -271,6 +275,49 @@ function GroupView({ group }: { group: GroupSummary }) {
         <LeaveGroup groupId={group.id} name={g?.name ?? group.name} />
       )}
     </div>
+  )
+}
+
+// Colour-coded dot per action type so the log scans at a glance.
+const ACTION_DOT: Record<string, string> = {
+  point_adjust: 'bg-amber-400',
+  fixture_add: 'bg-emerald-400',
+  fixture_remove: 'bg-loss',
+  game_create: 'bg-sky-400',
+  game_finish: 'bg-violet-400',
+}
+
+// Admin-action history — WHAT changed (points, games, matches) and WHICH admin did
+// it. Visible to every member for transparency; hidden until there's something.
+function AuditLog({ groupId }: { groupId: number }) {
+  const { data } = useAuditLog(groupId)
+  if (!data || data.length === 0) return null
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
+        <span className="h-4 w-1 rounded-full bg-gradient-to-b from-sky-400 to-sky-600" />
+        İşlem Geçmişi
+        <span className="text-sm font-medium text-ink-500">· yönetici hareketleri</span>
+      </h2>
+      <Card className="overflow-hidden">
+        <ul className="max-h-96 divide-y divide-ink-850 overflow-y-auto">
+          {data.map((e) => (
+            <li key={e.id} className="flex items-start gap-3 px-4 py-3">
+              <span
+                className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', ACTION_DOT[e.action] ?? 'bg-ink-500')}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-ink-100">{e.summary}</div>
+                <div className="mt-0.5 text-[11px] text-ink-500">
+                  <span className="font-semibold text-ink-400">{e.actorName}</span> ·{' '}
+                  {formatDateTime(e.createdAt)}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
   )
 }
 

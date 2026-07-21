@@ -110,7 +110,12 @@ adminRouter.delete(
   asyncHandler(async (req, res) => {
     requireAdminUser(req)
     const id = parseIdParam(req.params.id)
-    await groups.removeGroupFixture(id, await requireActiveGameId(id), parseIdParam(req.params.fixtureId))
+    await groups.removeGroupFixture(
+      id,
+      await requireActiveGameId(id),
+      parseIdParam(req.params.fixtureId),
+      req.userId!,
+    )
     res.status(204).send()
   }),
 )

@@ -72,6 +72,16 @@ groupsRouter.get(
   }),
 )
 
+// Admin-action history (point adjustments, game + match changes) with the acting
+// admin's name. Members.
+groupsRouter.get(
+  '/:id/audit-log',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    res.json({ entries: await groups.getAuditLog(id, req.userId!) })
+  }),
+)
+
 // ---- Games: a group can run SEVERAL at once, each with its own matches ----
 
 // Every game the group runs (active + finished). Members.
@@ -90,7 +100,7 @@ groupsRouter.post(
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
     const { title } = newGameSchema.parse(req.body ?? {})
-    res.status(201).json({ game: await groups.createGame(id, title) })
+    res.status(201).json({ game: await groups.createGame(id, title, req.userId!) })
   }),
 )
 
@@ -134,7 +144,7 @@ groupsRouter.delete(
     const id = parseIdParam(req.params.id)
     const gameId = parseIdParam(req.params.gameId)
     const fixtureId = parseIdParam(req.params.fixtureId)
-    await groups.removeGroupFixture(id, gameId, fixtureId)
+    await groups.removeGroupFixture(id, gameId, fixtureId, req.userId!)
     res.status(204).send()
   }),
 )
@@ -146,7 +156,7 @@ groupsRouter.post(
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
     const gameId = parseIdParam(req.params.gameId)
-    res.json({ champion: await groups.finishGame(id, gameId) })
+    res.json({ champion: await groups.finishGame(id, gameId, req.userId!) })
   }),
 )
 

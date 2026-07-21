@@ -199,3 +199,11 @@ export interface SettledPoint {
   kickoffAt: string
   points: number | null
 }
+
+export interface AuditEntry {
+  id: number
+  action: string
+  summary: string
+  createdAt: string
+  actorName: string
+}

@@ -79,7 +79,10 @@ export function useAdminAdjustPoints(groupId: number) {
   return useMutation({
     mutationFn: (input: { userId: number; delta: number; reason?: string }) =>
       api.post(`/admin/groups/${groupId}/adjustments`, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-group', groupId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-group', groupId] })
+      qc.invalidateQueries({ queryKey: ['audit-log', groupId] })
+    },
   })
 }
 

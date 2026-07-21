@@ -4,6 +4,7 @@ import { isFinished, isLive } from '@/features/football/matchStatus'
 import type { Fixture } from '@/features/football/types'
 import { setActiveGroupId } from './activeGroupStore'
 import type {
+  AuditEntry,
   Champion,
   FixturePredictions,
   GameFixture,
@@ -124,6 +125,17 @@ export function useGames(groupId: number) {
   })
 }
 
+// The group's admin-action history (point/game/match changes + which admin).
+export function useAuditLog(groupId: number) {
+  return useQuery({
+    queryKey: ['audit-log', groupId],
+    queryFn: () => api.get<{ entries: AuditEntry[] }>(`/groups/${groupId}/audit-log`),
+    select: (d) => d.entries,
+    enabled: groupId > 0,
+    staleTime: 30_000,
+  })
+}
+
 // Every fixture the group has added across its games, for the home page feed.
 export function useGroupFixtures(groupId: number) {
   return useQuery({
@@ -171,7 +183,10 @@ export function useCreateGame(groupId: number) {
   return useMutation({
     mutationFn: (title?: string) =>
       api.post<{ game: SeasonRef }>(`/groups/${groupId}/games`, { title }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['games', groupId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['games', groupId] })
+      qc.invalidateQueries({ queryKey: ['audit-log', groupId] })
+    },
   })
 }
 
@@ -193,6 +208,7 @@ export function useAddGameFixture(groupId: number, gameId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
       qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId, gameId] })
+      qc.invalidateQueries({ queryKey: ['audit-log', groupId] })
     },
   })
 }
@@ -205,6 +221,7 @@ export function useRemoveGameFixture(groupId: number, gameId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
       qc.invalidateQueries({ queryKey: ['candidate-fixtures', groupId, gameId] })
+      qc.invalidateQueries({ queryKey: ['audit-log', groupId] })
     },
   })
 }
@@ -216,6 +233,7 @@ export function useFinishGame(groupId: number, gameId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['games', groupId] })
       qc.invalidateQueries({ queryKey: ['game', groupId, gameId] })
+      qc.invalidateQueries({ queryKey: ['audit-log', groupId] })
     },
   })
 }
