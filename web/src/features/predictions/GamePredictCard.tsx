@@ -42,6 +42,11 @@ const OUTCOME_TEXT: Record<Outcome, string> = {
   DRAW: 'text-amber-300',
   AWAY: 'text-sky-300',
 }
+const OUTCOME_CHIP: Record<Outcome, string> = {
+  HOME: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/30',
+  DRAW: 'bg-amber-500/15 text-amber-200 ring-amber-500/30',
+  AWAY: 'bg-sky-500/15 text-sky-200 ring-sky-500/30',
+}
 
 export function GamePredictCard({
   fixture,
@@ -379,7 +384,7 @@ function EveryonesPredictions({
       </div>
     )
   return (
-    <ul className="divide-y divide-ink-850 overflow-hidden rounded-lg border border-ink-800">
+    <ul className="overflow-hidden rounded-lg border border-ink-800 bg-ink-900/40">
       {data.predictions.map((p) => (
         <MemberRow key={p.userId} p={p} homeName={homeName} awayName={awayName} />
       ))}
@@ -401,13 +406,20 @@ function MemberRow({
       ? `${p.predictedHome}-${p.predictedAway}`
       : outcomeLabel(p.predictedOutcome, homeName, awayName)
   return (
-    <li className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
-      <span className="flex min-w-0 items-center gap-2">
-        <MemberAvatar name={p.displayName} avatar={p.avatar} size={24} />
-        <span className="min-w-0 truncate text-ink-200">{p.displayName}</span>
+    <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm even:bg-white/[0.02]">
+      <span className="flex min-w-0 items-center gap-2.5">
+        <MemberAvatar name={p.displayName} avatar={p.avatar} size={26} />
+        <span className="min-w-0 truncate font-semibold text-ink-100">{p.displayName}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        <span className={cn('font-bold', OUTCOME_TEXT[p.predictedOutcome])}>{pick}</span>
+        <span
+          className={cn(
+            'rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ring-1',
+            OUTCOME_CHIP[p.predictedOutcome],
+          )}
+        >
+          {pick}
+        </span>
         {p.pointsAwarded != null && <Badge tone={pointsTone(p.pointsAwarded)}>{p.pointsAwarded}</Badge>}
       </span>
     </li>
