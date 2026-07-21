@@ -173,6 +173,44 @@ const NUM_DIR: Record<'up' | 'down', string> = {
 
 const BEST_KEY = 'extratime:guess:best'
 
+// A one-shot confetti burst when the player nails the guess. ~34 GPU-cheap pieces
+// (transform/opacity only) that fall once — celebratory, never janky.
+const CONFETTI_COLORS = ['#c2f542', '#22c55e', '#38bdf8', '#f59e0b', '#f43f5e', '#a855f7', '#ffffff']
+function WinBurst() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 34 }, (_, i) => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 0.25,
+        dur: 1.3 + Math.random() * 0.9,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        drift: `${Math.round((Math.random() - 0.5) * 220)}px`,
+        rot: `${Math.round(360 + Math.random() * 520)}deg`,
+      })),
+    [],
+  )
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden>
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={
+            {
+              left: `${p.left}%`,
+              background: p.color,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.dur}s`,
+              '--drift': p.drift,
+              '--rot': p.rot,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  )
+}
+
 export function GuessPlayerPage() {
   const [sources, setSources] = useState<Sources>(loadSources)
   const clubs = sources.turkish ? TURKISH_CLUBS : []
@@ -266,6 +304,7 @@ export function GuessPlayerPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
+      {won && <WinBurst />}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="section-label text-brand-300">Kim Bu Oyuncu?</div>

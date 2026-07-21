@@ -216,6 +216,18 @@
     transform: scale(1);
   }
 }
+/* One-shot confetti for a correct "Kim Bu" guess. Transform/opacity only, ~32
+   GPU-cheap pieces that fall once — no layout, no lag. */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-12vh) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(112vh) translateX(var(--drift, 0px)) rotate(var(--rot, 360deg));
+    opacity: 0;
+  }
+}
 /* A slow drifting float for decorative marks (e.g. the login ball). */
 @keyframes float {
   0%,
@@ -260,12 +272,24 @@
     animation: float 6s ease-in-out infinite;
     will-change: transform;
   }
+  .confetti-piece {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 13px;
+    border-radius: 2px;
+    animation: confettiFall linear forwards;
+    will-change: transform, opacity;
+  }
   @media (prefers-reduced-motion: reduce) {
     .animate-guess-in,
     .animate-pop-in,
     .animate-float,
     .guess-reveal > * {
       animation: none;
+    }
+    .confetti-piece {
+      display: none;
     }
   }
 }
