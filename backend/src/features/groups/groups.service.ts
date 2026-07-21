@@ -375,7 +375,11 @@ async function seasonFixturesFor(groupId: number, seasonId: number, viewerId: nu
             sh.form AS "homeForm", sa.form AS "awayForm",
             (SELECT COUNT(*)::int FROM predictions p2
              WHERE p2.group_id = $1 AND p2.fixture_id = gf.fixture_id) AS "predictionCount",
-            (f.status = 'NS' AND f.kickoff_at > now()) AS "open"
+            (f.status = 'NS' AND f.kickoff_at > now()) AS "open",
+            (SELECT COALESCE(json_agg(json_build_object(
+                'teamApiId', g.team_api_id, 'playerName', g.player_name, 'assistName', g.assist_name,
+                'minute', g.minute, 'detail', g.detail) ORDER BY g.minute), '[]'::json)
+             FROM fixture_goals g WHERE g.fixture_id = gf.fixture_id) AS goals
      FROM group_fixtures gf
      JOIN fixtures f ON f.id = gf.fixture_id
      JOIN leagues lg ON lg.id = f.league_id

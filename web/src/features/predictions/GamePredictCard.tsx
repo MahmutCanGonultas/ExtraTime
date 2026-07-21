@@ -4,6 +4,7 @@ import type { GameFixture, MemberPrediction, Outcome } from '@/features/groups/t
 import { useFixturePredictions, useUpsertPrediction } from '@/features/groups/hooks'
 import { isFinished, isLive } from '@/features/football/matchStatus'
 import { FormBadges } from '@/features/football/FormBadges'
+import { GoalList } from '@/features/football/GoalList'
 import { TeamLogo } from '@/components/TeamLogo'
 import { MemberAvatar } from '@/components/MemberAvatar'
 import { Badge } from '@/components/ui/Badge'
@@ -195,6 +196,13 @@ export function GamePredictCard({
             <TeamLogo apiId={fixture.awayApiId} size={26} />
           </div>
         </div>
+
+        {/* Goals (scorer + assist) — shown live as they happen and after full time. */}
+        {showResult && fixture.goals.length > 0 && (
+          <div className="rounded-lg bg-ink-850/60 px-3 py-1.5">
+            <GoalList goals={fixture.goals} />
+          </div>
+        )}
 
         {locked ? (
           /* locked — my pick + everyone else's, revealed now that it's kicked off */

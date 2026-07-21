@@ -1,3 +1,5 @@
+import type { FixtureGoal } from '@/features/football/types'
+
 export interface GroupSummary {
   id: number
   name: string
@@ -56,6 +58,7 @@ export interface GameFixture {
   myPoints: number | null
   predictionCount: number
   open: boolean
+  goals: FixtureGoal[]
 }
 
 export interface Champion {

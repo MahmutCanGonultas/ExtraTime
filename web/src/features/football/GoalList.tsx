@@ -30,9 +30,12 @@ export function GoalList({
           <TeamLogo apiId={g.teamApiId} size={14} />
           <BallMark size={10} className="text-ink-500" />
           {g.minute != null && <span className="tabular-nums text-ink-500">{g.minute}'</span>}
-          <span className="truncate text-ink-200">
-            {g.playerName}
-            {goalTag(g.detail)}
+          <span className="min-w-0 truncate">
+            <span className="font-semibold text-ink-100">
+              {g.playerName}
+              {goalTag(g.detail)}
+            </span>
+            {g.assistName && <span className="text-ink-500"> · as. {g.assistName}</span>}
           </span>
         </li>
       ))}
