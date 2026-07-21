@@ -5,7 +5,12 @@ import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import { wonTrophies, TrophyImage, type WonTrophy } from '@/features/football/trophyAssets'
+import {
+  wonTrophies,
+  TrophyImage,
+  leagueForCountry,
+  type WonTrophy,
+} from '@/features/football/trophyAssets'
 import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -34,10 +39,11 @@ export function TeamPage() {
   // played. Older seasons live in the players' career tables.
   const primary = standings[0]
   // Which of the six leagues the club plays in — picks its league-title and
-  // national-cup trophy images.
-  const domesticLeagueId = standings.find((s) =>
-    [39, 140, 78, 135, 61, 203].includes(s.leagueApiId),
-  )?.leagueApiId
+  // national-cup trophy images/names. Country is the reliable source; standings
+  // can miss the domestic row, which would fall back to a generic label.
+  const domesticLeagueId =
+    leagueForCountry(team.country) ??
+    standings.find((s) => [39, 140, 78, 135, 61, 203].includes(s.leagueApiId))?.leagueApiId
   const won = wonTrophies(trophies, domesticLeagueId, trophyYears)
   const trophyTotal = won.reduce((sum, it) => sum + it.count, 0)
   const squadSeason = squad[0]?.season

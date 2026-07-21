@@ -53,6 +53,23 @@ const LEAGUE_NAME: Record<number, { league: string; cup: string; superCup: strin
   203: { league: 'Süper Lig', cup: 'Türkiye Kupası', superCup: 'TFF Süper Kupa' },
 }
 
+// The club's domestic top flight, derived from its country. This is the reliable
+// source for naming league/cup trophies — the team's standings can miss the
+// domestic row (older season, or the league flagged inactive), which would drop
+// the label back to a generic "Lig Şampiyonluğu". Country is always present.
+const COUNTRY_LEAGUE: Record<string, number> = {
+  England: 39,
+  Spain: 140,
+  Germany: 78,
+  Italy: 135,
+  France: 61,
+  Turkey: 203,
+  Türkiye: 203,
+}
+export function leagueForCountry(country: string | null | undefined): number | undefined {
+  return country ? COUNTRY_LEAGUE[country.trim()] : undefined
+}
+
 function honourLabel(
   key: keyof TeamHonours,
   fallback: string,

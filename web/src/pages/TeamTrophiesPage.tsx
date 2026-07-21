@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
-import { wonTrophies, TrophyImage } from '@/features/football/trophyAssets'
+import { wonTrophies, TrophyImage, leagueForCountry } from '@/features/football/trophyAssets'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
@@ -15,9 +15,9 @@ export function TeamTrophiesPage() {
   if (!data) return <EmptyState title="Takım bulunamadı" />
 
   const { team, standings, trophies, trophyYears } = data
-  const domesticLeagueId = standings.find((s) =>
-    [39, 140, 78, 135, 61, 203].includes(s.leagueApiId),
-  )?.leagueApiId
+  const domesticLeagueId =
+    leagueForCountry(team.country) ??
+    standings.find((s) => [39, 140, 78, 135, 61, 203].includes(s.leagueApiId))?.leagueApiId
   const won = wonTrophies(trophies, domesticLeagueId, trophyYears)
   const total = won.reduce((sum, it) => sum + it.count, 0)
 
