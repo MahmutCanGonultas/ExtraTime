@@ -74,11 +74,14 @@ export function TeamPage() {
       {/* Giant club crest watermark, fixed and centred on the right — a branded
           backdrop that stays put as the page scrolls. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        {/* The crest source is only ~150px, so it pixelates when blown up. A soft
+            blur turns it into a smooth, premium brand form instead of a jagged
+            enlargement — big presence, no pixel edges. */}
         <img
           src={teamLogoUrl(team.apiFootballId)}
           alt=""
           draggable={false}
-          className="absolute top-1/2 right-[-18%] h-[92vh] w-auto max-w-none -translate-y-1/2 select-none opacity-[0.14] drop-shadow-2xl sm:right-[-8%] lg:right-0"
+          className="absolute top-1/2 right-[-20%] h-[82vh] w-auto max-w-none -translate-y-1/2 select-none opacity-20 blur-[10px] sm:right-[-10%] lg:right-[-2%]"
         />
       </div>
       {/* A soft, edge-weighted tint OVER the content too (transparent through the
