@@ -15,7 +15,7 @@ export const TROPHY_IMG: Record<string, string> = {
   'la-liga': '/trophies/la-liga.png',
   'premier-league': '/trophies/premier-league.png',
   bundesliga: '/trophies/bundesliga.png',
-  'serie-a': '/trophies/serie-a.jpg',
+  'serie-a': '/trophies/serie-a.png',
   'ligue-1': '/trophies/ligue-1.png',
   'super-lig': '/trophies/super-lig.png',
   'copa-del-rey': '/trophies/copa-del-rey.png',
@@ -23,7 +23,7 @@ export const TROPHY_IMG: Record<string, string> = {
   'dfb-pokal': '/trophies/dfb-pokal.png',
   'coppa-italia': '/trophies/coppa-italia.png',
   'coupe-de-france': '/trophies/coupe-de-france.png',
-  'turkiye-kupasi': '/trophies/turkiye-kupasi.jpg',
+  'turkiye-kupasi': '/trophies/turkiye-kupasi.png',
 }
 
 const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
