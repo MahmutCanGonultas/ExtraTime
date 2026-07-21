@@ -12,6 +12,7 @@ import {
   type WonTrophy,
 } from '@/features/football/trophyAssets'
 import { teamAccent, withAlpha } from '@/features/football/teamColors'
+import { useLogoAccent } from '@/features/football/logoAccent'
 import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -30,6 +31,12 @@ export function TeamPage() {
   const teamId = Number(id)
   const { data, isLoading, isError, refetch } = useTeam(teamId)
 
+  // The club's accent — pulled straight from its crest (dynamic), with the curated
+  // palette as the fallback for monochrome logos. Hook runs before the early
+  // returns so its order stays stable across renders.
+  const apiId = data?.team.apiFootballId
+  const accent = useLogoAccent(apiId, teamAccent(apiId))
+
   if (isLoading) return <Skeleton className="h-64" />
   if (isError) return <ErrorState onRetry={() => refetch()} />
   if (!data) return <EmptyState title="Takım bulunamadı" />
@@ -47,9 +54,6 @@ export function TeamPage() {
     standings.find((s) => [39, 140, 78, 135, 61, 203].includes(s.leagueApiId))?.leagueApiId
   const won = wonTrophies(trophies, domesticLeagueId, trophyYears)
   const trophyTotal = won.reduce((sum, it) => sum + it.count, 0)
-  // The club's accent colour — a soft glow behind the hero + a tinted crest, so
-  // each team page carries a hint of its own identity.
-  const accent = teamAccent(team.apiFootballId)
   const squadSeason = squad[0]?.season
   const recent = fixtures.filter((f) => isFinished(f.status)).reverse()
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
