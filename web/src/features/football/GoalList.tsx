@@ -26,9 +26,13 @@ export function GoalList({
   return (
     <ul className={cn('space-y-1', className)}>
       {shown.map((g, i) => (
-        <li key={i} className="flex items-center gap-2.5 text-sm">
-          <span className="grid h-6 min-w-[38px] shrink-0 place-items-center rounded-md bg-emerald-500/15 px-1.5 text-xs font-black tabular-nums text-emerald-300 ring-1 ring-emerald-500/25">
-            {g.minute != null ? `${g.minute}'` : 'GOL'}
+        <li key={i} className="flex items-center gap-2 text-sm">
+          {/* Green pill = a goal: football + minute, unmistakable. */}
+          <span className="flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 ring-1 ring-emerald-500/25">
+            <span className="text-[13px] leading-none">⚽</span>
+            {g.minute != null && (
+              <span className="text-[11px] font-black tabular-nums text-emerald-200">{g.minute}'</span>
+            )}
           </span>
           <TeamLogo apiId={g.teamApiId} size={16} className="shrink-0" />
           <span className="min-w-0 flex-1 truncate">
