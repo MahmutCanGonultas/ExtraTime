@@ -70,6 +70,16 @@ export function TeamPage() {
           backgroundImage: `radial-gradient(1300px 820px at 50% -12%, ${withAlpha(accent, 0.34)}, transparent 55%), radial-gradient(1000px 900px at 6% 10%, ${withAlpha(accent, 0.22)}, transparent 52%), radial-gradient(1000px 900px at 100% 16%, ${withAlpha(accent, 0.2)}, transparent 52%), radial-gradient(1300px 1000px at 50% 112%, ${withAlpha(accent, 0.16)}, transparent 55%)`,
         }}
       />
+      {/* A soft, edge-weighted tint OVER the content too (transparent through the
+          middle so text stays crisp), so even the opaque cards pick up the club
+          colour and the whole page — not just the gaps — reads as themed. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-10"
+        style={{
+          backgroundImage: `radial-gradient(135% 115% at 50% 0%, transparent 42%, ${withAlpha(accent, 0.12)} 100%)`,
+        }}
+      />
       {/* Hero — the stadium photo as a blurred, darkened backdrop, with the crest
           + identity on the left and the club's trophies right beside it. */}
       <section className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950">
