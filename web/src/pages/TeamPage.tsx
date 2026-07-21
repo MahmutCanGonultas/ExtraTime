@@ -13,6 +13,7 @@ import {
 } from '@/features/football/trophyAssets'
 import { teamAccent, withAlpha } from '@/features/football/teamColors'
 import { useLogoAccent } from '@/features/football/logoAccent'
+import { teamLogoUrl } from '@/lib/format'
 import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -70,6 +71,16 @@ export function TeamPage() {
           backgroundImage: `radial-gradient(1300px 820px at 50% -12%, ${withAlpha(accent, 0.34)}, transparent 55%), radial-gradient(1000px 900px at 6% 10%, ${withAlpha(accent, 0.22)}, transparent 52%), radial-gradient(1000px 900px at 100% 16%, ${withAlpha(accent, 0.2)}, transparent 52%), radial-gradient(1300px 1000px at 50% 112%, ${withAlpha(accent, 0.16)}, transparent 55%)`,
         }}
       />
+      {/* Giant club crest watermark, fixed and centred on the right — a branded
+          backdrop that stays put as the page scrolls. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <img
+          src={teamLogoUrl(team.apiFootballId)}
+          alt=""
+          draggable={false}
+          className="absolute top-1/2 right-[-16%] h-[85vh] w-auto max-w-none -translate-y-1/2 select-none opacity-[0.07] drop-shadow-2xl sm:right-[-8%] lg:right-[2%]"
+        />
+      </div>
       {/* A soft, edge-weighted tint OVER the content too (transparent through the
           middle so text stays crisp), so even the opaque cards pick up the club
           colour and the whole page — not just the gaps — reads as themed. */}
