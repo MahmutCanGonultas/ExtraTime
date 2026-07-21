@@ -1,5 +1,4 @@
 import { TeamLogo } from '@/components/TeamLogo'
-import { BallMark } from '@/components/Brand'
 import { cn } from '@/lib/cn'
 import type { FixtureGoal } from './types'
 
@@ -9,9 +8,8 @@ function goalTag(detail: string | null): string {
   return ''
 }
 
-// Who scored, when — and who assisted. Each row: the scoring team's crest, a minute
-// chip, a goal mark, the scorer (bold) and the assist (muted). Compact enough for a
-// live card, readable on the match page.
+// Who scored, when — and who assisted. A green minute pill signals the goal (no
+// clutter, no odd icon); the scorer is bold, the assist a quiet second name.
 export function GoalList({
   goals,
   className,
@@ -26,28 +24,19 @@ export function GoalList({
   const hidden = goals.length - shown.length
 
   return (
-    <ul className={cn('space-y-1.5', className)}>
+    <ul className={cn('space-y-1', className)}>
       {shown.map((g, i) => (
-        <li key={i} className="flex items-center gap-2 text-[13px]">
+        <li key={i} className="flex items-center gap-2.5 text-sm">
+          <span className="grid h-6 min-w-[38px] shrink-0 place-items-center rounded-md bg-emerald-500/15 px-1.5 text-xs font-black tabular-nums text-emerald-300 ring-1 ring-emerald-500/25">
+            {g.minute != null ? `${g.minute}'` : 'GOL'}
+          </span>
           <TeamLogo apiId={g.teamApiId} size={16} className="shrink-0" />
-          {g.minute != null && (
-            <span className="shrink-0 rounded-md bg-ink-800 px-1.5 py-0.5 text-[11px] font-black tabular-nums text-ink-200 ring-1 ring-ink-700">
-              {g.minute}'
-            </span>
-          )}
-          <BallMark size={13} className="shrink-0 text-emerald-400" />
-          <span className="min-w-0 truncate">
-            <span className="font-bold text-ink-100">
+          <span className="min-w-0 flex-1 truncate">
+            <span className="font-bold text-ink-50">
               {g.playerName}
               {goalTag(g.detail)}
             </span>
-            {g.assistName && (
-              <span className="text-ink-400">
-                {' '}
-                <span className="text-ink-600">·</span> <span className="text-ink-500">as.</span>{' '}
-                {g.assistName}
-              </span>
-            )}
+            {g.assistName && <span className="text-[13px] text-ink-500"> · {g.assistName}</span>}
           </span>
         </li>
       ))}
