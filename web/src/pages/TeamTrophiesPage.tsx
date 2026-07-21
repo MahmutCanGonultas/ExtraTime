@@ -5,6 +5,31 @@ import { wonTrophies, TrophyImage, leagueForCountry } from '@/features/football/
 import { TeamLogo } from '@/components/TeamLogo'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
+// A signature colour per competition, so the cabinet reads as distinct trophies
+// instead of one wall of gold. League titles borrow their league's colour.
+const LEAGUE_ACCENT: Record<number, string> = {
+  39: '#8b5cf6', // Premier League — purple
+  140: '#f97316', // La Liga — orange
+  78: '#ef4444', // Bundesliga — red
+  135: '#3b82f6', // Serie A — blue
+  61: '#14b8a6', // Ligue 1 — teal
+  203: '#f43f5e', // Süper Lig — rose
+}
+const HONOUR_COLOR: Record<string, string> = {
+  championsLeague: '#22d3ee', // cyan
+  europaLeague: '#fb923c', // orange
+  conferenceLeague: '#4ade80', // green
+  cupWinnersCup: '#c084fc', // purple
+  uefaSuperCup: '#e879f9', // fuchsia
+  clubWorldCup: '#38bdf8', // sky
+  domesticSuperCup: '#fb7185', // rose
+  domesticCups: '#fbbf24', // amber
+}
+function honourColor(key: string, leagueApiId?: number): string {
+  if (key === 'leagueTitles') return (leagueApiId && LEAGUE_ACCENT[leagueApiId]) || '#facc15'
+  return HONOUR_COLOR[key] ?? '#facc15'
+}
+
 export function TeamTrophiesPage() {
   const { id } = useParams()
   const teamId = Number(id)
@@ -59,47 +84,58 @@ export function TeamTrophiesPage() {
         <EmptyState title="Kupa verisi yok" description="Bu kulüp için kayıtlı kupa bulunamadı." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {won.map((it) => (
-            <article
-              key={it.key}
-              className="relative overflow-hidden rounded-card border border-ink-800 bg-gradient-to-br from-ink-850 to-ink-950 p-5"
-            >
-              <div
-                className="pointer-events-none absolute inset-0 opacity-60"
+          {won.map((it) => {
+            const c = honourColor(it.key, domesticLeagueId)
+            return (
+              <article
+                key={it.key}
+                className="relative overflow-hidden rounded-card border p-5"
                 style={{
-                  backgroundImage:
-                    'radial-gradient(70% 90% at 0% 0%, rgba(251,191,36,0.10), transparent 60%)',
+                  borderColor: `${c}40`,
+                  backgroundImage: `linear-gradient(135deg, ${c}14, #0e1626 52%, #0b111e)`,
                 }}
-              />
-              <div className="relative flex items-start gap-4">
-                {/* Big trophy photo */}
-                <div className="flex h-32 w-24 shrink-0 items-end justify-center">
-                  <TrophyImage src={it.img} label={it.label} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="score-num text-4xl font-black text-amber-300">{it.count}</span>
-                    <span className="text-xs uppercase tracking-wide text-ink-500">kez</span>
+              >
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    backgroundImage: `radial-gradient(75% 90% at 100% 0%, ${c}26, transparent 60%)`,
+                  }}
+                />
+                {/* Competition-coloured spine */}
+                <div className="absolute inset-y-0 left-0 w-1" style={{ background: c }} />
+                <div className="relative flex items-start gap-4 pl-1">
+                  {/* Big trophy photo */}
+                  <div className="flex h-32 w-24 shrink-0 items-end justify-center">
+                    <TrophyImage src={it.img} label={it.label} />
                   </div>
-                  <h2 className="mt-0.5 text-base font-bold text-ink-100">{it.label}</h2>
-                  {it.years.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {it.years.map((y) => (
-                        <span
-                          key={y}
-                          className="rounded-md bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-ink-300"
-                        >
-                          {y}
-                        </span>
-                      ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="score-num text-4xl font-black" style={{ color: c }}>
+                        {it.count}
+                      </span>
+                      <span className="text-xs uppercase tracking-wide text-ink-500">kez</span>
                     </div>
-                  ) : (
-                    <p className="mt-3 text-xs text-ink-600">Yıl bilgisi kayıtlı değil.</p>
-                  )}
+                    <h2 className="mt-0.5 text-base font-bold text-ink-100">{it.label}</h2>
+                    {it.years.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {it.years.map((y) => (
+                          <span
+                            key={y}
+                            className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-ink-200"
+                            style={{ backgroundColor: `${c}1f`, boxShadow: `inset 0 0 0 1px ${c}33` }}
+                          >
+                            {y}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-ink-600">Yıl bilgisi kayıtlı değil.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
       )}
     </div>
