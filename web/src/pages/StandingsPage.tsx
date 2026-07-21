@@ -64,15 +64,13 @@ export function StandingsPage() {
             <LiveStandings groupId={groupId} gameId={gameId} currentUserId={user?.id} />
           )}
           {d && d.standings.length > 0 && (
-            <div>
-              <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
-                <Trophy className="h-4 w-4 text-amber-400" />
-                Sıralama
-              </h3>
-              <Card className="overflow-hidden">
-                <Leaderboard entries={d.standings} currentUserId={user?.id} />
-              </Card>
-            </div>
+            <Card className="overflow-hidden border-emerald-500/25">
+              <div className="flex items-center gap-2 border-b border-emerald-500/15 bg-emerald-500/[0.07] px-4 py-3">
+                <Trophy className="h-4 w-4 text-emerald-300" />
+                <h3 className="section-label text-sm text-emerald-200">Genel Sıralama</h3>
+              </div>
+              <Leaderboard entries={d.standings} currentUserId={user?.id} />
+            </Card>
           )}
         </div>
 

@@ -37,10 +37,10 @@ export function WeeklyChampions({
   if (!weeks.length) return null
 
   return (
-    <Card className="overflow-hidden border-amber-500/20">
-      <div className="flex items-center gap-2 border-b border-amber-500/15 bg-amber-500/[0.06] px-4 py-3">
-        <Trophy className="h-4 w-4 text-amber-300" />
-        <h3 className="section-label text-sm text-amber-200">Haftalık Şampiyonlar</h3>
+    <Card className="overflow-hidden border-violet-500/25">
+      <div className="flex items-center gap-2 border-b border-violet-500/15 bg-violet-500/[0.07] px-4 py-3">
+        <Trophy className="h-4 w-4 text-violet-300" />
+        <h3 className="section-label text-sm text-violet-200">Haftalık Şampiyonlar</h3>
       </div>
       <CardBody className="space-y-2">
         {overallLeader && (

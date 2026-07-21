@@ -150,8 +150,8 @@ export function PredictionsPage() {
               <>
                 {openGames.length > 0 && (
                   <section>
-                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-100">
-                      <span className="h-4 w-1 rounded-full bg-gradient-to-b from-brand-400 to-brand-600" />
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-emerald-200">
+                      <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
                       Tahmin bekleyenler
                       <span className="text-sm font-medium text-ink-500">· {openGames.length}</span>
                     </h3>
@@ -171,8 +171,8 @@ export function PredictionsPage() {
 
                 {closedGames.length > 0 && (
                   <section>
-                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink-200">
-                      <span className="h-4 w-1 rounded-full bg-ink-600" />
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-amber-200">
+                      <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-amber-400 to-amber-600" />
                       Sonuçlanan
                       <span className="text-sm font-medium text-ink-500">· {closedGames.length}</span>
                     </h3>
