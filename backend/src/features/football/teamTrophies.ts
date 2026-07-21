@@ -3,6 +3,8 @@
 // (Wikipedia "Honours", verified per-club for the prominent clubs). Senior men's
 // first team, major trophies only, as of the end of the 2024-25 season.
 
+import { TEAM_SUPER_CUP } from './teamSuperCups'
+
 export interface TeamHonours {
   leagueTitles: number // top-flight domestic league titles
   domesticCups: number // main national cup (FA Cup / Copa del Rey / Coppa Italia / DFB-Pokal / Coupe de France / Türkiye Kupası)
@@ -86,7 +88,7 @@ export const TEAM_TROPHIES: Record<number, TeamHonours> = {
   533: { leagueTitles: 0, domesticCups: 0, championsLeague: 0, europaLeague: 1, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Villarreal
   536: { leagueTitles: 1, domesticCups: 5, championsLeague: 0, europaLeague: 7, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 1, clubWorldCup: 0 }, // Sevilla
   540: { leagueTitles: 0, domesticCups: 4, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Espanyol
-  541: { leagueTitles: 36, domesticCups: 20, championsLeague: 15, europaLeague: 2, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 6, clubWorldCup: 9, domesticSuperCup: 13 }, // Real Madrid
+  541: { leagueTitles: 36, domesticCups: 20, championsLeague: 15, europaLeague: 2, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 6, clubWorldCup: 9 }, // Real Madrid
   543: { leagueTitles: 1, domesticCups: 3, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Real Betis
   544: { leagueTitles: 1, domesticCups: 2, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Deportivo La Coruna
   548: { leagueTitles: 2, domesticCups: 3, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Real Sociedad
@@ -107,5 +109,8 @@ export const TEAM_TROPHIES: Record<number, TeamHonours> = {
 }
 
 export function getTeamHonours(apiFootballId: number): TeamHonours | null {
-  return TEAM_TROPHIES[apiFootballId] ?? null
+  const base = TEAM_TROPHIES[apiFootballId]
+  if (!base) return null
+  const superCup = TEAM_SUPER_CUP[apiFootballId]
+  return superCup?.length ? { ...base, domesticSuperCup: superCup.length } : base
 }

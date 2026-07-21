@@ -1,4 +1,5 @@
 import type { TeamHonours } from './teamTrophies'
+import { TEAM_SUPER_CUP } from './teamSuperCups'
 
 // The years (calendar year of the season) each honour was won, per club, keyed by
 // API-Football team id. Sourced from Wikidata (free, structured). Coverage is
@@ -63,7 +64,7 @@ export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours,
   533: { europaLeague: [2020] },
   536: { leagueTitles: [1945], domesticCups: [2009, 2006, 1947, 1939, 1935], europaLeague: [2022, 2019, 2015, 2014, 2013, 2006, 2005] },
   540: { domesticCups: [2005, 1999, 1940, 1928] },
-  541: { leagueTitles: [2023, 2021, 2019, 2016, 2011, 2007, 2006, 2002, 2000, 1996, 1994, 1989, 1988, 1987, 1986, 1985, 1979, 1978, 1977, 1975, 1974, 1971, 1968, 1967, 1966, 1964, 1963, 1962, 1961, 1960, 1957, 1956, 1954, 1953, 1932, 1931], domesticCups: [2022, 2013, 2010, 1992, 1988, 1981, 1979, 1974, 1973, 1969, 1961, 1947, 1946, 1936, 1934, 1917, 1908, 1907, 1906, 1905], championsLeague: [2023, 2021, 2017, 2016, 2015, 2013, 2001, 1999, 1997, 1965, 1959, 1958, 1957, 1956, 1955], europaLeague: [1985, 1984], uefaSuperCup: [2024, 2022, 2017, 2016, 2014, 2002], clubWorldCup: [2024, 2022, 2018, 2017, 2016, 2014, 2002, 1998, 1960], domesticSuperCup: [2023, 2021, 2019, 2017, 2012, 2008, 2003, 2001, 1997, 1993, 1990, 1989, 1988] },
+  541: { leagueTitles: [2023, 2021, 2019, 2016, 2011, 2007, 2006, 2002, 2000, 1996, 1994, 1989, 1988, 1987, 1986, 1985, 1979, 1978, 1977, 1975, 1974, 1971, 1968, 1967, 1966, 1964, 1963, 1962, 1961, 1960, 1957, 1956, 1954, 1953, 1932, 1931], domesticCups: [2022, 2013, 2010, 1992, 1988, 1981, 1979, 1974, 1973, 1969, 1961, 1947, 1946, 1936, 1934, 1917, 1908, 1907, 1906, 1905], championsLeague: [2023, 2021, 2017, 2016, 2015, 2013, 2001, 1999, 1997, 1965, 1959, 1958, 1957, 1956, 1955], europaLeague: [1985, 1984], uefaSuperCup: [2024, 2022, 2017, 2016, 2014, 2002], clubWorldCup: [2024, 2022, 2018, 2017, 2016, 2014, 2002, 1998, 1960] },
   543: { leagueTitles: [2014, 1934], domesticCups: [2021, 2004, 1976] },
   544: { leagueTitles: [1999], domesticCups: [2001, 1994] },
   548: { leagueTitles: [1981, 1980], domesticCups: [2025, 2019, 1986] },
@@ -106,5 +107,8 @@ export const TEAM_TROPHY_YEARS: Record<number, Partial<Record<keyof TeamHonours,
 export function getTeamHonourYears(
   apiFootballId: number,
 ): Partial<Record<keyof TeamHonours, number[]>> | null {
-  return TEAM_TROPHY_YEARS[apiFootballId] ?? null
+  const base = TEAM_TROPHY_YEARS[apiFootballId]
+  const superCup = TEAM_SUPER_CUP[apiFootballId]
+  if (!base && !superCup) return null
+  return { ...(base ?? {}), ...(superCup ? { domesticSuperCup: superCup } : {}) }
 }
