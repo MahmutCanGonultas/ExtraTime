@@ -78,7 +78,7 @@ export function TeamPage() {
           src={teamLogoUrl(team.apiFootballId)}
           alt=""
           draggable={false}
-          className="absolute top-1/2 right-[-16%] h-[85vh] w-auto max-w-none -translate-y-1/2 select-none opacity-[0.07] drop-shadow-2xl sm:right-[-8%] lg:right-[2%]"
+          className="absolute top-1/2 right-[-18%] h-[92vh] w-auto max-w-none -translate-y-1/2 select-none opacity-[0.14] drop-shadow-2xl sm:right-[-8%] lg:right-0"
         />
       </div>
       {/* A soft, edge-weighted tint OVER the content too (transparent through the
