@@ -62,7 +62,7 @@ export function Leaderboard({
               'flex items-center gap-3 px-3 py-3 transition-colors',
               isMe
                 ? 'bg-brand-500/12 ring-1 ring-inset ring-brand-500/20'
-                : (medal?.row ?? 'even:bg-ink-900/40'),
+                : (medal?.row ?? 'even:bg-white/[0.03]'),
             )}
           >
             <RankBadge rank={rank} />

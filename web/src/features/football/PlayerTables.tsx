@@ -137,8 +137,8 @@ function LeaderTable({
               <tr
                 key={r.rank}
                 className={cn(
-                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/50',
-                  podiumRow(r.rank) || 'even:bg-ink-900/30',
+                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/60',
+                  podiumRow(r.rank) || 'even:bg-white/[0.03]',
                 )}
               >
                 <td className="py-3 pl-3 pr-1">

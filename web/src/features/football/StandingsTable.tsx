@@ -20,17 +20,17 @@ function standingZone(desc: string | null): Zone | null {
   if (!desc) return null
   const d = desc.toLowerCase()
   if (d.includes('relegation'))
-    return { key: 'releg', border: 'border-l-loss', dot: 'bg-loss', row: 'bg-loss/6', label: 'Küme düşme' }
+    return { key: 'releg', border: 'border-l-loss', dot: 'bg-loss', row: 'bg-loss/12', label: 'Küme düşme' }
   if (d.includes('1/8-finals') || d.includes('round of 16'))
-    return { key: 'r16', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/6', label: 'Son 16' }
+    return { key: 'r16', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/12', label: 'Son 16' }
   if (d.includes('1/16-finals') || d.includes('play-off') || d.includes('play off') || d.includes('knockout'))
-    return { key: 'playoff', border: 'border-l-amber-500', dot: 'bg-amber-400', row: 'bg-amber-500/6', label: 'Play-off' }
+    return { key: 'playoff', border: 'border-l-amber-500', dot: 'bg-amber-400', row: 'bg-amber-500/12', label: 'Play-off' }
   if (d.includes('champions league'))
-    return { key: 'cl', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/6', label: 'Şampiyonlar Ligi' }
+    return { key: 'cl', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/12', label: 'Şampiyonlar Ligi' }
   if (d.includes('europa'))
-    return { key: 'el', border: 'border-l-sky-500', dot: 'bg-sky-400', row: 'bg-sky-500/6', label: 'Avrupa Ligi' }
+    return { key: 'el', border: 'border-l-sky-500', dot: 'bg-sky-400', row: 'bg-sky-500/12', label: 'Avrupa Ligi' }
   if (d.includes('conference'))
-    return { key: 'conf', border: 'border-l-violet-500', dot: 'bg-violet-400', row: 'bg-violet-500/6', label: 'Konferans Ligi' }
+    return { key: 'conf', border: 'border-l-violet-500', dot: 'bg-violet-400', row: 'bg-violet-500/12', label: 'Konferans Ligi' }
   return null
 }
 
@@ -123,8 +123,8 @@ function StandingsTableInner({ rows, compact }: { rows: StandingRow[]; compact: 
               <tr
                 key={row.teamId}
                 className={cn(
-                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/50',
-                  zone ? zone.row : 'even:bg-ink-900/30',
+                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/60',
+                  zone ? zone.row : 'even:bg-white/[0.03]',
                 )}
               >
                 <td
