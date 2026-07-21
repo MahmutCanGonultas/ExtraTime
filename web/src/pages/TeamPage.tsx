@@ -5,7 +5,7 @@ import { useTeam } from '@/features/football/hooks'
 import { FixtureList } from '@/features/football/FixtureList'
 import { FormBadges } from '@/features/football/FormBadges'
 import { isFinished } from '@/features/football/matchStatus'
-import { wonTrophies, TrophyImage, type WonTrophy } from '@/features/football/trophyAssets'
+import { wonTrophies, TrophyIcon, type WonTrophy } from '@/features/football/trophyAssets'
 import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -160,8 +160,8 @@ function TrophyShelf({ won, total, teamId }: { won: WonTrophy[]; total: number; 
       <div className="flex items-end justify-center gap-2 sm:gap-3">
         {top.map((it) => (
           <div key={it.key} className="flex w-[68px] flex-col items-center gap-1.5" title={it.label}>
-            <div className="flex h-[72px] w-full items-end justify-center">
-              <TrophyImage src={it.img} label={it.label} />
+            <div className="flex h-[72px] w-full items-center justify-center">
+              <TrophyIcon color={it.color} size={58} />
             </div>
             <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-black tabular-nums text-amber-950 shadow">
               &times;{it.count}

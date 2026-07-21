@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { useTeam } from '@/features/football/hooks'
-import { wonTrophies, TrophyImage } from '@/features/football/trophyAssets'
+import { wonTrophies, TrophyIcon } from '@/features/football/trophyAssets'
 import { TeamLogo } from '@/components/TeamLogo'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
@@ -72,9 +72,12 @@ export function TeamTrophiesPage() {
                 }}
               />
               <div className="relative flex items-start gap-4">
-                {/* Big trophy photo */}
-                <div className="flex h-32 w-24 shrink-0 items-end justify-center">
-                  <TrophyImage src={it.img} label={it.label} />
+                {/* Signature trophy icon in the competition's colour */}
+                <div
+                  className="flex h-28 w-24 shrink-0 items-center justify-center rounded-2xl"
+                  style={{ backgroundImage: `radial-gradient(75% 75% at 50% 35%, ${it.color}22, transparent 70%)` }}
+                >
+                  <TrophyIcon color={it.color} size={92} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
