@@ -29,6 +29,19 @@ function deriveOutcome(home: string, away: string): Outcome | null {
   return 'DRAW'
 }
 
+// Each pick gets its own colour so the card reads in colour, not grey: home win
+// emerald, draw amber, away win sky.
+const OUTCOME_ACTIVE: Record<Outcome, string> = {
+  HOME: 'border-emerald-300 bg-gradient-to-b from-emerald-400 to-emerald-600 text-ink-950 ring-emerald-300/60 shadow-emerald-950/50',
+  DRAW: 'border-amber-300 bg-gradient-to-b from-amber-300 to-amber-500 text-amber-950 ring-amber-200/70 shadow-amber-950/40',
+  AWAY: 'border-sky-300 bg-gradient-to-b from-sky-400 to-sky-600 text-ink-950 ring-sky-300/60 shadow-sky-950/50',
+}
+const OUTCOME_TEXT: Record<Outcome, string> = {
+  HOME: 'text-emerald-300',
+  DRAW: 'text-amber-300',
+  AWAY: 'text-sky-300',
+}
+
 export function GamePredictCard({
   fixture,
   groupId,
@@ -190,7 +203,7 @@ export function GamePredictCard({
               {fixture.myOutcome ? (
                 <span className="text-ink-200">
                   Tahminin:{' '}
-                  <span className="font-medium text-ink-100">
+                  <span className={cn('font-bold', OUTCOME_TEXT[fixture.myOutcome])}>
                     {outcomeLabel(fixture.myOutcome, fixture.homeName, fixture.awayName)}
                   </span>
                   {fixture.myHome != null && (
@@ -209,7 +222,7 @@ export function GamePredictCard({
             </div>
             <button
               onClick={() => setShowAll((v) => !v)}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-ink-700 py-1.5 text-xs font-medium text-ink-300 transition hover:border-brand-500/50 hover:text-brand-300"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/[0.07] py-2 text-xs font-semibold text-sky-300 transition hover:border-sky-400/50 hover:bg-sky-500/15"
             >
               <Users className="h-3.5 w-3.5" /> Herkesin tahmini
               <ChevronDown className={`h-3.5 w-3.5 transition ${showAll ? 'rotate-180' : ''}`} />
@@ -229,7 +242,7 @@ export function GamePredictCard({
             <div className="flex items-center justify-between rounded-lg border border-brand-500/20 bg-brand-500/[0.06] px-3 py-2 text-sm">
               <span className="text-ink-200">
                 Tahminin:{' '}
-                <span className="font-semibold text-ink-100">
+                <span className={cn('font-bold', OUTCOME_TEXT[fixture.myOutcome!])}>
                   {outcomeLabel(fixture.myOutcome!, fixture.homeName, fixture.awayName)}
                 </span>
                 {fixture.myHome != null && (
@@ -259,15 +272,27 @@ export function GamePredictCard({
             )}
 
             <div className="grid grid-cols-3 gap-1.5">
-              <OutcomeButton active={outcome === 'HOME'} onClick={() => pickOutcome('HOME')}>
+              <OutcomeButton
+                active={outcome === 'HOME'}
+                activeClass={OUTCOME_ACTIVE.HOME}
+                onClick={() => pickOutcome('HOME')}
+              >
                 <TeamLogo apiId={fixture.homeApiId} size={20} />
                 <span>Ev</span>
               </OutcomeButton>
-              <OutcomeButton active={outcome === 'DRAW'} onClick={() => pickOutcome('DRAW')}>
+              <OutcomeButton
+                active={outcome === 'DRAW'}
+                activeClass={OUTCOME_ACTIVE.DRAW}
+                onClick={() => pickOutcome('DRAW')}
+              >
                 <span className="text-base font-black">X</span>
                 <span>Beraberlik</span>
               </OutcomeButton>
-              <OutcomeButton active={outcome === 'AWAY'} onClick={() => pickOutcome('AWAY')}>
+              <OutcomeButton
+                active={outcome === 'AWAY'}
+                activeClass={OUTCOME_ACTIVE.AWAY}
+                onClick={() => pickOutcome('AWAY')}
+              >
                 <TeamLogo apiId={fixture.awayApiId} size={20} />
                 <span>Deplasman</span>
               </OutcomeButton>
@@ -374,7 +399,7 @@ function MemberRow({
         <span className="min-w-0 truncate text-ink-200">{p.displayName}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        <span className="font-medium text-ink-100">{pick}</span>
+        <span className={cn('font-bold', OUTCOME_TEXT[p.predictedOutcome])}>{pick}</span>
         {p.pointsAwarded != null && <Badge tone={pointsTone(p.pointsAwarded)}>{p.pointsAwarded}</Badge>}
       </span>
     </li>
@@ -383,21 +408,24 @@ function MemberRow({
 
 function OutcomeButton({
   active,
+  activeClass,
   onClick,
   children,
 }: {
   active: boolean
+  activeClass: string
   onClick: () => void
   children: ReactNode
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-semibold transition ${
+      className={cn(
+        'flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-semibold transition',
         active
-          ? 'scale-[1.03] border-brand-300 bg-gradient-to-b from-brand-400 to-emerald-500 text-ink-950 shadow-md shadow-brand-950/50 ring-1 ring-brand-300/60'
-          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-brand-500/40 hover:bg-ink-800 hover:text-ink-100'
-      }`}
+          ? `scale-[1.03] shadow-md ring-1 ${activeClass}`
+          : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600 hover:bg-ink-800 hover:text-ink-100',
+      )}
     >
       {children}
     </button>
