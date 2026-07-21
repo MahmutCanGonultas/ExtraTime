@@ -163,6 +163,14 @@ const TILE_BG: Record<TileState, string> = {
   unknown: 'bg-ink-900/60 italic text-ink-400 ring-ink-800',
 }
 
+// For a wrong AGE / SHIRT NUMBER, the tile's own colour tells you which way to go:
+// warm rose = the answer is HIGHER (guess too low), cool sky = the answer is LOWER
+// (guess too high). Green (exact) and amber (within 2) still win over direction.
+const NUM_DIR: Record<'up' | 'down', string> = {
+  up: 'bg-gradient-to-br from-rose-400 to-rose-600 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] ring-rose-300/60 shadow-sm shadow-rose-950/30',
+  down: 'bg-gradient-to-br from-sky-400 to-sky-600 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] ring-sky-300/60 shadow-sm shadow-sky-950/30',
+}
+
 const BEST_KEY = 'extratime:guess:best'
 
 export function GuessPlayerPage() {
@@ -574,12 +582,15 @@ function Tile({
   big?: boolean
   title?: string
 }) {
+  // A wrong number tile colours by direction (rose = go higher, sky = go lower);
+  // everything else keeps its state colour.
+  const bg = arrow && state === 'miss' ? NUM_DIR[arrow] : TILE_BG[state]
   return (
     <div
       className={cn(
         'flex h-14 items-center justify-center gap-1 overflow-hidden rounded-lg px-1.5 text-center ring-1',
         big ? 'text-xl font-bold' : 'text-sm font-semibold',
-        TILE_BG[state],
+        bg,
       )}
       title={title}
     >
