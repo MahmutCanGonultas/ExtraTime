@@ -8,25 +8,29 @@ interface Zone {
   key: string
   border: string
   dot: string
+  row: string
   label: string
 }
 
 // Maps the API's qualification/relegation "description" to a coloured zone. Covers
 // the Champions League Swiss league phase (top 8 -> Round of 16, 9-24 -> play-off,
-// 25-36 -> out) and domestic promotion / European spots / relegation.
+// 25-36 -> out) and domestic promotion / European spots / relegation. `row` is a
+// faint full-row wash so the table reads in colour bands, not one dark block.
 function standingZone(desc: string | null): Zone | null {
   if (!desc) return null
   const d = desc.toLowerCase()
-  if (d.includes('relegation')) return { key: 'releg', border: 'border-l-loss', dot: 'bg-loss', label: 'Küme düşme' }
+  if (d.includes('relegation'))
+    return { key: 'releg', border: 'border-l-loss', dot: 'bg-loss', row: 'bg-loss/6', label: 'Küme düşme' }
   if (d.includes('1/8-finals') || d.includes('round of 16'))
-    return { key: 'r16', border: 'border-l-brand-500', dot: 'bg-brand-400', label: 'Son 16' }
+    return { key: 'r16', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/6', label: 'Son 16' }
   if (d.includes('1/16-finals') || d.includes('play-off') || d.includes('play off') || d.includes('knockout'))
-    return { key: 'playoff', border: 'border-l-amber-500', dot: 'bg-amber-400', label: 'Play-off' }
+    return { key: 'playoff', border: 'border-l-amber-500', dot: 'bg-amber-400', row: 'bg-amber-500/6', label: 'Play-off' }
   if (d.includes('champions league'))
-    return { key: 'cl', border: 'border-l-brand-500', dot: 'bg-brand-400', label: 'Şampiyonlar Ligi' }
-  if (d.includes('europa')) return { key: 'el', border: 'border-l-sky-500', dot: 'bg-sky-400', label: 'Avrupa Ligi' }
+    return { key: 'cl', border: 'border-l-brand-500', dot: 'bg-brand-400', row: 'bg-brand-500/6', label: 'Şampiyonlar Ligi' }
+  if (d.includes('europa'))
+    return { key: 'el', border: 'border-l-sky-500', dot: 'bg-sky-400', row: 'bg-sky-500/6', label: 'Avrupa Ligi' }
   if (d.includes('conference'))
-    return { key: 'conf', border: 'border-l-violet-500', dot: 'bg-violet-400', label: 'Konferans Ligi' }
+    return { key: 'conf', border: 'border-l-violet-500', dot: 'bg-violet-400', row: 'bg-violet-500/6', label: 'Konferans Ligi' }
   return null
 }
 
@@ -95,7 +99,7 @@ function StandingsTableInner({ rows, compact }: { rows: StandingRow[]; compact: 
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm tabular-nums">
         <thead>
-          <tr className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+          <tr className="border-b border-ink-800 bg-ink-900/70 text-[11px] font-bold uppercase tracking-wider text-ink-400">
             <th className="py-3 pl-3 pr-1 text-left">#</th>
             <th className="py-3 pl-1 pr-3 text-left">Takım</th>
             <th className="px-2 py-3 text-center">O</th>
@@ -118,7 +122,10 @@ function StandingsTableInner({ rows, compact }: { rows: StandingRow[]; compact: 
             return (
               <tr
                 key={row.teamId}
-                className="group border-b border-ink-850/40 transition-colors last:border-0 even:bg-ink-900/20 hover:bg-ink-800/40"
+                className={cn(
+                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/50',
+                  zone ? zone.row : 'even:bg-ink-900/30',
+                )}
               >
                 <td
                   className={cn(

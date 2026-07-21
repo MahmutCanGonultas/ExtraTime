@@ -119,7 +119,7 @@ function LeaderTable({
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+          <tr className="border-b border-ink-800 bg-ink-900/70 text-[11px] font-bold uppercase tracking-wider text-ink-400">
             <th className="w-12 py-3 pl-3 pr-1 text-left">#</th>
             <th className="py-3 pl-1 pr-3 text-left">Oyuncu</th>
             {extraCols.map((c) => (
@@ -137,8 +137,8 @@ function LeaderTable({
               <tr
                 key={r.rank}
                 className={cn(
-                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/40',
-                  podiumRow(r.rank),
+                  'group border-b border-ink-850/40 transition-colors last:border-0 hover:bg-ink-800/50',
+                  podiumRow(r.rank) || 'even:bg-ink-900/30',
                 )}
               >
                 <td className="py-3 pl-3 pr-1">

@@ -59,8 +59,10 @@ export function Leaderboard({
           <li
             key={e.userId}
             className={cn(
-              'flex items-center gap-3 px-3 py-3',
-              isMe ? 'bg-brand-500/10' : medal?.row,
+              'flex items-center gap-3 px-3 py-3 transition-colors',
+              isMe
+                ? 'bg-brand-500/12 ring-1 ring-inset ring-brand-500/20'
+                : (medal?.row ?? 'even:bg-ink-900/40'),
             )}
           >
             <RankBadge rank={rank} />
