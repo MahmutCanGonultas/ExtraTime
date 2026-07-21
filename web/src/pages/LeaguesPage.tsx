@@ -34,6 +34,16 @@ const LEAGUE_COLOR: Record<number, string> = {
   307: '#059669', // Saudi — emerald
   253: '#2563eb', // MLS — blue
 }
+// Short Turkish display names for long competitions, so a card's title fits its
+// box instead of overflowing / getting cut mid-word.
+const LEAGUE_SHORT: Record<number, string> = {
+  2: 'Şampiyonlar Ligi',
+  3: 'Avrupa Ligi',
+  848: 'Konferans Ligi',
+  1: 'Dünya Kupası',
+}
+const shortName = (apiId: number, full: string) => LEAGUE_SHORT[apiId] ?? full
+
 const CUPS = [2, 3, 848, 1] // Champions, Europa, Conference, World Cup
 const DOMESTIC_CUPS = [206, 45, 143, 137, 81, 66] // Türkiye Kupası, FA Cup, Copa del Rey, Coppa Italia, DFB Pokal, Coupe de France
 const OTHER = [94, 88, 71, 307, 253] // Portugal, Netherlands, Brazil, Saudi, MLS
@@ -183,13 +193,14 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
 
       <div className="relative flex items-center gap-3.5">
         {/* White tile so every crest reads — some league logos (e.g. the Premier
-            League's purple) vanish on a dark tint. Consistent for all leagues. */}
-        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">
-          <TeamLogo apiId={c.head.apiFootballId} kind="league" size={44} />
+            League's purple) vanish on a dark tint. Consistent for all leagues.
+            Minimal padding so logos with built-in whitespace (Ligue 1) fill it. */}
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white p-1 shadow-sm ring-1 ring-black/5">
+          <TeamLogo apiId={c.head.apiFootballId} kind="league" size={52} />
         </div>
         <div className="min-w-0">
           <div className="truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide text-ink-100">
-            {c.head.name}
+            {shortName(c.apiId, c.head.name)}
           </div>
           <div className="truncate text-xs font-medium text-ink-400">{c.head.country}</div>
         </div>
@@ -234,11 +245,11 @@ function CompactLeagueCard({ c, accent, dim }: { c: Comp; accent?: boolean; dim?
       style={{ backgroundImage: `radial-gradient(120% 110% at 100% 0%, ${color}22, transparent 60%)` }}
     >
       <div className="absolute inset-y-0 left-0 w-0.5" style={{ background: color }} />
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-black/5">
-        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={28} />
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-black/5">
+        <TeamLogo apiId={c.head.apiFootballId} kind="league" size={34} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-bold text-ink-100">{c.head.name}</div>
+        <div className="truncate text-sm font-bold text-ink-100">{shortName(c.apiId, c.head.name)}</div>
         <div className="truncate text-[11px] text-ink-500">
           {c.head.country} · {seasonLabel(c.current.season)}
         </div>

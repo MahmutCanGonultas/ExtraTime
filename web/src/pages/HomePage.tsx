@@ -28,6 +28,14 @@ import { formatDateTime } from '@/lib/format'
 const HOME_LEAGUES = [39, 140, 78, 135, 61, 203, 2, 3]
 const HOME_LEAGUE_SET = new Set(HOME_LEAGUES)
 
+// Short Turkish names so long competitions fit the compact league chips.
+const LEAGUE_SHORT: Record<number, string> = {
+  2: 'Şampiyonlar Ligi',
+  3: 'Avrupa Ligi',
+  848: 'Konferans Ligi',
+}
+const shortLeagueName = (apiId: number, full: string) => LEAGUE_SHORT[apiId] ?? full
+
 // Signature colours for the featured-league cards (shared with the Leagues page).
 const LEAGUE_COLOR: Record<number, string> = {
   39: '#8b5cf6', // Premier League
@@ -323,7 +331,9 @@ function FeaturedLeagueChip({ league, color }: { league: League; color: string }
         <TeamLogo apiId={league.apiFootballId} kind="league" size={28} />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-bold text-ink-100">{league.name}</span>
+        <span className="block truncate text-sm font-bold text-ink-100">
+          {shortLeagueName(league.apiFootballId, league.name)}
+        </span>
         <span className="block truncate text-[11px] text-ink-400">{league.country}</span>
       </span>
     </Link>
