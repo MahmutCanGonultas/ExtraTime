@@ -93,44 +93,6 @@ function buildSlots(key: FormationKey): Slot[] {
   return slots
 }
 
-// The slot indices grouped by line (GK first), reconstructed from the formation.
-function formationLines(key: FormationKey): number[][] {
-  const lines: number[][] = [[0]]
-  let idx = 1
-  for (const line of FORMATIONS[key]) {
-    const group: number[] = []
-    for (let k = 0; k < line.n; k++) group.push(idx++)
-    lines.push(group)
-  }
-  return lines
-}
-
-// Tactical web: link neighbours within each line and each player to the nearest
-// one in the adjacent lines (both ways), so the pitch shows the shape / passing
-// lanes. Uses the effective (possibly dragged) slot x to find the nearest.
-function tacticalConnections(key: FormationKey, slots: Slot[]): Array<[number, number]> {
-  const lines = formationLines(key)
-  const seen = new Set<string>()
-  const conns: Array<[number, number]> = []
-  const add = (a: number, b: number) => {
-    const k = a < b ? `${a}-${b}` : `${b}-${a}`
-    if (seen.has(k)) return
-    seen.add(k)
-    conns.push([a, b])
-  }
-  const nearest = (from: number, group: number[]) =>
-    group.reduce((best, b) => (Math.abs(slots[b].x - slots[from].x) < Math.abs(slots[best].x - slots[from].x) ? b : best), group[0])
-  for (const group of lines) {
-    const sorted = [...group].sort((a, b) => slots[a].x - slots[b].x)
-    for (let k = 0; k < sorted.length - 1; k++) add(sorted[k], sorted[k + 1])
-  }
-  for (let li = 0; li < lines.length - 1; li++) {
-    for (const a of lines[li]) add(a, nearest(a, lines[li + 1]))
-    for (const b of lines[li + 1]) add(b, nearest(b, lines[li]))
-  }
-  return conns
-}
-
 // A short tactical note per formation, shown under the shape picker.
 const FORMATION_NOTES: Record<string, string> = {
   '4-3-3': 'Geniş kanatlar, yüksek pres — topa sahip olma odaklı.',
@@ -508,7 +470,6 @@ function fillFromSquad(squad: SquadPlayer[], slots: Slot[]): (Placed | null)[] {
 export function LineupBuilderPage() {
   const initial = useMemo(loadSaved, [])
   const [formation, setFormation] = useState<FormationKey>(initial.formation)
-  const [showTactics, setShowTactics] = useState(false)
   const [arrows, setArrows] = useState<Arrow[]>(loadArrows)
   const [arrowMode, setArrowMode] = useState(false)
   const [arrowKind, setArrowKind] = useState<ArrowKind>('pass')
@@ -587,7 +548,6 @@ export function LineupBuilderPage() {
   const shapedSlots = useMemo(() => applyTactics(slots, tactics), [slots, tactics])
   // Effective on-pitch position: a freely-dragged override, else the shaped slot.
   const placedSlots = shapedSlots.map((s, i) => (positions[i] ? { ...s, ...positions[i]! } : s))
-  const connections = tacticalConnections(formation, placedSlots)
 
   // Changing the formation snaps everyone back to that shape.
   function chooseFormation(key: FormationKey) {
@@ -892,8 +852,6 @@ export function LineupBuilderPage() {
             <div className="min-w-0 flex-1">
               <Pitch
                 slots={placedSlots}
-                connections={connections}
-                showTactics={showTactics}
                 arrows={arrows}
                 arrowMode={arrowMode}
                 arrowKind={arrowKind}
@@ -1126,40 +1084,19 @@ export function LineupBuilderPage() {
               </p>
             )}
 
-            <div className="flex items-center gap-2 border-t border-ink-800 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowTactics((v) => !v)}
-                className="flex flex-1 items-center justify-between rounded-lg bg-ink-850 px-3 py-2 transition hover:bg-ink-800"
-                aria-pressed={showTactics}
-              >
-                <span className="text-sm font-medium text-ink-200">Taktik bağlantılar</span>
-                <span
-                  className={cn(
-                    'relative h-5 w-9 shrink-0 rounded-full transition',
-                    showTactics ? 'bg-brand-500' : 'bg-ink-700',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all',
-                      showTactics ? 'left-4' : 'left-0.5',
-                    )}
-                  />
-                </span>
-              </button>
-              {arrows.length > 0 && (
+            {arrows.length > 0 && (
+              <div className="flex items-center justify-end border-t border-ink-800 pt-3">
                 <button
                   type="button"
                   onClick={clearArrows}
-                  className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-ink-400 transition hover:border-loss/50 hover:text-loss"
+                  className="flex items-center gap-1.5 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-sm text-ink-400 transition hover:border-loss/50 hover:text-loss"
                   title="Tüm okları sil"
                   aria-label="Tüm okları sil"
                 >
-                  <Eraser className="h-4 w-4" />
+                  <Eraser className="h-4 w-4" /> Okları temizle
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </Card>
 
           <Card className="space-y-3 p-4">
@@ -1606,8 +1543,6 @@ const ROLE_LABEL: Record<Role, string> = {
 
 function Pitch({
   slots,
-  connections,
-  showTactics,
   arrows,
   arrowMode,
   arrowKind,
@@ -1628,8 +1563,6 @@ function Pitch({
   onReposition,
 }: {
   slots: Slot[]
-  connections: Array<[number, number]>
-  showTactics: boolean
   arrows: Arrow[]
   arrowMode: boolean
   arrowKind: ArrowKind
@@ -1746,41 +1679,6 @@ function Pitch({
             <span className="max-w-[140px] truncate text-[11px] font-bold text-white">{teamName}</span>
           )}
         </div>
-      )}
-
-      {/* Tactical connection web — links the shape's players so the passing lanes
-          and the formation's structure read at a glance. Behind the chips. */}
-      {showTactics && (
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="pointer-events-none absolute inset-0 h-full w-full"
-        >
-          {connections.map(([a, b], k) => (
-            <g key={k}>
-              <line
-                x1={slots[a].x}
-                y1={slots[a].y}
-                x2={slots[b].x}
-                y2={slots[b].y}
-                stroke="rgba(194,245,66,0.14)"
-                strokeWidth={6}
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-              <line
-                x1={slots[a].x}
-                y1={slots[a].y}
-                x2={slots[b].x}
-                y2={slots[b].y}
-                stroke="rgba(194,245,66,0.55)"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-            </g>
-          ))}
-        </svg>
       )}
 
       {/* User-drawn tactical arrows (pass / run / press) + the live draft. Each
