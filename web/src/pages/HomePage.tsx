@@ -318,10 +318,8 @@ function FeaturedLeagueChip({ league, color }: { league: League; color: string }
       style={{ backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${color}2b 0%, transparent 60%)` }}
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: color }} />
-      <span
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg ring-1 ring-white/10"
-        style={{ background: `${color}1f` }}
-      >
+      {/* White tile so dark crests (Premier League's purple) stay visible. */}
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-black/5">
         <TeamLogo apiId={league.apiFootballId} kind="league" size={28} />
       </span>
       <span className="min-w-0">

@@ -182,10 +182,9 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
       />
 
       <div className="relative flex items-center gap-3.5">
-        <div
-          className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl ring-1 ring-white/10"
-          style={{ background: `${color}1f` }}
-        >
+        {/* White tile so every crest reads — some league logos (e.g. the Premier
+            League's purple) vanish on a dark tint. Consistent for all leagues. */}
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">
           <TeamLogo apiId={c.head.apiFootballId} kind="league" size={44} />
         </div>
         <div className="min-w-0">
@@ -235,10 +234,7 @@ function CompactLeagueCard({ c, accent, dim }: { c: Comp; accent?: boolean; dim?
       style={{ backgroundImage: `radial-gradient(120% 110% at 100% 0%, ${color}22, transparent 60%)` }}
     >
       <div className="absolute inset-y-0 left-0 w-0.5" style={{ background: color }} />
-      <div
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ring-white/10"
-        style={{ background: `${color}1f` }}
-      >
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-black/5">
         <TeamLogo apiId={c.head.apiFootballId} kind="league" size={28} />
       </div>
       <div className="min-w-0 flex-1">
