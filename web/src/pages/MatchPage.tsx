@@ -29,6 +29,30 @@ function pointsTone(points: number): 'win' | 'warning' | 'loss' {
   return 'loss'
 }
 
+// Turkish, tidy labels for the API's English round names.
+function roundLabel(round: string): string {
+  const map: Record<string, string> = {
+    Final: 'Final',
+    'Semi-finals': 'Yarı Final',
+    'Quarter-finals': 'Çeyrek Final',
+    'Round of 16': 'Son 16',
+    'Round of 32': 'Son 32',
+    'Group Stage': 'Grup Aşaması',
+    'Play-off Round': 'Play-off',
+    'Play-offs': 'Play-off',
+    'Knockout Round Play-offs': 'Play-off',
+    'Preliminary Round': 'Ön Tur',
+  }
+  if (map[round]) return map[round]
+  const q = round.match(/^(\d+)(?:st|nd|rd|th)\s+Qualifying Round$/i)
+  if (q) return `${q[1]}. Ön Eleme`
+  const w = round.match(/Regular Season\s*-\s*(\d+)/i)
+  if (w) return `${w[1]}. Hafta`
+  const ls = round.match(/League Stage\s*-\s*(\d+)/i)
+  if (ls) return `Lig Aşaması · ${ls[1]}`
+  return round
+}
+
 export function MatchPage() {
   const { id } = useParams()
   const fixtureId = Number(id)
@@ -54,10 +78,21 @@ export function MatchPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <Card>
         <CardBody>
-          <div className="mb-3 flex items-center justify-center gap-2 text-xs text-ink-400">
-            <TeamLogo apiId={f.leagueApiId} kind="league" size={15} />
-            {f.leagueName}
-            {f.round ? ` · ${f.round}` : ''}
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-ink-800 bg-ink-850 px-3.5 py-1.5 shadow-sm">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white p-0.5">
+                <TeamLogo apiId={f.leagueApiId} kind="league" size={18} />
+              </span>
+              <span className="truncate text-sm font-bold text-ink-100">{f.leagueName}</span>
+              {f.round && (
+                <>
+                  <span className="text-ink-600">·</span>
+                  <span className="shrink-0 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-200">
+                    {roundLabel(f.round)}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex items-center justify-center gap-4">
             <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
