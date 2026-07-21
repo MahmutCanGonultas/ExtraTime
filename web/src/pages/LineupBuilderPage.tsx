@@ -636,10 +636,14 @@ export function LineupBuilderPage() {
         nearest = i
       }
     })
+    // Dropped right onto an existing player → the bench player takes that slot at
+    // its tidy formation spot (clear any free override), so it doesn't sit skewed
+    // toward the cursor. Only a drop in open space free-positions where you let go.
+    const onExisting = players[nearest] != null && best < 130
     assign(nearest, squadToPlaced(src.player))
     setPositions((prev) => {
       const next = [...prev]
-      next[nearest] = { x: px, y: py }
+      next[nearest] = onExisting ? null : { x: px, y: py }
       return next
     })
   }
