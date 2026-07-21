@@ -123,6 +123,15 @@ const POS_TR: Record<string, string> = {
 }
 const posLabel = (p: string | null) => (p ? (POS_TR[p] ?? p) : '—')
 
+// Role-coloured chip so a position reads at a glance in the search list.
+const POS_CHIP: Record<string, string> = {
+  Goalkeeper: 'bg-amber-500/15 text-amber-300 ring-amber-500/25',
+  Defender: 'bg-sky-500/15 text-sky-300 ring-sky-500/25',
+  Midfielder: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25',
+  Attacker: 'bg-rose-500/15 text-rose-300 ring-rose-500/25',
+}
+const posChip = (p: string | null) => (p && POS_CHIP[p]) || 'bg-ink-700 text-ink-300 ring-ink-600'
+
 const MAX_GUESSES = 8
 
 type TileState = 'match' | 'close' | 'miss' | 'unknown'
@@ -440,16 +449,34 @@ function GuessInput({
               suggestions.map((p) => (
                 <li key={p.playerApiId}>
                   {/* No player photo here — while guessing you should recognise the
-                      name, not the face. The team crest is fine (not the player). */}
+                      name, not the face. Show the flag, position and club crest so
+                      you can pick the right namesake. */}
                   <button
                     onClick={() => onPick(p)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-ink-800"
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-brand-500/10"
                   >
-                    <span className="min-w-0 truncate text-sm font-medium text-ink-100">{p.name}</span>
-                    <span className="flex shrink-0 items-center gap-1 text-xs text-ink-400">
-                      {p.teamApiId != null && <TeamLogo apiId={p.teamApiId} size={14} />}
-                      <span className="max-w-[130px] truncate">{p.teamName ?? '—'}</span>
+                    <span className="shrink-0 text-xl leading-none" title={p.nationality ?? undefined}>
+                      {flagEmoji(p.nationality) || '🏳️'}
                     </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-ink-100">{p.name}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ring-1',
+                            posChip(p.position),
+                          )}
+                        >
+                          {posLabel(p.position)}
+                        </span>
+                        {p.teamName && (
+                          <span className="min-w-0 truncate text-[11px] text-ink-500">{p.teamName}</span>
+                        )}
+                      </span>
+                    </span>
+                    {p.teamApiId != null && (
+                      <TeamLogo apiId={p.teamApiId} size={18} className="shrink-0" />
+                    )}
                   </button>
                 </li>
               ))
@@ -635,7 +662,7 @@ function compareGuess(guess: GuessPoolPlayer, secret: GuessPoolPlayer) {
 function GuessRow({ guess, secret }: { guess: GuessPoolPlayer; secret: GuessPoolPlayer }) {
   const c = compareGuess(guess, secret)
   return (
-    <li className={cn(COLS, 'animate-guess-in items-center px-3 py-2.5')}>
+    <li className={cn(COLS, 'guess-reveal items-center px-3 py-2.5')}>
       <span className="flex min-w-0 items-center" title={guess.name}>
         <span className="min-w-0 truncate text-base font-semibold text-ink-100">{guess.name}</span>
       </span>

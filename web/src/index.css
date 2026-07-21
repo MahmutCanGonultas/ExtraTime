@@ -201,6 +201,21 @@
     transform: scale(1);
   }
 }
+/* A guess row's tiles pop in one-by-one (Wordle-style reveal). Transform/opacity
+   only, runs once per newly-mounted row — cheap enough not to jank. */
+@keyframes tilePop {
+  0% {
+    opacity: 0;
+    transform: translateY(7px) scale(0.9);
+  }
+  65% {
+    transform: translateY(0) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 /* A slow drifting float for decorative marks (e.g. the login ball). */
 @keyframes float {
   0%,
@@ -219,6 +234,28 @@
   .animate-pop-in {
     animation: popIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+  /* Stagger a guess row's tiles: each direct child reveals a beat after the last. */
+  .guess-reveal > * {
+    animation: tilePop 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .guess-reveal > *:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .guess-reveal > *:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .guess-reveal > *:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .guess-reveal > *:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+  .guess-reveal > *:nth-child(6) {
+    animation-delay: 0.25s;
+  }
+  .guess-reveal > *:nth-child(7) {
+    animation-delay: 0.3s;
+  }
   .animate-float {
     animation: float 6s ease-in-out infinite;
     will-change: transform;
@@ -226,7 +263,8 @@
   @media (prefers-reduced-motion: reduce) {
     .animate-guess-in,
     .animate-pop-in,
-    .animate-float {
+    .animate-float,
+    .guess-reveal > * {
       animation: none;
     }
   }
