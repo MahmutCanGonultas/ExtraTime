@@ -79,6 +79,19 @@ const FIXTURE_SELECT = `
   JOIN teams ht ON ht.id = f.home_team_id
   JOIN teams at ON at.id = f.away_team_id`
 
+// Every match a group has ever added to one of its games, in the standard Fixture
+// shape — so the home page can surface the group's own matches alongside the big
+// leagues' fixtures.
+export async function getGroupFixtures(groupId: number): Promise<FixtureDTO[]> {
+  const { rows } = await query<FixtureRow>(
+    `${FIXTURE_SELECT}
+     WHERE f.id IN (SELECT fixture_id FROM group_fixtures WHERE group_id = $1)
+     ORDER BY f.kickoff_at ASC`,
+    [groupId],
+  )
+  return rows.map(mapFixture)
+}
+
 // Returns every league-season by default so the UI can browse history; pass
 // activeOnly for just the active seasons (e.g. the home page).
 //

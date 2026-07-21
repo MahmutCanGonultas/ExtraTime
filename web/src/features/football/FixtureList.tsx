@@ -17,7 +17,15 @@ function TeamLine({ team, score, dim }: { team: Fixture['home']; score: number |
   )
 }
 
-export function FixtureRow({ fixture, showLeague }: { fixture: Fixture; showLeague?: boolean }) {
+export function FixtureRow({
+  fixture,
+  showLeague,
+  isGroup,
+}: {
+  fixture: Fixture
+  showLeague?: boolean
+  isGroup?: boolean
+}) {
   const finished = isFinished(fixture.status)
   const live = isLive(fixture.status)
   const showScore = finished || live
@@ -27,13 +35,22 @@ export function FixtureRow({ fixture, showLeague }: { fixture: Fixture; showLeag
   return (
     <Link
       to={`/matches/${fixture.id}`}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-ink-850"
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-ink-850 ${isGroup ? 'bg-brand-500/6' : ''}`}
     >
       <div className="min-w-0 flex-1 space-y-1">
-        {showLeague && (
+        {(showLeague || isGroup) && (
           <div className="flex items-center gap-1.5 text-[11px] text-ink-500">
-            <TeamLogo apiId={fixture.leagueApiId} kind="league" size={12} />
-            <span className="truncate">{fixture.leagueName}</span>
+            {isGroup && (
+              <span className="rounded bg-brand-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-brand-200">
+                Grup
+              </span>
+            )}
+            {showLeague && (
+              <>
+                <TeamLogo apiId={fixture.leagueApiId} kind="league" size={12} />
+                <span className="truncate">{fixture.leagueName}</span>
+              </>
+            )}
           </div>
         )}
         <TeamLine team={fixture.home} score={showScore ? fixture.homeScore : null} dim={awayWon} />
@@ -56,11 +73,19 @@ export function FixtureRow({ fixture, showLeague }: { fixture: Fixture; showLeag
   )
 }
 
-export function FixtureList({ fixtures, showLeague }: { fixtures: Fixture[]; showLeague?: boolean }) {
+export function FixtureList({
+  fixtures,
+  showLeague,
+  groupIds,
+}: {
+  fixtures: Fixture[]
+  showLeague?: boolean
+  groupIds?: Set<number>
+}) {
   return (
     <div className="divide-y divide-ink-850">
       {fixtures.map((f) => (
-        <FixtureRow key={f.id} fixture={f} showLeague={showLeague} />
+        <FixtureRow key={f.id} fixture={f} showLeague={showLeague} isGroup={groupIds?.has(f.id)} />
       ))}
     </div>
   )

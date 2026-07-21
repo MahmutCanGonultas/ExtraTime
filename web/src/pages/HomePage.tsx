@@ -7,10 +7,12 @@ import {
   useUpcomingFixtures,
 } from '@/features/football/hooks'
 import type { Fixture, League } from '@/features/football/types'
+import { isFinished, isLive } from '@/features/football/matchStatus'
+import { matchProminence } from '@/features/football/prominence'
 import { LiveMatches } from '@/features/football/LiveMatches'
 import { FixtureList } from '@/features/football/FixtureList'
 import { useActiveGroup } from '@/features/groups/useActiveGroup'
-import { useLeaderboard } from '@/features/groups/hooks'
+import { useLeaderboard, useGroupFixtures } from '@/features/groups/hooks'
 import { Leaderboard } from '@/features/groups/Leaderboard'
 import { useAuth } from '@/features/auth/AuthContext'
 import { TeamLogo } from '@/components/TeamLogo'
@@ -61,6 +63,7 @@ export function HomePage() {
   const recent = useRecentFixtures(50)
   const leaguesQ = useLeagues(false)
   const leaderboard = useLeaderboard(groupId)
+  const groupFx = useGroupFixtures(groupId)
 
   const myEntry = leaderboard.data?.find((e) => e.userId === user?.id)
   const myRank = myEntry ? (leaderboard.data?.indexOf(myEntry) ?? 0) + 1 : null
@@ -71,10 +74,48 @@ export function HomePage() {
     : { label: 'Tahminlere gir', href: '/predictions' }
 
   const inHome = (f: Fixture) => HOME_LEAGUE_SET.has(f.leagueApiId)
-  const upcomingShown = (upcoming.data ?? []).filter(inHome)
-  const recentShown = (recent.data ?? []).filter(inHome)
-  // The next home-league match — labelled "Günün maçı" only when it's actually today,
-  // otherwise "Yaklaşan maç" (a July qualifier two days out is not the match of the day).
+  const gfx = groupFx.data ?? []
+  const groupIds = new Set(gfx.map((f) => f.id))
+
+  // Merge the group's own matches with the big leagues' fixtures, then rank: the
+  // group's matches first, then the biggest-name matches (same prominence order as
+  // search), then by kick-off. So the home feed leads with what the group is
+  // playing and the marquee fixtures — not a random lower-table game.
+  function ranked(pool: Fixture[], soonestFirst: boolean): Fixture[] {
+    const seen = new Set<number>()
+    return pool
+      .filter((f) => {
+        if (seen.has(f.id)) return false
+        seen.add(f.id)
+        return true
+      })
+      .sort((a, b) => {
+        const ga = groupIds.has(a.id) ? 0 : 1
+        const gb = groupIds.has(b.id) ? 0 : 1
+        if (ga !== gb) return ga - gb
+        const pa = matchProminence(a.home.apiFootballId, a.away.apiFootballId)
+        const pb = matchProminence(b.home.apiFootballId, b.away.apiFootballId)
+        if (pa !== pb) return pa - pb
+        const ta = new Date(a.kickoffAt).getTime()
+        const tb = new Date(b.kickoffAt).getTime()
+        return soonestFirst ? ta - tb : tb - ta
+      })
+  }
+  const isUpcomingStatus = (f: Fixture) => !isFinished(f.status) && !isLive(f.status)
+
+  // Group matches come from any league; the general feed is limited to the big ones.
+  const upcomingShown = ranked(
+    [...gfx, ...(upcoming.data ?? []).filter(inHome)].filter(isUpcomingStatus),
+    true,
+  ).slice(0, 14)
+  const recentShown = ranked(
+    [...gfx, ...(recent.data ?? []).filter(inHome)].filter((f) => isFinished(f.status)),
+    false,
+  ).slice(0, 12)
+  const liveShown = ranked([...(live.data ?? []), ...gfx].filter((f) => isLive(f.status)), true)
+
+  // The top-ranked upcoming match (a group / marquee game) — labelled "Günün maçı"
+  // only when it's actually today, otherwise "Yaklaşan maç".
   const spotlight = upcomingShown[0] ?? null
   const spotlightToday = spotlight ? isTodayLocal(spotlight.kickoffAt) : false
 
@@ -180,7 +221,7 @@ export function HomePage() {
             <section id="canli" className="scroll-mt-20">
               <SectionTitle live>Canlı</SectionTitle>
               <div className="mt-3">
-                <LiveMatches fixtures={live.data!} />
+                <LiveMatches fixtures={liveShown} />
               </div>
             </section>
           )}
@@ -191,7 +232,7 @@ export function HomePage() {
               {upcoming.isLoading ? (
                 <Skeleton className="m-4 h-40" />
               ) : upcomingShown.length ? (
-                <FixtureList fixtures={upcomingShown.slice(0, 12)} showLeague />
+                <FixtureList fixtures={upcomingShown} showLeague groupIds={groupIds} />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Yaklaşan maç yok.</CardBody>
               )}
@@ -204,7 +245,7 @@ export function HomePage() {
               {recent.isLoading ? (
                 <Skeleton className="m-4 h-40" />
               ) : recentShown.length ? (
-                <FixtureList fixtures={recentShown.slice(0, 10)} showLeague />
+                <FixtureList fixtures={recentShown} showLeague groupIds={groupIds} />
               ) : (
                 <CardBody className="py-6 text-center text-sm text-ink-500">Sonuç yok.</CardBody>
               )}

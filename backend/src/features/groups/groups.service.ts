@@ -4,6 +4,7 @@ import { getPool, query } from '../../db/pool'
 import { AppError } from '../../lib/errors'
 import { isUniqueViolation } from '../../lib/pg-error'
 import { CONFIGURED_LEAGUE_API_IDS } from '../football/leagues.config'
+import { getGroupFixtures } from '../football/football.repository'
 import { seasonLeaderboard, seasonWeeks } from '../predictions/leaderboard'
 
 const SALT_ROUNDS = 10
@@ -356,6 +357,15 @@ export async function listGroupFixtures(groupId: number, userId: number, gameId:
     throw AppError.forbidden('You are not a member of this group')
   }
   return seasonFixturesFor(groupId, gameId, userId)
+}
+
+/** Every fixture the group has added across all its games (standard Fixture shape),
+ *  for the home page's "our matches" feed. */
+export async function groupHomeFixtures(groupId: number, userId: number) {
+  if (!(await isMember(groupId, userId))) {
+    throw AppError.forbidden('You are not a member of this group')
+  }
+  return getGroupFixtures(groupId)
 }
 
 /** Upcoming, still-predictable matches the leader can add to a game — excludes any

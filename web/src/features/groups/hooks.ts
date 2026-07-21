@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { isFinished, isLive } from '@/features/football/matchStatus'
+import type { Fixture } from '@/features/football/types'
 import { setActiveGroupId } from './activeGroupStore'
 import type {
   Champion,
@@ -120,6 +121,17 @@ export function useGames(groupId: number) {
     queryFn: () => api.get<{ games: SeasonSummary[] }>(`/groups/${groupId}/games`),
     select: (d) => d.games,
     enabled: groupId > 0,
+  })
+}
+
+// Every fixture the group has added across its games, for the home page feed.
+export function useGroupFixtures(groupId: number) {
+  return useQuery({
+    queryKey: ['group-fixtures', groupId],
+    queryFn: () => api.get<{ fixtures: Fixture[] }>(`/groups/${groupId}/fixtures`),
+    select: (d) => d.fixtures,
+    enabled: groupId > 0,
+    staleTime: 60_000,
   })
 }
 

@@ -62,6 +62,16 @@ groupsRouter.get(
   }),
 )
 
+// Every fixture across the group's games (standard Fixture shape) — feeds the home
+// page's "our matches" list. Members.
+groupsRouter.get(
+  '/:id/fixtures',
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id)
+    res.json({ fixtures: await groups.groupHomeFixtures(id, req.userId!) })
+  }),
+)
+
 // ---- Games: a group can run SEVERAL at once, each with its own matches ----
 
 // Every game the group runs (active + finished). Members.
