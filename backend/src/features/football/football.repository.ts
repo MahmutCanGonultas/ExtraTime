@@ -445,7 +445,10 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
          AND (unaccent(p.name) ILIKE unaccent($5)
            OR unaccent(p.firstname) ILIKE unaccent($5)
            OR unaccent(p.lastname) ILIKE unaccent($5)
-           OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5))
+           OR unaccent(COALESCE(p.firstname, '') || ' ' || COALESCE(p.lastname, '')) ILIKE unaccent($5)
+           -- Typo tolerance: a fuzzy (trigram) match on the display name, so a
+           -- misspelt guess ("onachu") still finds the player ("Onuachu").
+           OR word_similarity(unaccent(lower($8)), unaccent(lower(p.name))) >= 0.5)
        -- Prefer a top-flight club over a secondary-league (MLS / 2nd-div) row, then
        -- the newest season — so the shown club is the player's real current club.
        ORDER BY p.player_api_id, (l.api_football_id = ANY($10)) ASC,
@@ -459,6 +462,10 @@ export async function searchGuessPlayers(q: string): Promise<GuessPoolPlayer[]> 
        (unaccent(s.name) ILIKE unaccent($6)
         OR unaccent(s.name) ILIKE unaccent($7)
         OR unaccent(COALESCE(s."lastname", '')) ILIKE unaccent($6)) DESC,
+       -- Any substring hit ranks above a purely fuzzy (typo) match, and among
+       -- fuzzy matches the closest one wins.
+       (unaccent(s.name) ILIKE unaccent($5)) DESC,
+       word_similarity(unaccent(lower($8)), unaccent(lower(s.name))) DESC,
        s.appearances DESC NULLS LAST,
        s.name
      LIMIT 20`,

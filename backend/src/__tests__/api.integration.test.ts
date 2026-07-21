@@ -54,6 +54,24 @@ beforeAll(async () => {
       implementation: (x: string) => x,
     })
   })
+  // Prod uses pg_trgm (migration 026) for typo-tolerant guess search; register a
+  // no-op stub so pg-mem can run CREATE EXTENSION + word_similarity()/similarity().
+  db.registerExtension('pg_trgm', (schema) => {
+    const contains = (a: string, b: string) =>
+      a != null && b != null && b.toLowerCase().includes(a.toLowerCase()) ? 1 : 0
+    schema.registerFunction({
+      name: 'word_similarity',
+      args: [DataType.text, DataType.text],
+      returns: DataType.float,
+      implementation: contains,
+    })
+    schema.registerFunction({
+      name: 'similarity',
+      args: [DataType.text, DataType.text],
+      returns: DataType.float,
+      implementation: contains,
+    })
+  })
   const migDir = join(process.cwd(), 'src/db/migrations')
   for (const file of readdirSync(migDir).filter((n) => n.endsWith('.sql')).sort()) {
     db.public.none(readFileSync(join(migDir, file), 'utf8'))

@@ -7,6 +7,7 @@ import type {
   RawStandingRow,
   RawTopScorer,
 } from '../types'
+import { fixMojibake } from '../textNormalize'
 
 // All writes go through a PoolClient so a sync can wrap a whole league in one
 // transaction. Every statement is parameterized — never string-concatenated.
@@ -345,7 +346,7 @@ export async function upsertPlayer(
        stats = EXCLUDED.stats, birth_date = EXCLUDED.birth_date, birth_place = EXCLUDED.birth_place,
        updated_at = now()`,
     [
-      p.id, leagueId, season, stat.team.id, stat.team.name, p.name, p.firstname, p.lastname,
+      p.id, leagueId, season, stat.team.id, fixMojibake(stat.team.name), fixMojibake(p.name), fixMojibake(p.firstname), fixMojibake(p.lastname),
       p.age, p.nationality, stat.games.position, p.height, p.weight, p.photo,
       stat.games.appearences, stat.games.minutes, stat.goals.total ?? 0, stat.goals.assists ?? 0,
       stat.cards.yellow ?? 0, stat.cards.red ?? 0, rating,
