@@ -60,6 +60,16 @@ export function TeamPage() {
 
   return (
     <div className="space-y-6">
+      {/* Full-page wash in the club's colour — fixed to the viewport, behind all
+          content, so the whole page (not just the hero) carries the team's tint.
+          It unmounts when you leave the team page. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 transition-[background] duration-500"
+        style={{
+          backgroundImage: `radial-gradient(1100px 720px at 12% -8%, ${withAlpha(accent, 0.16)}, transparent 60%), radial-gradient(920px 820px at 100% 4%, ${withAlpha(accent, 0.1)}, transparent 56%), radial-gradient(1100px 900px at 50% 110%, ${withAlpha(accent, 0.09)}, transparent 55%)`,
+        }}
+      />
       {/* Hero — the stadium photo as a blurred, darkened backdrop, with the crest
           + identity on the left and the club's trophies right beside it. */}
       <section className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950">
