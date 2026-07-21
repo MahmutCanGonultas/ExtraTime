@@ -24,26 +24,33 @@ export const TROPHY_IMG: Record<string, string> = {
   'coppa-italia': '/trophies/coppa-italia.png',
   'coupe-de-france': '/trophies/coupe-de-france.png',
   'turkiye-kupasi': '/trophies/turkiye-kupasi.png',
+  // Domestic super cups (one per league).
+  'community-shield': '/trophies/community-shield.png',
+  'supercopa-espana': '/trophies/supercopa-espana.png',
+  'dfl-supercup': '/trophies/dfl-supercup.png',
+  'supercoppa-italiana': '/trophies/supercoppa-italiana.png',
+  'trophee-des-champions': '/trophies/trophee-des-champions.png',
+  'tff-super-kupa': '/trophies/tff-super-kupa.png',
 }
 
-const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
-  39: { league: 'premier-league', cup: 'fa-cup' },
-  140: { league: 'la-liga', cup: 'copa-del-rey' },
-  78: { league: 'bundesliga', cup: 'dfb-pokal' },
-  135: { league: 'serie-a', cup: 'coppa-italia' },
-  61: { league: 'ligue-1', cup: 'coupe-de-france' },
-  203: { league: 'super-lig', cup: 'turkiye-kupasi' },
+const LEAGUE_TROPHY: Record<number, { league: string; cup: string; superCup: string }> = {
+  39: { league: 'premier-league', cup: 'fa-cup', superCup: 'community-shield' },
+  140: { league: 'la-liga', cup: 'copa-del-rey', superCup: 'supercopa-espana' },
+  78: { league: 'bundesliga', cup: 'dfb-pokal', superCup: 'dfl-supercup' },
+  135: { league: 'serie-a', cup: 'coppa-italia', superCup: 'supercoppa-italiana' },
+  61: { league: 'ligue-1', cup: 'coupe-de-france', superCup: 'trophee-des-champions' },
+  203: { league: 'super-lig', cup: 'turkiye-kupasi', superCup: 'tff-super-kupa' },
 }
 
 // The REAL competition name per league, so a league title reads "La Liga" / "Süper
 // Lig" and a domestic cup reads "FA Cup" / "Türkiye Kupası" — not a generic label.
-const LEAGUE_NAME: Record<number, { league: string; cup: string }> = {
-  39: { league: 'Premier League', cup: 'FA Cup' },
-  140: { league: 'La Liga', cup: 'Copa del Rey' },
-  78: { league: 'Bundesliga', cup: 'DFB-Pokal' },
-  135: { league: 'Serie A', cup: 'Coppa Italia' },
-  61: { league: 'Ligue 1', cup: 'Coupe de France' },
-  203: { league: 'Süper Lig', cup: 'Türkiye Kupası' },
+const LEAGUE_NAME: Record<number, { league: string; cup: string; superCup: string }> = {
+  39: { league: 'Premier League', cup: 'FA Cup', superCup: 'Community Shield' },
+  140: { league: 'La Liga', cup: 'Copa del Rey', superCup: 'Supercopa de España' },
+  78: { league: 'Bundesliga', cup: 'DFB-Pokal', superCup: 'DFL-Supercup' },
+  135: { league: 'Serie A', cup: 'Coppa Italia', superCup: 'Supercoppa Italiana' },
+  61: { league: 'Ligue 1', cup: 'Coupe de France', superCup: 'Trophée des Champions' },
+  203: { league: 'Süper Lig', cup: 'Türkiye Kupası', superCup: 'TFF Süper Kupa' },
 }
 
 function honourLabel(
@@ -54,6 +61,7 @@ function honourLabel(
   const info = leagueApiId ? LEAGUE_NAME[leagueApiId] : undefined
   if (key === 'leagueTitles' && info) return info.league
   if (key === 'domesticCups' && info) return info.cup
+  if (key === 'domesticSuperCup' && info) return info.superCup
   return fallback
 }
 
@@ -76,11 +84,13 @@ const HONOUR_ORDER: Array<{ key: keyof TeamHonours; label: string }> = [
   { key: 'conferenceLeague', label: 'Konferans Ligi' },
   { key: 'cupWinnersCup', label: 'Kupa Galipleri Kupası' },
   { key: 'uefaSuperCup', label: 'UEFA Süper Kupa' },
+  { key: 'domesticSuperCup', label: 'Yerel Süper Kupa' },
 ]
 
 function honourSlug(key: keyof TeamHonours, leagueApiId?: number): string | undefined {
   if (key === 'leagueTitles') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.league : undefined
   if (key === 'domesticCups') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.cup : undefined
+  if (key === 'domesticSuperCup') return leagueApiId ? LEAGUE_TROPHY[leagueApiId]?.superCup : undefined
   return CONTINENTAL_SLUG[key]
 }
 
@@ -106,7 +116,7 @@ export function wonTrophies(
     return {
       ...it,
       label: honourLabel(it.key, it.label, leagueApiId),
-      count: trophies[it.key],
+      count: trophies[it.key] ?? 0,
       slug,
       img: slug ? TROPHY_IMG[slug] : undefined,
       years: years?.[it.key] ?? [],

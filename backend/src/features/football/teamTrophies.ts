@@ -12,6 +12,10 @@ export interface TeamHonours {
   conferenceLeague: number // UEFA (Europa) Conference League
   uefaSuperCup: number
   clubWorldCup: number // FIFA Club World Cup + Intercontinental Cup
+  // Domestic super cup: Supercopa de España / FA Community Shield / DFL-Supercup /
+  // Supercoppa Italiana / Trophée des Champions / TFF Süper Kupa. Optional — filled
+  // per club as the data is completed.
+  domesticSuperCup?: number
 }
 
 // Clubs absent here simply show no trophy cabinet.
@@ -82,7 +86,7 @@ export const TEAM_TROPHIES: Record<number, TeamHonours> = {
   533: { leagueTitles: 0, domesticCups: 0, championsLeague: 0, europaLeague: 1, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Villarreal
   536: { leagueTitles: 1, domesticCups: 5, championsLeague: 0, europaLeague: 7, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 1, clubWorldCup: 0 }, // Sevilla
   540: { leagueTitles: 0, domesticCups: 4, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Espanyol
-  541: { leagueTitles: 36, domesticCups: 20, championsLeague: 15, europaLeague: 2, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 6, clubWorldCup: 9 }, // Real Madrid
+  541: { leagueTitles: 36, domesticCups: 20, championsLeague: 15, europaLeague: 2, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 6, clubWorldCup: 9, domesticSuperCup: 13 }, // Real Madrid
   543: { leagueTitles: 1, domesticCups: 3, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Real Betis
   544: { leagueTitles: 1, domesticCups: 2, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Deportivo La Coruna
   548: { leagueTitles: 2, domesticCups: 3, championsLeague: 0, europaLeague: 0, cupWinnersCup: 0, conferenceLeague: 0, uefaSuperCup: 0, clubWorldCup: 0 }, // Real Sociedad

@@ -172,6 +172,9 @@ export interface TeamHonours {
   conferenceLeague: number
   uefaSuperCup: number
   clubWorldCup: number
+  // Supercopa de España / Community Shield / DFL-Supercup / Supercoppa Italiana /
+  // Trophée des Champions / TFF Süper Kupa — depends on the club's league.
+  domesticSuperCup?: number
 }
 
 export type TeamHonourYears = Partial<Record<keyof TeamHonours, number[]>>
