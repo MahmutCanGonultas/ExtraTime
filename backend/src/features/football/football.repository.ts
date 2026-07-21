@@ -1074,12 +1074,30 @@ export async function getPlayerCareer(playerApiId: number): Promise<PlayerCareer
     const valid = dt && !Number.isNaN(dt.getTime())
     const year = valid ? String(dt!.getFullYear()) : null
     const t = valid ? dt!.getTime() : 0
-    consider(r.outId, r.outName, year, t - 1) // club they left sorts just before the one they joined
+    // A transfer's date is when the player JOINED the incoming club — so it's the
+    // "since" for the IN club only. For the OUT club it's the LEAVE date, which is
+    // NOT when they joined it, so we register the club for ordering but leave its
+    // "since" to come from its own IN record (or a season row). Otherwise a player's
+    // very first club — which only ever appears as an OUT — would wrongly show the
+    // year they left it (e.g. Vinícius: Flamengo would read 2018, his Real Madrid
+    // move, instead of when he actually came up at Flamengo).
+    consider(r.outId, r.outName, null, t - 1) // club they left sorts just before the one they joined
     consider(r.inId, r.inName, year, t)
   }
   for (const s of seasons.rows) {
-    const t = Date.UTC(Number(s.season), 6, 1) // ~July 1 of that season
-    consider(s.teamApiId, s.teamName, String(s.season), t)
+    if (!s.teamName) continue
+    const k = keyOf(s.teamApiId, s.teamName)
+    const existing = map.get(k)
+    if (existing) {
+      // Club already placed by the transfer chain — keep that (precise) order; only
+      // borrow the season year to fill a "since" the transfers couldn't give (e.g.
+      // the player's very first club). Never let the coarse July-1 season date pull
+      // the club's position earlier than its real transfer.
+      if (!existing.since) existing.since = String(s.season)
+    } else {
+      const t = Date.UTC(Number(s.season), 6, 1) // ~July 1 of that season
+      consider(s.teamApiId, s.teamName, String(s.season), t)
+    }
   }
 
   const clubs = [...map.values()]
