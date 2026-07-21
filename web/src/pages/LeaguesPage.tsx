@@ -3,6 +3,7 @@ import { ChevronRight, Trophy } from 'lucide-react'
 import { useLeagues } from '@/features/football/hooks'
 import type { League } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
+import { leagueLogoUrl } from '@/lib/format'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
 
 function seasonLabel(season: number): string {
@@ -193,10 +194,15 @@ function FeaturedLeagueCard({ c }: { c: Comp }) {
 
       <div className="relative flex items-center gap-3.5">
         {/* White tile so every crest reads — some league logos (e.g. the Premier
-            League's purple) vanish on a dark tint. Consistent for all leagues.
-            Minimal padding so logos with built-in whitespace (Ligue 1) fill it. */}
-        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white p-1 shadow-sm ring-1 ring-black/5">
-          <TeamLogo apiId={c.head.apiFootballId} kind="league" size={52} />
+            League's purple) vanish on a dark tint. Height-sized (not squared) so a
+            WIDE logo like Ligue 1's (267×150) shows at full height instead of a tiny
+            strip; the tile grows in width to fit it. */}
+        <div className="flex h-16 min-w-16 shrink-0 items-center justify-center rounded-2xl bg-white px-2.5 shadow-sm ring-1 ring-black/5">
+          <img
+            src={leagueLogoUrl(c.head.apiFootballId)}
+            alt=""
+            className="h-11 w-auto max-w-[96px] object-contain"
+          />
         </div>
         <div className="min-w-0">
           <div className="truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide text-ink-100">
