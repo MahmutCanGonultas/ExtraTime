@@ -658,6 +658,20 @@ export interface SearchPlayer {
 }
 
 // Global search over team + player names for the header search bar.
+// Fame ordering for search: prominent clubs surface first among equal matches, so
+// "re" → Real Madrid (not Reading/Real Betis) and a marquee player outranks an
+// obscure namesake. Ordered roughly by global following.
+const PROMINENT_TEAMS = [
+  541, 529, 33, 157, 40, 50, 85, 496, 42, 49, 489, 505, 165, 530, 47, 492, 645, 611, 549,
+  998, 536, 531, 532, 168, 169, 173, 487, 497, 499, 45, 34, 66, 80, 81, 91, 533, 543, 548,
+  500, 502, 503,
+]
+// Elite clubs give a player the strongest prominence boost; big-league membership
+// alone doesn't, so a Real Madrid starter outranks a mid-table journeyman.
+const ELITE_CLUBS = [
+  541, 529, 157, 50, 40, 33, 85, 505, 489, 496, 165, 530, 42, 49, 492, 47, 645, 611, 536, 168,
+]
+
 export async function search(q: string): Promise<{ teams: SearchTeam[]; players: SearchPlayer[] }> {
   const like = `%${q}%`
   const prefix = `${q}%`
@@ -667,9 +681,11 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
       `SELECT id, api_football_id AS "apiFootballId", name
        FROM teams
        WHERE unaccent(name) ILIKE unaccent($1)
-       ORDER BY (unaccent(name) ILIKE unaccent($2)) DESC, name
+       ORDER BY (unaccent(name) ILIKE unaccent($2)) DESC,
+                array_position($3::int[], api_football_id) NULLS LAST,
+                name
        LIMIT 8`,
-      [like, prefix],
+      [like, prefix, PROMINENT_TEAMS],
     )
   ).rows
   const wordStart = `% ${q}%`
@@ -679,10 +695,11 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
          SELECT DISTINCT ON (p.player_api_id)
            p.player_api_id AS "playerApiId", p.name, p.firstname, p.lastname, p.photo_url AS "photoUrl",
            p.team_name AS "teamName", p.team_api_id AS "teamApiId",
-           -- Total career appearances rank prominence (the picked row's own are
-           -- 0 for a current preseason squad, and a single peak season would let
-           -- a journeyman outrank a superstar).
-           (SELECT SUM(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances
+           -- Career appearances + goals proxy fame; an elite-club shirt adds to it,
+           -- so a superstar outranks a namesake even before a full name is typed.
+           (SELECT SUM(p2.appearances) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS appearances,
+           (SELECT SUM(p2.goals) FROM players p2 WHERE p2.player_api_id = p.player_api_id) AS goals,
+           (p.team_api_id = ANY($6)) AS elite
          FROM players p JOIN leagues l ON l.id = p.league_id
          WHERE unaccent(p.name) ILIKE unaccent($1)
             OR unaccent(p.firstname) ILIKE unaccent($1)
@@ -703,10 +720,14 @@ export async function search(q: string): Promise<{ teams: SearchTeam[]; players:
          (unaccent(s.name) ILIKE unaccent($2)
           OR unaccent(s.name) ILIKE unaccent($3)
           OR unaccent(COALESCE(s.lastname, '')) ILIKE unaccent($2)
-          OR unaccent(s.firstname) ILIKE unaccent($2)) DESC,
-         s.appearances DESC NULLS LAST, s.name
+          OR unaccent(COALESCE(s.firstname, '')) ILIKE unaccent($2)) DESC,
+         -- Then fame: elite-club stars and high scorers first (Haaland, whose
+         -- surname sits in a two-word lastname, still surfaces via this).
+         (COALESCE(s.appearances, 0) + COALESCE(s.goals, 0) * 3
+          + CASE WHEN s.elite THEN 1200 ELSE 0 END) DESC,
+         s.name
        LIMIT 8`,
-      [like, prefix, wordStart, q, `% ${q}`],
+      [like, prefix, wordStart, q, `% ${q}`, ELITE_CLUBS],
     )
   ).rows
   return { teams, players }
