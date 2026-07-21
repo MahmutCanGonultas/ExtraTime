@@ -35,6 +35,28 @@ const LEAGUE_TROPHY: Record<number, { league: string; cup: string }> = {
   203: { league: 'super-lig', cup: 'turkiye-kupasi' },
 }
 
+// The REAL competition name per league, so a league title reads "La Liga" / "Süper
+// Lig" and a domestic cup reads "FA Cup" / "Türkiye Kupası" — not a generic label.
+const LEAGUE_NAME: Record<number, { league: string; cup: string }> = {
+  39: { league: 'Premier League', cup: 'FA Cup' },
+  140: { league: 'La Liga', cup: 'Copa del Rey' },
+  78: { league: 'Bundesliga', cup: 'DFB-Pokal' },
+  135: { league: 'Serie A', cup: 'Coppa Italia' },
+  61: { league: 'Ligue 1', cup: 'Coupe de France' },
+  203: { league: 'Süper Lig', cup: 'Türkiye Kupası' },
+}
+
+function honourLabel(
+  key: keyof TeamHonours,
+  fallback: string,
+  leagueApiId?: number,
+): string {
+  const info = leagueApiId ? LEAGUE_NAME[leagueApiId] : undefined
+  if (key === 'leagueTitles' && info) return info.league
+  if (key === 'domesticCups' && info) return info.cup
+  return fallback
+}
+
 const CONTINENTAL_SLUG: Partial<Record<keyof TeamHonours, string>> = {
   championsLeague: 'champions-league',
   europaLeague: 'europa-league',
@@ -83,6 +105,7 @@ export function wonTrophies(
     const slug = honourSlug(it.key, leagueApiId)
     return {
       ...it,
+      label: honourLabel(it.key, it.label, leagueApiId),
       count: trophies[it.key],
       slug,
       img: slug ? TROPHY_IMG[slug] : undefined,
