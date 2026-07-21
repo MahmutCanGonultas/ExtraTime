@@ -11,6 +11,7 @@ import {
   leagueForCountry,
   type WonTrophy,
 } from '@/features/football/trophyAssets'
+import { teamAccent, withAlpha } from '@/features/football/teamColors'
 import type { Fixture, SquadPlayer, Team, TeamStanding } from '@/features/football/types'
 import { TeamLogo } from '@/components/TeamLogo'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
@@ -46,6 +47,9 @@ export function TeamPage() {
     standings.find((s) => [39, 140, 78, 135, 61, 203].includes(s.leagueApiId))?.leagueApiId
   const won = wonTrophies(trophies, domesticLeagueId, trophyYears)
   const trophyTotal = won.reduce((sum, it) => sum + it.count, 0)
+  // The club's accent colour — a soft glow behind the hero + a tinted crest, so
+  // each team page carries a hint of its own identity.
+  const accent = teamAccent(team.apiFootballId)
   const squadSeason = squad[0]?.season
   const recent = fixtures.filter((f) => isFinished(f.status)).reverse()
   const upcoming = fixtures.filter((f) => !isFinished(f.status))
@@ -73,9 +77,23 @@ export function TeamPage() {
           </>
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950/92 via-ink-950/65 to-ink-950/40" />
+        {/* Team-coloured glow from the crest side + a matching baseline. */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(60% 120% at 12% -10%, ${withAlpha(accent, 0.3)}, transparent 60%)`,
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+          style={{ backgroundImage: `linear-gradient(90deg, ${withAlpha(accent, 0.65)}, transparent 72%)` }}
+        />
         <div className="relative flex flex-col gap-5 p-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="flex min-w-0 items-center gap-5 sm:gap-6">
-            <div className="shrink-0 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
+            <div
+              className="shrink-0 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur-sm sm:p-4"
+              style={{ boxShadow: `0 10px 34px -10px ${withAlpha(accent, 0.6)}` }}
+            >
               <TeamLogo apiId={team.apiFootballId} size={88} className="drop-shadow-2xl" />
             </div>
             <div className="min-w-0">
