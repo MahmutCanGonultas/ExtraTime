@@ -1,4 +1,6 @@
 import { query } from '../../db/pool'
+import { syncPlayerTransfers } from '../football/sync/jobs'
+import { hasTransferSync } from '../football/football.repository'
 
 // ── Kare Bulmaca (Immaculate Grid) ──────────────────────────────────────────
 // A daily 3×3 grid. Each row and column is a category; a cell is solved by naming
@@ -85,25 +87,52 @@ async function matchingSet(cat: GridCategory): Promise<Set<number>> {
   return new Set(rows.map((r) => r.player_api_id))
 }
 
-// True when a specific player satisfies a category (on-demand, for guess checks).
-export async function playerSatisfies(playerApiId: number, cat: GridCategory): Promise<boolean> {
-  let sql: string
-  let params: unknown[]
-  if (cat.kind === 'club') {
-    sql = `SELECT 1 FROM players WHERE player_api_id = $1 AND team_api_id = $2 LIMIT 1`
-    params = [playerApiId, cat.id]
-  } else if (cat.kind === 'nat') {
-    sql = `SELECT 1 FROM players WHERE player_api_id = $1 AND nationality = ANY($2) LIMIT 1`
-    params = [playerApiId, cat.values]
-  } else if (cat.kind === 'pos') {
-    sql = `SELECT 1 FROM players WHERE player_api_id = $1 AND position = ANY($2) LIMIT 1`
-    params = [playerApiId, cat.values]
-  } else {
-    sql = `SELECT 1 FROM players p JOIN leagues l ON l.id = p.league_id
-           WHERE p.player_api_id = $1 AND l.api_football_id = $2 LIMIT 1`
-    params = [playerApiId, cat.id]
+// Every club a player has EVER turned out for: recent squad rows (`players`)
+// plus their full transfer history (`player_transfers`). This is what lets a
+// historically-correct answer (Ronaldo → Juventus, Modrić → Tottenham) count
+// even though our squad snapshots only cover recent seasons.
+async function playerClubSet(playerApiId: number): Promise<number[]> {
+  const { rows } = await query<{ id: number }>(
+    `SELECT team_api_id AS id FROM players WHERE player_api_id = $1 AND team_api_id IS NOT NULL
+     UNION
+     SELECT in_team_api_id FROM player_transfers WHERE player_api_id = $1 AND in_team_api_id IS NOT NULL
+     UNION
+     SELECT out_team_api_id FROM player_transfers WHERE player_api_id = $1 AND out_team_api_id IS NOT NULL`,
+    [playerApiId],
+  )
+  return rows.map((r) => r.id)
+}
+
+// True when a player satisfies a category. Clubs/leagues are checked against the
+// player's full career club set; a league is satisfied when any of those clubs is
+// a known club of that league in our data. Nationality/position come from squad rows.
+export async function playerSatisfies(
+  playerApiId: number,
+  cat: GridCategory,
+  clubSet: number[],
+): Promise<boolean> {
+  if (cat.kind === 'club') return clubSet.includes(cat.id)
+  if (cat.kind === 'nat') {
+    const { rowCount } = await query(
+      `SELECT 1 FROM players WHERE player_api_id = $1 AND nationality = ANY($2) LIMIT 1`,
+      [playerApiId, cat.values],
+    )
+    return (rowCount ?? 0) > 0
   }
-  const { rowCount } = await query(sql, params)
+  if (cat.kind === 'pos') {
+    const { rowCount } = await query(
+      `SELECT 1 FROM players WHERE player_api_id = $1 AND position = ANY($2) LIMIT 1`,
+      [playerApiId, cat.values],
+    )
+    return (rowCount ?? 0) > 0
+  }
+  // league
+  if (clubSet.length === 0) return false
+  const { rowCount } = await query(
+    `SELECT 1 FROM players p JOIN leagues l ON l.id = p.league_id
+     WHERE p.team_api_id = ANY($1) AND l.api_football_id = $2 LIMIT 1`,
+    [clubSet, cat.id],
+  )
   return (rowCount ?? 0) > 0
 }
 
@@ -232,8 +261,19 @@ export async function validateGridGuess(
   const rowCat = (g.rows as GridCategory[])[row]
   const colCat = (g.cols as GridCategory[])[col]
   if (!rowCat || !colCat) return { correct: false }
+  // Lazily fill this player's full career the first time they're guessed (1 API
+  // request, cached forever), so historical clubs/leagues count. Cache-first.
+  if (!(await hasTransferSync(playerApiId))) {
+    try {
+      await syncPlayerTransfers(playerApiId)
+    } catch {
+      /* fall back to whatever squad rows we already hold */
+    }
+  }
+  const clubSet = await playerClubSet(playerApiId)
   const ok =
-    (await playerSatisfies(playerApiId, rowCat)) && (await playerSatisfies(playerApiId, colCat))
+    (await playerSatisfies(playerApiId, rowCat, clubSet)) &&
+    (await playerSatisfies(playerApiId, colCat, clubSet))
   if (!ok) return { correct: false }
   const { rows } = await query<{ name: string; photo_url: string | null }>(
     `SELECT name, photo_url FROM players WHERE player_api_id = $1 LIMIT 1`,
