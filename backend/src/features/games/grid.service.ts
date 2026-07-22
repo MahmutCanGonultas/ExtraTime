@@ -250,13 +250,21 @@ export async function getDailyGridPublic(date: string) {
   }
 }
 
-// Check a guess for a cell; on success return the player's name + photo to fill it.
+// Rarity score for a correct answer: the LESS well-known the player, the more
+// points — like the real immaculate grid, an obscure-but-correct pick is worth
+// more than an obvious superstar. Prominence = career appearances + goals weight;
+// mapped to a friendly, bounded 5–50 range so it never swings wildly.
+function rarityPoints(prominence: number): number {
+  return Math.max(5, Math.min(50, Math.round(1600 / (prominence + 40))))
+}
+
+// Check a guess for a cell; on success return the player's name + photo + points.
 export async function validateGridGuess(
   date: string,
   row: number,
   col: number,
   playerApiId: number,
-): Promise<{ correct: boolean; player?: { name: string; photoUrl: string | null } }> {
+): Promise<{ correct: boolean; player?: { name: string; photoUrl: string | null }; points?: number }> {
   const g = await getDailyGrid(date)
   const rowCat = (g.rows as GridCategory[])[row]
   const colCat = (g.cols as GridCategory[])[col]
@@ -275,9 +283,15 @@ export async function validateGridGuess(
     (await playerSatisfies(playerApiId, rowCat, clubSet)) &&
     (await playerSatisfies(playerApiId, colCat, clubSet))
   if (!ok) return { correct: false }
-  const { rows } = await query<{ name: string; photo_url: string | null }>(
-    `SELECT name, photo_url FROM players WHERE player_api_id = $1 LIMIT 1`,
+  const { rows } = await query<{ name: string; photo_url: string | null; prominence: number }>(
+    `SELECT MAX(name) AS name, MAX(photo_url) AS photo_url,
+            COALESCE(SUM(appearances), 0) + COALESCE(SUM(goals), 0) * 2 AS prominence
+     FROM players WHERE player_api_id = $1`,
     [playerApiId],
   )
-  return { correct: true, player: { name: rows[0]?.name ?? '', photoUrl: rows[0]?.photo_url ?? null } }
+  return {
+    correct: true,
+    player: { name: rows[0]?.name ?? '', photoUrl: rows[0]?.photo_url ?? null },
+    points: rarityPoints(Number(rows[0]?.prominence ?? 0)),
+  }
 }

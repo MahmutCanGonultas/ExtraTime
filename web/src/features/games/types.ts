@@ -23,6 +23,7 @@ export interface DailyGrid {
 export interface GridGuessResult {
   correct: boolean
   player?: { name: string; photoUrl: string | null }
+  points?: number
 }
 
 // ── Gol Kimin? (Whose Goal) ─────────────────────────────────────────────────

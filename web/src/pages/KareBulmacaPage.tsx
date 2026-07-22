@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw, Shirt, Plus } from 'lucide-react'
+import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw, Shirt, Plus, Heart, Sparkles } from 'lucide-react'
 import { TeamLogo } from '@/components/TeamLogo'
 import { BallMark } from '@/components/Brand'
 import { flagEmoji } from '@/lib/flags'
@@ -11,35 +11,33 @@ import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/
 import type { DailyGrid, GridCat } from '@/features/games/types'
 
 const THEME = GAME_THEMES.kare
-// Pitch-green checkerboard for the playing cells — two clearly distinct shades.
-const GREEN_A = '#2f8a4f'
-const GREEN_B = '#1f6a3a'
+const START_LIVES = 3
+// Pitch-green checkerboard — two rich, distinct grass tones with subtle depth.
+const GREEN_A = 'linear-gradient(160deg, #3aa15f 0%, #2b7a48 100%)'
+const GREEN_B = 'linear-gradient(160deg, #2d8a4f 0%, #1e6639 100%)'
+// A light disc for crests; the drop-shadow gives even all-white logos an edge.
+const CREST_SHADOW = '[filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]'
 
-function pointsFor(answerCount: number): number {
-  return Math.max(1, Math.round(300 / (answerCount + 2)))
-}
+type Solved = { player: string; photoUrl: string | null; points: number }
 
-type CellState = { player: string; photoUrl: string | null; points: number } | { wrong: string } | null
-
-// ── Category header (big white-disc crest / flag / trophy + bold label) ──────
+// ── Category header (big crest / flag / trophy + bold label) ─────────────────
 function HeaderCat({ cat }: { cat: GridCat }) {
   const label = cat.kind === 'nat' ? cat.label.split(' ').slice(1).join(' ') : cat.label
+  const disc = 'grid h-16 w-16 place-items-center rounded-full bg-gradient-to-b from-white to-slate-200 shadow-lg ring-1 ring-black/10 sm:h-[68px] sm:w-[68px]'
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-1 py-2">
       {cat.kind === 'club' && cat.teamApiId != null ? (
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-white shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
-          <TeamLogo apiId={cat.teamApiId} size={44} />
+        <div className={disc}>
+          <TeamLogo apiId={cat.teamApiId} size={48} className={CREST_SHADOW} />
         </div>
       ) : cat.kind === 'league' && cat.leagueApiId != null ? (
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-white px-1.5 shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
-          <TeamLogo apiId={cat.leagueApiId} kind="league" size={38} />
+        <div className={cn(disc, 'px-1.5')}>
+          <TeamLogo apiId={cat.leagueApiId} kind="league" size={42} className={CREST_SHADOW} />
         </div>
       ) : cat.kind === 'nat' ? (
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-white text-4xl shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
-          {cat.label.split(' ')[0]}
-        </div>
+        <div className={cn(disc, 'text-4xl')}>{cat.label.split(' ')[0]}</div>
       ) : (
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl shadow-lg ring-1 ring-white/20 sm:h-16 sm:w-16">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl shadow-lg ring-1 ring-white/20 sm:h-[68px] sm:w-[68px]">
           ⚽
         </div>
       )}
@@ -57,12 +55,14 @@ function PickerSheet({
   onPick,
   onClose,
   pending,
+  error,
 }: {
   rowCat: GridCat
   colCat: GridCat
   onPick: (playerApiId: number) => void
   onClose: () => void
   pending: boolean
+  error: boolean
 }) {
   const [term, setTerm] = useState('')
   const { data, isFetching } = useGuessSearch(term)
@@ -71,7 +71,7 @@ function PickerSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-[#0d1526]/95 shadow-2xl backdrop-blur-xl sm:rounded-2xl">
+      <div className={cn('relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-[#0d1526]/95 shadow-2xl backdrop-blur-xl sm:rounded-2xl', error && 'animate-guess-in')}>
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
           <div className="flex flex-1 items-center gap-1.5 text-sm">
             <span className="rounded-lg bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-200">{rowCat.label}</span>
@@ -82,6 +82,12 @@ function PickerSheet({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {error && (
+          <div className="border-b border-rose-500/20 bg-rose-500/15 px-4 py-2 text-center text-sm font-semibold text-rose-200">
+            Yanlış! Bir can gitti ❤️ — tekrar dene
+          </div>
+        )}
 
         <div className="relative border-b border-white/10 p-3">
           <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -153,16 +159,7 @@ function WinBurst() {
         <span
           key={i}
           className="confetti-piece"
-          style={
-            {
-              left: `${p.left}%`,
-              background: p.color,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.dur}s`,
-              '--drift': p.drift,
-              '--rot': p.rot,
-            } as React.CSSProperties
-          }
+          style={{ left: `${p.left}%`, background: p.color, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`, '--drift': p.drift, '--rot': p.rot } as React.CSSProperties}
         />
       ))}
     </div>
@@ -175,12 +172,7 @@ export default function KareBulmacaPage() {
 
   return (
     <ArenaShell theme={THEME} maxW="max-w-2xl">
-      <GameHero
-        theme={THEME}
-        icon={Grid3x3}
-        title="Kare Bulmaca"
-        subtitle="Günün ızgarası · her kareye satır + sütuna uyan bir oyuncu"
-      />
+      <GameHero theme={THEME} icon={Grid3x3} title="Kare Bulmaca" subtitle="Günün ızgarası · her kareye satır + sütuna uyan bir oyuncu" />
       {isLoading ? (
         <div className="grid h-72 place-items-center text-white/50">Yükleniyor…</div>
       ) : isError || !grid ? (
@@ -194,8 +186,10 @@ export default function KareBulmacaPage() {
 
 function GridBoard({ grid }: { grid: DailyGrid }) {
   const storageKey = `kare-bulmaca:${grid.date}`
-  const [cells, setCells] = useState<Record<string, CellState>>({})
+  const [cells, setCells] = useState<Record<string, Solved>>({})
+  const [lives, setLives] = useState(START_LIVES)
   const [active, setActive] = useState<{ r: number; c: number } | null>(null)
+  const [pickError, setPickError] = useState(false)
   const [burst, setBurst] = useState(false)
   const guess = useGridGuess()
 
@@ -203,80 +197,83 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
     const raw = safeGetItem(storageKey)
     if (raw) {
       try {
-        setCells(JSON.parse(raw))
+        const s = JSON.parse(raw) as { cells: Record<string, Solved>; lives: number }
+        setCells(s.cells ?? {})
+        setLives(s.lives ?? START_LIVES)
       } catch {
         /* ignore corrupt state */
       }
     }
   }, [storageKey])
 
-  const persist = (next: Record<string, CellState>) => {
-    setCells(next)
-    safeSetItem(storageKey, JSON.stringify(next))
+  const persist = (nextCells: Record<string, Solved>, nextLives: number) => {
+    setCells(nextCells)
+    setLives(nextLives)
+    safeSetItem(storageKey, JSON.stringify({ cells: nextCells, lives: nextLives }))
   }
 
-  const cellAt = (r: number, c: number) => grid.cells.find((x) => x.row === r && x.col === c)!
   const key = (r: number, c: number) => `${r}-${c}`
 
-  const resolved = Object.values(cells).filter(Boolean).length
-  const correctCells = Object.values(cells).filter((v) => v && 'player' in v) as Array<{ player: string; points: number }>
-  const score = correctCells.reduce((s, v) => s + v.points, 0)
-  const done = resolved >= 9
+  const solvedCount = Object.keys(cells).length
+  const score = Object.values(cells).reduce((s, v) => s + v.points, 0)
+  const gameOver = lives <= 0 || solvedCount >= 9
 
   async function submit(playerApiId: number) {
-    if (!active) return
+    if (!active || gameOver) return
     const { r, c } = active
     const res = await guess.mutateAsync({ row: r, col: c, playerApiId })
-    const cell = cellAt(r, c)
     if (res.correct && res.player) {
-      const next = {
-        ...cells,
-        [key(r, c)]: { player: res.player.name, photoUrl: res.player.photoUrl, points: pointsFor(cell.answerCount) },
-      }
-      persist(next)
+      const next = { ...cells, [key(r, c)]: { player: res.player.name, photoUrl: res.player.photoUrl, points: res.points ?? 5 } }
+      persist(next, lives)
       setBurst(true)
-      setTimeout(() => setBurst(false), 1600)
+      setTimeout(() => setBurst(false), 1500)
+      setActive(null)
     } else {
-      persist({ ...cells, [key(r, c)]: { wrong: '✗' } })
+      const nextLives = lives - 1
+      persist(cells, nextLives)
+      setPickError(true)
+      setTimeout(() => setPickError(false), 1600)
+      if (nextLives <= 0) setActive(null)
     }
-    setActive(null)
   }
 
   const shareText = useMemo(() => {
-    if (!done) return ''
+    if (!gameOver) return ''
     let out = `Kare Bulmaca ${grid.date}\n`
     for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 3; c++) {
-        const v = cells[key(r, c)]
-        out += v && 'player' in v ? '🟩' : '🟥'
-      }
+      for (let c = 0; c < 3; c++) out += cells[key(r, c)] ? '🟩' : '⬛'
       out += '\n'
     }
-    out += `${correctCells.length}/9 · ${score} puan`
+    out += `${solvedCount}/9 · ${score} puan`
     return out
-  }, [done, cells, grid.date, correctCells.length, score])
+  }, [gameOver, cells, grid.date, solvedCount, score])
 
   return (
     <>
       {burst && <WinBurst />}
 
-      {/* Scoreboard */}
+      {/* Scoreboard: solved · points · lives */}
       <div className="mb-4 grid grid-cols-3 gap-3">
-        <ScorePill label="Doğru" value={`${correctCells.length}/9`} tone="text-emerald-300" />
+        <ScorePill label="Doğru" value={`${solvedCount}/9`} tone="text-emerald-300" />
         <ScorePill label="Puan" value={String(score)} tone="text-amber-300" />
-        <ScorePill label="Kalan" value={String(9 - resolved)} tone="text-cyan-200" />
+        <GlassPanel className="flex flex-col items-center justify-center px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-white/45">Can</div>
+          <div className="mt-0.5 flex gap-1">
+            {Array.from({ length: START_LIVES }, (_, i) => (
+              <Heart key={i} className={cn('h-5 w-5', i < lives ? 'fill-rose-500 text-rose-500' : 'text-white/20')} />
+            ))}
+          </div>
+        </GlassPanel>
       </div>
 
-      {/* The immaculate board: solid high-contrast panel, green checkerboard cells */}
+      {/* The immaculate board */}
       <div className="rounded-3xl border border-white/10 bg-[#171232] p-2.5 shadow-2xl ring-1 ring-black/20 sm:p-3.5">
         <div className="grid gap-2" style={{ gridTemplateColumns: '0.95fr repeat(3, 1fr)' }}>
-          {/* corner brand badge — the game's identity block */}
+          {/* corner brand badge */}
           <div className="relative flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 shadow-lg">
             <span className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/20 blur-xl" />
             <BallMark size={30} />
-            <span className="font-display text-[11px] font-bold uppercase leading-none tracking-wide text-white sm:text-xs">
-              Kare
-            </span>
+            <span className="font-display text-[11px] font-bold uppercase leading-none tracking-wide text-white sm:text-xs">Kare</span>
           </div>
           {grid.cols.map((cat, i) => (
             <HeaderCat key={`col-${i}`} cat={cat} />
@@ -287,21 +284,21 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
               <HeaderCat cat={rowCat} />
               {grid.cols.map((_colCat, c) => {
                 const v = cells[key(r, c)]
-                const cellInfo = cellAt(r, c)
                 const shade = (r + c) % 2 === 0 ? GREEN_A : GREEN_B
                 return (
                   <button
                     key={`cell-${r}-${c}`}
-                    disabled={!!v}
+                    disabled={!!v || gameOver}
                     onClick={() => setActive({ r, c })}
-                    style={{ backgroundColor: v && 'player' in v ? undefined : shade }}
+                    style={{ backgroundImage: v ? undefined : shade }}
                     className={cn(
                       'group relative aspect-square overflow-hidden rounded-xl shadow-inner transition',
-                      v && 'player' in v && 'bg-gradient-to-br from-emerald-500 to-teal-600 ring-2 ring-emerald-300/60',
-                      !v && 'hover:brightness-125 hover:ring-2 hover:ring-white/40',
+                      v && 'bg-gradient-to-br from-emerald-500 to-teal-600 ring-2 ring-emerald-300/60',
+                      !v && !gameOver && 'hover:brightness-110 hover:ring-2 hover:ring-white/40',
+                      !v && gameOver && 'opacity-70',
                     )}
                   >
-                    {v && 'player' in v ? (
+                    {v ? (
                       <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 p-1">
                         {v.photoUrl ? (
                           <img src={v.photoUrl} alt="" className="h-12 w-12 rounded-full bg-white/20 object-cover ring-2 ring-white shadow-md" />
@@ -313,10 +310,6 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
                         <span className="line-clamp-2 px-0.5 text-center text-[11px] font-bold leading-tight text-white">{v.player}</span>
                         <span className="rounded-full bg-amber-300 px-2 text-[10px] font-bold text-amber-950 shadow">+{v.points}</span>
                       </span>
-                    ) : v ? (
-                      <span className="flex h-full items-center justify-center bg-rose-950/50">
-                        <X className="h-10 w-10 text-rose-200/90" />
-                      </span>
                     ) : (
                       <span className="flex h-full flex-col items-center justify-center gap-1.5">
                         <span className="relative">
@@ -324,9 +317,6 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
                           <Plus className="absolute inset-0 m-auto h-5 w-5 text-white/90" strokeWidth={3} />
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-wide text-white/70">Oyuncu Bul</span>
-                        <span className="absolute right-1.5 top-1.5 rounded-md bg-black/30 px-1.5 py-0.5 text-[9px] font-bold text-white/70">
-                          {cellInfo.answerCount}
-                        </span>
                       </span>
                     )}
                   </button>
@@ -337,15 +327,19 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
         </div>
       </div>
 
+      <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-white/50">
+        <Sparkles className="h-3.5 w-3.5 text-amber-300" /> Az bilinen oyuncu daha çok puan getirir · 3 canın var
+      </p>
+
       {/* Result banner */}
-      {done && (
+      {gameOver && (
         <GlassPanel glow={THEME.glow2} className="mt-4 p-5 text-center">
           <Trophy className="mx-auto mb-1 h-7 w-7 text-amber-300" />
           <div className="font-display text-2xl font-bold uppercase tracking-wide text-white">
-            {correctCells.length}/9 · {score} puan
+            {solvedCount}/9 · {score} puan
           </div>
           <p className="mt-0.5 text-sm text-white/60">
-            {correctCells.length === 9 ? 'Mükemmel ızgara! 🔥' : correctCells.length >= 6 ? 'İyi iş!' : 'Yarın yeni bir ızgara seni bekliyor.'}
+            {solvedCount === 9 ? 'Mükemmel ızgara! 🔥' : lives <= 0 ? 'Canların bitti — yarın tekrar dene.' : 'İyi iş!'}
           </p>
           <button
             onClick={() => navigator.clipboard?.writeText(shareText).catch(() => {})}
@@ -361,7 +355,17 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
       </p>
 
       {active && (
-        <PickerSheet rowCat={grid.rows[active.r]} colCat={grid.cols[active.c]} pending={guess.isPending} onPick={submit} onClose={() => setActive(null)} />
+        <PickerSheet
+          rowCat={grid.rows[active.r]}
+          colCat={grid.cols[active.c]}
+          pending={guess.isPending}
+          error={pickError}
+          onPick={submit}
+          onClose={() => {
+            setActive(null)
+            setPickError(false)
+          }}
+        />
       )}
     </>
   )
