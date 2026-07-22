@@ -142,9 +142,14 @@ export function GamePredictCard({
       <CardBody className="space-y-3">
         {/* header */}
         <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 truncate text-ink-400">
-            <TeamLogo apiId={fixture.leagueApiId} kind="league" size={15} />
-            <span className="truncate">{fixture.leagueName}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            {/* White tile so the crest reads + a clean, prefix-stripped name. */}
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-white p-0.5 shadow-sm ring-1 ring-black/5">
+              <TeamLogo apiId={fixture.leagueApiId} kind="league" size={14} />
+            </span>
+            <span className="truncate font-semibold text-ink-200">
+              {fixture.leagueName.replace(/^UEFA /, '')}
+            </span>
           </span>
           <span className="flex items-center gap-1.5">
             {live ? (
