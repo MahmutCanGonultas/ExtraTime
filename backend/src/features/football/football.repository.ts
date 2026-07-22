@@ -429,6 +429,11 @@ export async function getGuessPool(
        SELECT DISTINCT ON (p.player_api_id) ${GUESS_COLS}
        FROM players p JOIN leagues l ON l.id = p.league_id
        WHERE p.season >= $1 AND p.photo_url IS NOT NULL AND p.nationality IS NOT NULL
+         -- The shown league must be a DOMESTIC league, never a continental cup or the
+         -- national team: a Beşiktaş player is "Beşiktaş · Süper Lig", not "· Avrupa
+         -- Ligi". (Turkish-club rows are matched by team id regardless of competition,
+         -- so without this their Europa/Conference rows would leak in.)
+         AND l.api_football_id NOT IN (1, 2, 3, 848)
          AND (l.api_football_id = ANY($2) OR p.team_api_id = ANY($3))
        ORDER BY p.player_api_id, p.season DESC, p.appearances DESC NULLS LAST
      ) q
