@@ -30,10 +30,10 @@ type Game = {
 
 const GAMES: Game[] = [
   {
-    to: '/efsaneler',
-    title: 'Efsaneler',
-    tagline: '598 efsane · 69 ülke',
-    desc: 'Futbol tarihinin efsanelerini ve tüm kulüp kariyerlerini keşfet — Pelé’den Zidane’a.',
+    to: '/kariyer-kimin',
+    title: 'Kariyer Kimin?',
+    tagline: 'Efsaneler · günlük',
+    desc: 'Kulüp kariyerini gör, hangi efsane olduğunu bil. Ne kadar erken bilirsen o kadar çok puan.',
     icon: Crown,
     grad: 'from-amber-300 via-yellow-500 to-amber-600',
     glow: 'rgba(245,196,63,0.4)',
