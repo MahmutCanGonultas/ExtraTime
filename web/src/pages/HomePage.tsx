@@ -147,17 +147,17 @@ export function HomePage() {
           }}
         />
         <PitchBackdrop className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-emerald-200/[0.07] sm:block" />
-        <BallMark size={210} className="pointer-events-none absolute -bottom-16 -right-10 text-emerald-400/[0.06]" />
+        <BallMark size={210} mono className="pointer-events-none absolute -bottom-16 -right-10 text-emerald-400/[0.06]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4 px-6 py-8 sm:px-10">
           <div>
-            {/* Big, epic brand lock-up — the stopwatch mark with an emerald glow. */}
+            {/* Big, epic brand lock-up — the added-time board with an emerald glow. */}
             <div className="flex items-center gap-3">
-              <BallMark
-                size={48}
-                className="text-brand-400 drop-shadow-[0_0_18px_rgba(16,185,129,0.5)]"
-              />
+              <BallMark size={48} className="drop-shadow-[0_0_18px_rgba(16,185,129,0.5)]" />
               <span className="font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                EXTRA<span className="text-brand-400">TIME</span>
+                EXTRA
+                <span className="bg-gradient-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent">
+                  TIME
+                </span>
               </span>
             </div>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">

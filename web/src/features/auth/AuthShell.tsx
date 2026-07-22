@@ -45,10 +45,12 @@ export function AuthShell({
         <PitchBackdrop className="pointer-events-none absolute inset-y-0 -right-24 h-full w-[82%] text-white/[0.06]" />
         <BallMark
           size={560}
+          mono
           className="pointer-events-none absolute -bottom-44 -right-24 text-brand-400/[0.09]"
         />
         <BallMark
           size={104}
+          mono
           className="animate-float pointer-events-none absolute right-24 top-24 text-brand-300/25"
         />
 
@@ -105,6 +107,7 @@ export function AuthShell({
             <div className="absolute inset-0 mow-stripes opacity-60" />
             <BallMark
               size={150}
+              mono
               className="pointer-events-none absolute -right-8 -top-10 text-brand-400/15"
             />
             <div className="relative flex flex-col items-center gap-2">
