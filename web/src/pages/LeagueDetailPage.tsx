@@ -17,10 +17,30 @@ import { TeamLogo } from '@/components/TeamLogo'
 import { Card } from '@/components/ui/Card'
 import { Tabs } from '@/components/ui/Tabs'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/feedback'
+import { leagueLogoUrl } from '@/lib/format'
 
 function seasonLabel(season: number): string {
   const next = (season + 1) % 100
   return `${season}/${next.toString().padStart(2, '0')}`
+}
+
+// Signature colour per competition — used to tint the header so it isn't a flat
+// dark band. Falls back to cyan for anything unlisted.
+const LEAGUE_ACCENT: Record<number, string> = {
+  39: '#8b5cf6', // Premier League
+  140: '#f97316', // La Liga
+  78: '#ef4444', // Bundesliga
+  135: '#3b82f6', // Serie A
+  61: '#14b8a6', // Ligue 1
+  203: '#f43f5e', // Süper Lig
+  2: '#22d3ee', // Şampiyonlar Ligi
+  3: '#fb923c', // Avrupa Ligi
+  848: '#4ade80', // Konferans Ligi
+  1: '#38bdf8', // Dünya Kupası
+}
+function wash(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
 }
 
 export function LeagueDetailPage() {
@@ -53,19 +73,32 @@ export function LeagueDetailPage() {
   ]
   // Until the visitor picks a tab, tournaments open on the bracket.
   const active = tab ?? (hasBracket ? 'bracket' : 'standings')
+  const accent = (league && LEAGUE_ACCENT[league.apiFootballId]) || '#22d3ee'
 
   return (
     <div className="space-y-4">
-      <section className="relative overflow-hidden rounded-card border border-ink-800 bg-gradient-to-r from-ink-900 via-ink-900 to-ink-950 px-5 py-4">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage: 'radial-gradient(90% 130% at 0% 0%, rgba(194,245,66,0.11), transparent 55%)',
-          }}
-        />
+      <section className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-900 px-5 py-5">
+        {league && (
+          <>
+            {/* league-coloured wash so the header reads as that competition */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage: `radial-gradient(120% 150% at 0% 0%, ${wash(accent, 0.3)}, transparent 60%)`,
+              }}
+            />
+            {/* giant faded crest bleeding off the right edge */}
+            <img
+              src={leagueLogoUrl(league.apiFootballId)}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute -right-6 -top-8 h-44 w-44 object-contain opacity-[0.09]"
+            />
+          </>
+        )}
         <div className="relative flex flex-wrap items-center gap-4">
           {league && (
-            <div className="shrink-0 rounded-2xl bg-white/[0.06] p-2.5 ring-1 ring-white/10">
+            <div className="shrink-0 rounded-2xl bg-white p-2.5 shadow-lg ring-1 ring-black/5">
               <TeamLogo apiId={league.apiFootballId} kind="league" size={46} />
             </div>
           )}
