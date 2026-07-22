@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
@@ -24,14 +24,16 @@ import { TeamTrophiesPage } from '@/pages/TeamTrophiesPage'
 import { SquadPage } from '@/pages/SquadPage'
 import { PlayerDetailPage } from '@/pages/PlayerDetailPage'
 import { GroupHubPage } from '@/pages/GroupHubPage'
-import { MiniGamePage } from '@/pages/MiniGamePage'
-import { LineupBuilderPage } from '@/pages/LineupBuilderPage'
 import { GuessPlayerPage } from '@/pages/GuessPlayerPage'
-import OyunlarPage from '@/pages/OyunlarPage'
-import KareBulmacaPage from '@/pages/KareBulmacaPage'
-import GolKiminPage from '@/pages/GolKiminPage'
-import KariyerZinciriPage from '@/pages/KariyerZinciriPage'
-import EfsanelerPage from '@/pages/EfsanelerPage'
+// Games are lazy-loaded so their code (and the large legends dataset) stays out
+// of the initial bundle — the app shell loads faster.
+const MiniGamePage = lazy(() => import('@/pages/MiniGamePage').then((m) => ({ default: m.MiniGamePage })))
+const LineupBuilderPage = lazy(() => import('@/pages/LineupBuilderPage').then((m) => ({ default: m.LineupBuilderPage })))
+const OyunlarPage = lazy(() => import('@/pages/OyunlarPage'))
+const KareBulmacaPage = lazy(() => import('@/pages/KareBulmacaPage'))
+const GolKiminPage = lazy(() => import('@/pages/GolKiminPage'))
+const KariyerZinciriPage = lazy(() => import('@/pages/KariyerZinciriPage'))
+const KariyerKiminPage = lazy(() => import('@/pages/KariyerKiminPage'))
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -42,6 +44,7 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <RouteTitle />
+          <Suspense fallback={<div className="grid min-h-screen place-items-center text-ink-500">Yükleniyor…</div>}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -62,7 +65,7 @@ export function App() {
                 <Route path="/kare-bulmaca" element={<KareBulmacaPage />} />
                 <Route path="/gol-kimin" element={<GolKiminPage />} />
                 <Route path="/kariyer-zinciri" element={<KariyerZinciriPage />} />
-                <Route path="/efsaneler" element={<EfsanelerPage />} />
+                <Route path="/kariyer-kimin" element={<KariyerKiminPage />} />
                 <Route path="/oyun" element={<MiniGamePage />} />
                 <Route path="/kadro-kur" element={<LineupBuilderPage />} />
                 <Route path="/kim-bu" element={<GuessPlayerPage />} />
@@ -74,6 +77,7 @@ export function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

@@ -78,33 +78,18 @@ export function ArenaShell({
 }) {
   return (
     <div className="relative min-h-[88vh] overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[#0a1120]" />
-        {/* drifting glow orbs */}
-        <div
-          className="animate-orb absolute -top-[18%] left-1/2 h-[62vh] w-[62vh] -translate-x-1/2 rounded-full blur-[120px]"
-          style={{ background: theme.glow1 }}
-        />
-        <div
-          className="animate-orb-slow absolute bottom-[-15%] right-[-10%] h-[52vh] w-[52vh] rounded-full blur-[130px]"
-          style={{ background: theme.glow2 }}
-        />
-        <div
-          className="animate-glow absolute left-[-12%] top-[38%] h-[40vh] w-[40vh] rounded-full blur-[120px]"
-          style={{ background: theme.glow1 }}
-        />
-        {/* faint pitch grid */}
-        <div
-          className="absolute inset-0 opacity-[0.05]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
-            backgroundSize: '46px 46px',
-          }}
-        />
-        {/* vignette + floor fade */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(5,9,18,0.85)_100%)]" />
-      </div>
+      {/* Static backdrop — painted once with two radial glows + a faint pitch grid.
+          No continuous animation, so it never re-composites (keeps the games smooth). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundColor: '#0a1120',
+          backgroundImage: `radial-gradient(60vh 60vh at 15% 0%, ${theme.glow1}, transparent 60%), radial-gradient(55vh 55vh at 100% 100%, ${theme.glow2}, transparent 60%), linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+          backgroundSize: '100% 100%, 100% 100%, 46px 46px, 46px 46px',
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(5,9,18,0.85)_100%)]" />
 
       <div className={cn('relative z-10 mx-auto px-4 py-7', maxW)}>{children}</div>
     </div>
@@ -173,7 +158,7 @@ export function GlassPanel({
   return (
     <div
       className={cn(
-        'relative rounded-2xl border border-white/10 bg-white/[0.04] shadow-2xl backdrop-blur-xl',
+        'relative rounded-2xl border border-white/10 bg-white/[0.04] shadow-xl backdrop-blur-md',
         className,
       )}
       style={glow ? { boxShadow: `0 0 40px -12px ${glow}` } : undefined}
