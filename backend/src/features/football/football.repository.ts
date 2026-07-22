@@ -1061,51 +1061,75 @@ export async function getPlayerCareer(playerApiId: number): Promise<PlayerCareer
     [playerApiId],
   )
 
-  type Acc = { teamApiId: number | null; teamName: string; since: string | null; sort: number }
-  const map = new Map<string, Acc>()
-  const keyOf = (id: number | null, name: string) =>
-    id != null ? `id:${id}` : `n:${name.toLowerCase()}`
-  const consider = (id: number | null, name: string | null, since: string | null, sort: number) => {
-    if (!name) return
-    const k = keyOf(id, name)
-    const existing = map.get(k)
-    if (!existing || sort < existing.sort) {
-      map.set(k, { teamApiId: id, teamName: name, since: since ?? existing?.since ?? null, sort })
+  // Model the career as a sequence of SPELLS, not a deduped set of clubs — so a
+  // player who returns to a club (Neymar → Santos in 2009 and again 2025; Arda
+  // Turan → Galatasaray twice) shows that club once per stint, each at its own date.
+  type Spell = { teamApiId: number | null; teamName: string; since: string | null; sort: number }
+  const spells: Spell[] = []
+  // Match by id when both have one, but always accept an equal name too — the
+  // transfer feed and the squad feed sometimes carry different ids for one club.
+  const sameClub = (aId: number | null, aName: string, bId: number | null, bName: string) =>
+    (aId != null && bId != null && aId === bId) || aName.toLowerCase() === bName.toLowerCase()
+
+  if (tr.rows.length > 0) {
+    // The very first recorded transfer's OUT club is where the career started. Its
+    // date is the LEAVE date (not a join date), so leave "since" null — a season row
+    // may fill it, otherwise it shows undated rather than wrongly reading the exit
+    // year (e.g. Vinícius' Flamengo must not read 2018, his Real Madrid move).
+    const first = tr.rows[0]
+    const fd = first.transferDate ? new Date(first.transferDate) : null
+    const ft = fd && !Number.isNaN(fd.getTime()) ? fd.getTime() : 0
+    if (first.outName) {
+      spells.push({ teamApiId: first.outId, teamName: first.outName, since: null, sort: ft - 1 })
+    }
+    // Each transfer's IN club is a new stint starting on the transfer date. Skip a
+    // club identical to the immediately preceding stint — API-Football sometimes
+    // records a move twice (loan then permanent days apart), which isn't a return.
+    for (const r of tr.rows) {
+      if (!r.inName) continue
+      const last = spells[spells.length - 1]
+      if (last && sameClub(last.teamApiId, last.teamName, r.inId, r.inName)) continue
+      const dt = r.transferDate ? new Date(r.transferDate) : null
+      const valid = dt && !Number.isNaN(dt.getTime())
+      spells.push({
+        teamApiId: r.inId,
+        teamName: r.inName,
+        since: valid ? String(dt!.getFullYear()) : null,
+        sort: valid ? dt!.getTime() : 0,
+      })
     }
   }
 
-  for (const r of tr.rows) {
-    const dt = r.transferDate ? new Date(r.transferDate) : null
-    const valid = dt && !Number.isNaN(dt.getTime())
-    const year = valid ? String(dt!.getFullYear()) : null
-    const t = valid ? dt!.getTime() : 0
-    // A transfer's date is when the player JOINED the incoming club — so it's the
-    // "since" for the IN club only. For the OUT club it's the LEAVE date, which is
-    // NOT when they joined it, so we register the club for ordering but leave its
-    // "since" to come from its own IN record (or a season row). Otherwise a player's
-    // very first club — which only ever appears as an OUT — would wrongly show the
-    // year they left it (e.g. Vinícius: Flamengo would read 2018, his Real Madrid
-    // move, instead of when he actually came up at Flamengo).
-    consider(r.outId, r.outName, null, t - 1) // club they left sorts just before the one they joined
-    consider(r.inId, r.inName, year, t)
-  }
+  // Season rows fill an undated stint or add a club the transfer chain never saw
+  // (e.g. the current club before its transfer is recorded).
   for (const s of seasons.rows) {
     if (!s.teamName) continue
-    const k = keyOf(s.teamApiId, s.teamName)
-    const existing = map.get(k)
-    if (existing) {
-      // Club already placed by the transfer chain — keep that (precise) order; only
-      // borrow the season year to fill a "since" the transfers couldn't give (e.g.
-      // the player's very first club). Never let the coarse July-1 season date pull
-      // the club's position earlier than its real transfer.
-      if (!existing.since) existing.since = String(s.season)
-    } else {
-      const t = Date.UTC(Number(s.season), 6, 1) // ~July 1 of that season
-      consider(s.teamApiId, s.teamName, String(s.season), t)
+    const matches = spells.filter((sp) => sameClub(sp.teamApiId, sp.teamName, s.teamApiId, s.teamName!))
+    if (matches.length === 0) {
+      spells.push({
+        teamApiId: s.teamApiId,
+        teamName: s.teamName,
+        since: String(s.season),
+        sort: Date.UTC(Number(s.season), 6, 1),
+      })
+      continue
     }
+    const nullSpell = matches.find((m) => !m.since)
+    if (!nullSpell) continue
+    // Only backfill if this season isn't LATER than the stint's successor — so a
+    // recent season (a return) can't wrongly date the original career-start stint.
+    const successor = spells
+      .filter((sp) => sp.sort > nullSpell.sort)
+      .sort((a, b) => a.sort - b.sort)[0]
+    const succYear = successor
+      ? successor.since
+        ? Number(successor.since)
+        : new Date(successor.sort).getUTCFullYear()
+      : Infinity
+    if (s.season <= succYear) nullSpell.since = String(s.season)
   }
 
-  const clubs = [...map.values()]
+  const clubs = spells
     .sort((a, b) => a.sort - b.sort)
     .map((c) => ({ teamApiId: c.teamApiId, teamName: c.teamName, since: c.since }))
   return { synced, clubs }
