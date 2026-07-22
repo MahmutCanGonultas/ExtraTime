@@ -175,27 +175,47 @@ function QuestionCard({
   onNext: () => void
 }) {
   const minuteLabel = q.minute != null ? `${q.minute}${q.extraMinute ? `+${q.extraMinute}` : ''}'` : 'GOL'
+  const scoringHome = q.scoringSide === 'home'
+  // After this goal the scoring side leads / is level / still trails.
+  const lead =
+    q.scoredHome === q.scoredAway
+      ? 'eşitledi'
+      : (scoringHome ? q.scoredHome > q.scoredAway : q.scoredAway > q.scoredHome)
+        ? 'öne geçti'
+        : 'farkı azalttı'
 
   return (
     <GlassPanel glow={THEME.glow1} className="overflow-hidden">
-      {/* Match header */}
-      <div className="flex items-center justify-center gap-4 border-b border-white/10 bg-white/[0.03] px-4 py-5">
-        <div className="flex flex-1 flex-col items-center gap-1.5">
-          <TeamLogo apiId={q.home.apiId} size={44} />
-          <span className="line-clamp-1 text-center text-xs font-medium text-white/70">{q.home.name}</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="font-display text-3xl font-black tabular-nums text-white">
-            {q.homeScore}<span className="mx-1 text-white/30">-</span>{q.awayScore}
+      {/* Match header — the score AT THE MOMENT of the goal, scoring side lit up */}
+      <div className="border-b border-white/10 bg-white/[0.03] px-4 py-5">
+        <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-1 flex-col items-center gap-1.5">
+            <div className={cn('rounded-full p-0.5', scoringHome && 'bg-orange-400/20 ring-2 ring-orange-400/60')}>
+              <TeamLogo apiId={q.home.apiId} size={44} />
+            </div>
+            <span className="line-clamp-1 text-center text-xs font-medium text-white/70">{q.home.name}</span>
           </div>
-          <span className="mt-1 rounded-full bg-gradient-to-r from-orange-500/30 to-rose-500/30 px-2.5 py-0.5 text-[11px] font-bold text-orange-200 ring-1 ring-orange-400/30">
-            ⚽ {minuteLabel}
-          </span>
+          <div className="flex flex-col items-center">
+            <div className="font-display text-4xl font-black tabular-nums text-white">
+              <span className={cn(scoringHome && 'text-orange-300')}>{q.scoredHome}</span>
+              <span className="mx-1 text-white/30">-</span>
+              <span className={cn(!scoringHome && 'text-orange-300')}>{q.scoredAway}</span>
+            </div>
+            <span className="mt-1 rounded-full bg-gradient-to-r from-orange-500/30 to-rose-500/30 px-2.5 py-0.5 text-[11px] font-bold text-orange-200 ring-1 ring-orange-400/30">
+              ⚽ {minuteLabel}
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col items-center gap-1.5">
+            <div className={cn('rounded-full p-0.5', !scoringHome && 'bg-orange-400/20 ring-2 ring-orange-400/60')}>
+              <TeamLogo apiId={q.away.apiId} size={44} />
+            </div>
+            <span className="line-clamp-1 text-center text-xs font-medium text-white/70">{q.away.name}</span>
+          </div>
         </div>
-        <div className="flex flex-1 flex-col items-center gap-1.5">
-          <TeamLogo apiId={q.away.apiId} size={44} />
-          <span className="line-clamp-1 text-center text-xs font-medium text-white/70">{q.away.name}</span>
-        </div>
+        <p className="mt-3 text-center text-[11px] text-white/45">
+          <span className="font-semibold text-orange-200">{scoringHome ? q.home.name : q.away.name}</span> bu golle{' '}
+          {lead} · maç sonu {q.homeScore}-{q.awayScore}
+        </p>
       </div>
 
       <div className="p-4">

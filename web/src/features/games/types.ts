@@ -33,6 +33,9 @@ export interface GoalQuestion {
   away: { name: string; apiId: number }
   homeScore: number | null
   awayScore: number | null
+  scoredHome: number
+  scoredAway: number
+  scoringSide: 'home' | 'away'
   leagueApiId: number
   minute: number | null
   extraMinute: number | null

@@ -21,6 +21,10 @@ export interface GoalQuestion {
   away: { name: string; apiId: number }
   homeScore: number | null
   awayScore: number | null
+  // Running score right AFTER this goal, so the player can see who just went ahead.
+  scoredHome: number
+  scoredAway: number
+  scoringSide: 'home' | 'away'
   leagueApiId: number
   minute: number | null
   extraMinute: number | null
@@ -30,6 +34,8 @@ export interface GoalQuestion {
 
 interface Candidate {
   event_id: number
+  fixture_id: number
+  team_api_id: number
   minute: number | null
   extra_minute: number | null
   player_name: string
@@ -45,9 +51,38 @@ interface Candidate {
 
 const quizCache = new Map<string, GoalQuestion[]>()
 
+// Running score right after `eventId`, plus which side scored it. Own goals are
+// credited to the opposing side so the tally matches the scoreboard.
+async function runningScoreAt(
+  fixtureId: number,
+  homeApi: number,
+  eventId: number,
+): Promise<{ home: number; away: number; side: 'home' | 'away' }> {
+  const { rows } = await query<{ id: number; team_api_id: number; detail: string }>(
+    `SELECT id, team_api_id, detail FROM fixture_events
+     WHERE fixture_id = $1 AND type = 'Goal' AND detail <> 'Missed Penalty'
+     ORDER BY minute NULLS LAST, extra_minute NULLS LAST, sort_order NULLS LAST, id`,
+    [fixtureId],
+  )
+  let home = 0
+  let away = 0
+  let side: 'home' | 'away' = 'home'
+  for (const g of rows) {
+    const isHomeTeam = g.team_api_id === homeApi
+    const creditsHome = g.detail === 'Own Goal' ? !isHomeTeam : isHomeTeam
+    if (creditsHome) home++
+    else away++
+    if (g.id === eventId) {
+      side = isHomeTeam ? 'home' : 'away'
+      break
+    }
+  }
+  return { home, away, side }
+}
+
 async function decoyPool(scorer: string, teamApiIds: number[], leagueApi: number): Promise<string[]> {
-  // Prefer other scorers from the two clubs in the match (teammates/opponents —
-  // plausible and recognisable); fall back to the league if a side is thin.
+  // Decoys from the SAME team that scored (the running score reveals which side),
+  // so every option is plausible; fall back to the league if that side is thin.
   const teamScorers = await query<{ player_name: string }>(
     `SELECT DISTINCT player_name FROM fixture_events
      WHERE type = 'Goal' AND player_name IS NOT NULL AND player_name <> $1
@@ -74,7 +109,7 @@ export async function getDailyGoalQuiz(date: string): Promise<GoalQuestion[]> {
   if (cached) return cached
 
   const { rows } = await query<Candidate>(
-    `SELECT e.id AS event_id, e.minute, e.extra_minute, e.player_name, e.detail,
+    `SELECT e.id AS event_id, e.fixture_id, e.team_api_id, e.minute, e.extra_minute, e.player_name, e.detail,
             f.home_score, f.away_score,
             ht.name AS home_name, ht.api_football_id AS home_api,
             at.name AS away_name, at.api_football_id AS away_api,
@@ -108,7 +143,9 @@ export async function getDailyGoalQuiz(date: string): Promise<GoalQuestion[]> {
 
   const questions: GoalQuestion[] = []
   for (const c of chosen) {
-    const pool = await decoyPool(c.player_name, [c.home_api, c.away_api], c.league_api)
+    const run = await runningScoreAt(c.fixture_id, c.home_api, c.event_id)
+    // Decoys come from the team that scored (the running score gives the side away).
+    const pool = await decoyPool(c.player_name, [c.team_api_id], c.league_api)
     const decoys = shuffle(pool, seededRng(`decoy#${date}#${c.event_id}`)).slice(0, 3)
     if (decoys.length < 3) continue // skip questions we can't build 4 options for
     const options = shuffle([c.player_name, ...decoys], seededRng(`opt#${date}#${c.event_id}`))
@@ -118,6 +155,9 @@ export async function getDailyGoalQuiz(date: string): Promise<GoalQuestion[]> {
       away: { name: c.away_name, apiId: c.away_api },
       homeScore: c.home_score,
       awayScore: c.away_score,
+      scoredHome: run.home,
+      scoredAway: run.away,
+      scoringSide: run.side,
       leagueApiId: c.league_api,
       minute: c.minute,
       extraMinute: c.extra_minute,

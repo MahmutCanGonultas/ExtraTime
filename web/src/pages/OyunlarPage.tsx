@@ -2,17 +2,16 @@ import { Link } from 'react-router-dom'
 import {
   Grid3x3,
   HelpCircle,
-  Swords,
   Goal,
   Route as RouteIcon,
   ArrowRight,
   Check,
   Link2,
+  Gamepad2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ArenaShell, GAME_THEMES, GameHero } from '@/features/games/ui'
-import { Gamepad2 } from 'lucide-react'
 
 type Preview = 'grid' | 'goal' | 'career' | 'guess' | 'duel'
 
@@ -71,16 +70,6 @@ const GAMES: Game[] = [
     grad: 'from-fuchsia-400 via-purple-500 to-indigo-600',
     glow: 'rgba(192,38,211,0.4)',
     preview: 'guess',
-  },
-  {
-    to: '/oyun',
-    title: 'Düello',
-    tagline: 'Hız turu',
-    desc: 'İki oyuncudan hangisi daha iyi? Gol, asist, reyting — 10 soruluk düello.',
-    icon: Swords,
-    grad: 'from-amber-400 via-yellow-500 to-orange-600',
-    glow: 'rgba(245,158,11,0.4)',
-    preview: 'duel',
   },
 ]
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw } from 'lucide-react'
+import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw, Shirt, Plus } from 'lucide-react'
 import { TeamLogo } from '@/components/TeamLogo'
+import { BallMark } from '@/components/Brand'
 import { flagEmoji } from '@/lib/flags'
 import { cn } from '@/lib/cn'
 import { safeGetItem, safeSetItem } from '@/lib/storage'
@@ -10,31 +11,40 @@ import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/
 import type { DailyGrid, GridCat } from '@/features/games/types'
 
 const THEME = GAME_THEMES.kare
+// Pitch-green checkerboard for the playing cells.
+const GREEN_A = '#2f7d49'
+const GREEN_B = '#35894f'
 
-// Rarer cells (fewer valid players) are worth more.
 function pointsFor(answerCount: number): number {
   return Math.max(1, Math.round(300 / (answerCount + 2)))
 }
 
 type CellState = { player: string; photoUrl: string | null; points: number } | { wrong: string } | null
 
-// ── Category header (crest / flag / label) ──────────────────────────────────
-function CatChip({ cat }: { cat: GridCat }) {
+// ── Category header (white-disc crest / flag / trophy + bold label) ──────────
+function HeaderCat({ cat }: { cat: GridCat }) {
+  const label = cat.kind === 'nat' ? cat.label.split(' ').slice(1).join(' ') : cat.label
   return (
-    <div className="flex flex-col items-center justify-center gap-1 px-1 py-1.5 text-center">
+    <div className="flex flex-col items-center justify-center gap-1.5 px-1 py-2">
       {cat.kind === 'club' && cat.teamApiId != null ? (
-        <TeamLogo apiId={cat.teamApiId} size={26} />
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-md">
+          <TeamLogo apiId={cat.teamApiId} size={30} />
+        </div>
       ) : cat.kind === 'league' && cat.leagueApiId != null ? (
-        <div className="flex h-7 items-center justify-center rounded bg-white/90 px-1">
-          <TeamLogo apiId={cat.leagueApiId} kind="league" size={20} />
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-white px-1 shadow-md">
+          <TeamLogo apiId={cat.leagueApiId} kind="league" size={26} />
         </div>
       ) : cat.kind === 'nat' ? (
-        <span className="text-2xl">{cat.label.split(' ')[0]}</span>
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-2xl shadow-md">
+          {cat.label.split(' ')[0]}
+        </div>
       ) : (
-        <span className="text-lg">⚽</span>
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500/20 text-xl ring-1 ring-white/20">
+          ⚽
+        </div>
       )}
-      <span className="text-[10px] font-semibold leading-tight text-white/80">
-        {cat.kind === 'nat' ? cat.label.split(' ').slice(1).join(' ') : cat.label}
+      <span className="line-clamp-2 text-center font-display text-[11px] font-bold uppercase leading-tight tracking-wide text-white">
+        {label}
       </span>
     </div>
   )
@@ -64,13 +74,9 @@ function PickerSheet({
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-[#0d1526]/95 shadow-2xl backdrop-blur-xl sm:rounded-2xl">
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
           <div className="flex flex-1 items-center gap-1.5 text-sm">
-            <span className="rounded-lg bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-200">
-              {rowCat.label}
-            </span>
+            <span className="rounded-lg bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-200">{rowCat.label}</span>
             <span className="text-white/30">×</span>
-            <span className="rounded-lg bg-cyan-500/20 px-2 py-0.5 font-semibold text-cyan-200">
-              {colCat.label}
-            </span>
+            <span className="rounded-lg bg-cyan-500/20 px-2 py-0.5 font-semibold text-cyan-200">{colCat.label}</span>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 text-white/50 hover:bg-white/10">
             <X className="h-5 w-5" />
@@ -90,9 +96,7 @@ function PickerSheet({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {term.trim().length < 2 ? (
-            <p className="px-4 py-8 text-center text-sm text-white/50">
-              Bu iki kategoriye de uyan bir oyuncu yaz.
-            </p>
+            <p className="px-4 py-8 text-center text-sm text-white/50">Bu iki kategoriye de uyan bir oyuncu yaz.</p>
           ) : players.length === 0 && !isFetching ? (
             <p className="px-4 py-8 text-center text-sm text-white/50">Sonuç yok.</p>
           ) : (
@@ -215,10 +219,7 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
   const key = (r: number, c: number) => `${r}-${c}`
 
   const resolved = Object.values(cells).filter(Boolean).length
-  const correctCells = Object.values(cells).filter((v) => v && 'player' in v) as Array<{
-    player: string
-    points: number
-  }>
+  const correctCells = Object.values(cells).filter((v) => v && 'player' in v) as Array<{ player: string; points: number }>
   const score = correctCells.reduce((s, v) => s + v.points, 0)
   const done = resolved >= 9
 
@@ -266,64 +267,60 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
         <ScorePill label="Kalan" value={String(9 - resolved)} tone="text-cyan-200" />
       </div>
 
-      {/* The 4×4 board */}
-      <GlassPanel glow={THEME.glow1} className="p-2.5">
-        <div className="grid gap-1.5" style={{ gridTemplateColumns: '0.8fr repeat(3, 1fr)' }}>
-          <div className="flex items-center justify-center">
-            <Grid3x3 className="h-5 w-5 text-white/20" />
+      {/* The immaculate board: dark panel, green checkerboard playing cells */}
+      <div className="rounded-2xl border border-white/10 bg-[#0d1526] p-2 shadow-2xl sm:p-3">
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: '0.95fr repeat(3, 1fr)' }}>
+          {/* corner brand badge */}
+          <div className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 shadow-lg">
+            <BallMark size={26} />
+            <span className="font-display text-[10px] font-bold uppercase leading-none tracking-wide text-white">Kare</span>
           </div>
           {grid.cols.map((cat, i) => (
-            <div key={`col-${i}`} className="rounded-xl bg-cyan-500/10 ring-1 ring-cyan-400/20">
-              <CatChip cat={cat} />
-            </div>
+            <HeaderCat key={`col-${i}`} cat={cat} />
           ))}
 
           {grid.rows.map((rowCat, r) => (
             <div key={`row-${r}`} className="contents">
-              <div className="flex items-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/20">
-                <CatChip cat={rowCat} />
-              </div>
+              <HeaderCat cat={rowCat} />
               {grid.cols.map((_colCat, c) => {
                 const v = cells[key(r, c)]
                 const cellInfo = cellAt(r, c)
+                const shade = (r + c) % 2 === 0 ? GREEN_A : GREEN_B
                 return (
                   <button
                     key={`cell-${r}-${c}`}
                     disabled={!!v}
                     onClick={() => setActive({ r, c })}
+                    style={{ backgroundColor: shade }}
                     className={cn(
-                      'group relative aspect-square overflow-hidden rounded-xl border transition',
-                      v && 'player' in v
-                        ? 'border-emerald-400/50 bg-emerald-500/15'
-                        : v
-                          ? 'border-rose-400/50 bg-rose-500/15'
-                          : 'border-dashed border-white/15 bg-white/[0.02] hover:border-emerald-400/60 hover:bg-white/[0.06]',
+                      'group relative aspect-square overflow-hidden rounded-lg transition',
+                      !v && 'hover:brightness-110',
                     )}
                   >
                     {v && 'player' in v ? (
-                      <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 p-1">
+                      <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 bg-black/15 p-1">
                         {v.photoUrl ? (
-                          <img src={v.photoUrl} alt="" className="h-10 w-10 rounded-full bg-white/10 object-cover ring-2 ring-emerald-400/50" />
+                          <img src={v.photoUrl} alt="" className="h-10 w-10 rounded-full bg-white/20 object-cover ring-2 ring-white/70" />
                         ) : (
-                          <div className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/25">
-                            <Check className="h-5 w-5 text-emerald-200" />
+                          <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 ring-2 ring-white/60">
+                            <Check className="h-5 w-5 text-white" />
                           </div>
                         )}
-                        <span className="line-clamp-2 px-0.5 text-center text-[10px] font-semibold leading-tight text-white">
-                          {v.player}
-                        </span>
-                        <span className="rounded-full bg-amber-400/25 px-1.5 text-[10px] font-bold text-amber-200">
-                          +{v.points}
-                        </span>
+                        <span className="line-clamp-2 px-0.5 text-center text-[10px] font-semibold leading-tight text-white">{v.player}</span>
+                        <span className="rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-amber-950">+{v.points}</span>
                       </span>
                     ) : v ? (
-                      <span className="flex h-full items-center justify-center">
-                        <X className="h-8 w-8 text-rose-300/70" />
+                      <span className="flex h-full items-center justify-center bg-rose-900/40">
+                        <X className="h-9 w-9 text-white/80" />
                       </span>
                     ) : (
-                      <span className="flex h-full flex-col items-center justify-center gap-0.5 text-white/40">
-                        <span className="text-2xl font-light text-white/40 group-hover:text-emerald-300">+</span>
-                        <span className="text-[9px] text-white/25">{cellInfo.answerCount} cevap</span>
+                      <span className="flex h-full flex-col items-center justify-center gap-1">
+                        <span className="relative">
+                          <Shirt className="h-9 w-9 text-black/25" strokeWidth={1.5} />
+                          <Plus className="absolute inset-0 m-auto h-4 w-4 text-white/80" strokeWidth={3} />
+                        </span>
+                        <span className="text-[8.5px] font-bold uppercase tracking-wide text-white/55">Oyuncu Bul</span>
+                        <span className="absolute right-1 top-1 rounded bg-black/25 px-1 text-[8px] font-bold text-white/60">{cellInfo.answerCount}</span>
                       </span>
                     )}
                   </button>
@@ -332,7 +329,7 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
             </div>
           ))}
         </div>
-      </GlassPanel>
+      </div>
 
       {/* Result banner */}
       {done && (
@@ -342,11 +339,7 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
             {correctCells.length}/9 · {score} puan
           </div>
           <p className="mt-0.5 text-sm text-white/60">
-            {correctCells.length === 9
-              ? 'Mükemmel ızgara! 🔥'
-              : correctCells.length >= 6
-                ? 'İyi iş!'
-                : 'Yarın yeni bir ızgara seni bekliyor.'}
+            {correctCells.length === 9 ? 'Mükemmel ızgara! 🔥' : correctCells.length >= 6 ? 'İyi iş!' : 'Yarın yeni bir ızgara seni bekliyor.'}
           </p>
           <button
             onClick={() => navigator.clipboard?.writeText(shareText).catch(() => {})}
@@ -362,13 +355,7 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
       </p>
 
       {active && (
-        <PickerSheet
-          rowCat={grid.rows[active.r]}
-          colCat={grid.cols[active.c]}
-          pending={guess.isPending}
-          onPick={submit}
-          onClose={() => setActive(null)}
-        />
+        <PickerSheet rowCat={grid.rows[active.r]} colCat={grid.cols[active.c]} pending={guess.isPending} onPick={submit} onClose={() => setActive(null)} />
       )}
     </>
   )
