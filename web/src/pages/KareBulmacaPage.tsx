@@ -11,9 +11,9 @@ import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/
 import type { DailyGrid, GridCat } from '@/features/games/types'
 
 const THEME = GAME_THEMES.kare
-// Pitch-green checkerboard for the playing cells.
-const GREEN_A = '#2f7d49'
-const GREEN_B = '#35894f'
+// Pitch-green checkerboard for the playing cells — two clearly distinct shades.
+const GREEN_A = '#2f8a4f'
+const GREEN_B = '#1f6a3a'
 
 function pointsFor(answerCount: number): number {
   return Math.max(1, Math.round(300 / (answerCount + 2)))
@@ -21,29 +21,29 @@ function pointsFor(answerCount: number): number {
 
 type CellState = { player: string; photoUrl: string | null; points: number } | { wrong: string } | null
 
-// ── Category header (white-disc crest / flag / trophy + bold label) ──────────
+// ── Category header (big white-disc crest / flag / trophy + bold label) ──────
 function HeaderCat({ cat }: { cat: GridCat }) {
   const label = cat.kind === 'nat' ? cat.label.split(' ').slice(1).join(' ') : cat.label
   return (
-    <div className="flex flex-col items-center justify-center gap-1.5 px-1 py-2">
+    <div className="flex flex-col items-center justify-center gap-2 px-1 py-2">
       {cat.kind === 'club' && cat.teamApiId != null ? (
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-md">
-          <TeamLogo apiId={cat.teamApiId} size={30} />
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-white shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
+          <TeamLogo apiId={cat.teamApiId} size={44} />
         </div>
       ) : cat.kind === 'league' && cat.leagueApiId != null ? (
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-white px-1 shadow-md">
-          <TeamLogo apiId={cat.leagueApiId} kind="league" size={26} />
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-white px-1.5 shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
+          <TeamLogo apiId={cat.leagueApiId} kind="league" size={38} />
         </div>
       ) : cat.kind === 'nat' ? (
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-2xl shadow-md">
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-white text-4xl shadow-lg ring-1 ring-black/10 sm:h-16 sm:w-16">
           {cat.label.split(' ')[0]}
         </div>
       ) : (
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500/20 text-xl ring-1 ring-white/20">
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl shadow-lg ring-1 ring-white/20 sm:h-16 sm:w-16">
           ⚽
         </div>
       )}
-      <span className="line-clamp-2 text-center font-display text-[11px] font-bold uppercase leading-tight tracking-wide text-white">
+      <span className="line-clamp-2 text-center font-display text-xs font-bold uppercase leading-tight tracking-wide text-white sm:text-sm">
         {label}
       </span>
     </div>
@@ -267,13 +267,16 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
         <ScorePill label="Kalan" value={String(9 - resolved)} tone="text-cyan-200" />
       </div>
 
-      {/* The immaculate board: dark panel, green checkerboard playing cells */}
-      <div className="rounded-2xl border border-white/10 bg-[#0d1526] p-2 shadow-2xl sm:p-3">
-        <div className="grid gap-1.5" style={{ gridTemplateColumns: '0.95fr repeat(3, 1fr)' }}>
-          {/* corner brand badge */}
-          <div className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 shadow-lg">
-            <BallMark size={26} />
-            <span className="font-display text-[10px] font-bold uppercase leading-none tracking-wide text-white">Kare</span>
+      {/* The immaculate board: solid high-contrast panel, green checkerboard cells */}
+      <div className="rounded-3xl border border-white/10 bg-[#171232] p-2.5 shadow-2xl ring-1 ring-black/20 sm:p-3.5">
+        <div className="grid gap-2" style={{ gridTemplateColumns: '0.95fr repeat(3, 1fr)' }}>
+          {/* corner brand badge — the game's identity block */}
+          <div className="relative flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 shadow-lg">
+            <span className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/20 blur-xl" />
+            <BallMark size={30} />
+            <span className="font-display text-[11px] font-bold uppercase leading-none tracking-wide text-white sm:text-xs">
+              Kare
+            </span>
           </div>
           {grid.cols.map((cat, i) => (
             <HeaderCat key={`col-${i}`} cat={cat} />
@@ -291,36 +294,39 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
                     key={`cell-${r}-${c}`}
                     disabled={!!v}
                     onClick={() => setActive({ r, c })}
-                    style={{ backgroundColor: shade }}
+                    style={{ backgroundColor: v && 'player' in v ? undefined : shade }}
                     className={cn(
-                      'group relative aspect-square overflow-hidden rounded-lg transition',
-                      !v && 'hover:brightness-110',
+                      'group relative aspect-square overflow-hidden rounded-xl shadow-inner transition',
+                      v && 'player' in v && 'bg-gradient-to-br from-emerald-500 to-teal-600 ring-2 ring-emerald-300/60',
+                      !v && 'hover:brightness-125 hover:ring-2 hover:ring-white/40',
                     )}
                   >
                     {v && 'player' in v ? (
-                      <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 bg-black/15 p-1">
+                      <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 p-1">
                         {v.photoUrl ? (
-                          <img src={v.photoUrl} alt="" className="h-10 w-10 rounded-full bg-white/20 object-cover ring-2 ring-white/70" />
+                          <img src={v.photoUrl} alt="" className="h-12 w-12 rounded-full bg-white/20 object-cover ring-2 ring-white shadow-md" />
                         ) : (
-                          <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 ring-2 ring-white/60">
-                            <Check className="h-5 w-5 text-white" />
+                          <div className="grid h-12 w-12 place-items-center rounded-full bg-white/25 ring-2 ring-white">
+                            <Check className="h-6 w-6 text-white" />
                           </div>
                         )}
-                        <span className="line-clamp-2 px-0.5 text-center text-[10px] font-semibold leading-tight text-white">{v.player}</span>
-                        <span className="rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-amber-950">+{v.points}</span>
+                        <span className="line-clamp-2 px-0.5 text-center text-[11px] font-bold leading-tight text-white">{v.player}</span>
+                        <span className="rounded-full bg-amber-300 px-2 text-[10px] font-bold text-amber-950 shadow">+{v.points}</span>
                       </span>
                     ) : v ? (
-                      <span className="flex h-full items-center justify-center bg-rose-900/40">
-                        <X className="h-9 w-9 text-white/80" />
+                      <span className="flex h-full items-center justify-center bg-rose-950/50">
+                        <X className="h-10 w-10 text-rose-200/90" />
                       </span>
                     ) : (
-                      <span className="flex h-full flex-col items-center justify-center gap-1">
+                      <span className="flex h-full flex-col items-center justify-center gap-1.5">
                         <span className="relative">
-                          <Shirt className="h-9 w-9 text-black/25" strokeWidth={1.5} />
-                          <Plus className="absolute inset-0 m-auto h-4 w-4 text-white/80" strokeWidth={3} />
+                          <Shirt className="h-12 w-12 text-black/20" strokeWidth={1.5} />
+                          <Plus className="absolute inset-0 m-auto h-5 w-5 text-white/90" strokeWidth={3} />
                         </span>
-                        <span className="text-[8.5px] font-bold uppercase tracking-wide text-white/55">Oyuncu Bul</span>
-                        <span className="absolute right-1 top-1 rounded bg-black/25 px-1 text-[8px] font-bold text-white/60">{cellInfo.answerCount}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-white/70">Oyuncu Bul</span>
+                        <span className="absolute right-1.5 top-1.5 rounded-md bg-black/30 px-1.5 py-0.5 text-[9px] font-bold text-white/70">
+                          {cellInfo.answerCount}
+                        </span>
                       </span>
                     )}
                   </button>
