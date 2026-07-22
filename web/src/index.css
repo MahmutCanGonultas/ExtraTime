@@ -238,7 +238,59 @@
     transform: translateY(-12px);
   }
 }
+/* Slow, large drift for the arena's glow orbs — gives game backdrops life
+   without any layout work (transform/opacity only). */
+@keyframes orbDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6%, -4%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-5%, 5%, 0) scale(0.95);
+  }
+}
+/* Breathing opacity for accent glows. */
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+/* A sweeping sheen across a surface (buttons / hero medallions). */
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
 @layer utilities {
+  .animate-orb {
+    animation: orbDrift 18s ease-in-out infinite;
+    will-change: transform;
+  }
+  .animate-orb-slow {
+    animation: orbDrift 26s ease-in-out infinite;
+    will-change: transform;
+  }
+  .animate-glow {
+    animation: glowPulse 6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-orb,
+    .animate-orb-slow,
+    .animate-glow {
+      animation: none;
+    }
+  }
+
   .animate-guess-in {
     animation: guessRowIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
     will-change: transform, opacity;

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { getDailyGridPublic, validateGridGuess } from './grid.service'
 import { getDailyGoalQuiz, checkGoalGuess } from './goal.service'
+import { getDailyCareerQuiz, checkCareerGuess } from './career.service'
 
 export const gamesRouter = Router()
 
@@ -54,5 +55,29 @@ gamesRouter.post(
   asyncHandler(async (req, res) => {
     const { eventId, choice } = goalGuessSchema.parse(req.body)
     res.json(await checkGoalGuess(eventId, choice))
+  }),
+)
+
+// GET /api/v1/games/career — the day's "Kariyer Zinciri" quiz (8 pairs, no answers).
+gamesRouter.get(
+  '/games/career',
+  asyncHandler(async (_req, res) => {
+    res.json({ date: todayUtc(), questions: await getDailyCareerQuiz(todayUtc()) })
+  }),
+)
+
+const careerGuessSchema = z.object({
+  playerAApiId: z.coerce.number().int().positive(),
+  playerBApiId: z.coerce.number().int().positive(),
+  teamApiId: z.coerce.number().int().positive(),
+})
+
+// POST /api/v1/games/career/guess — Returns { correct, sharedTeamApiIds }.
+gamesRouter.post(
+  '/games/career/guess',
+  asyncHandler(async (req, res) => {
+    const { playerAApiId, playerBApiId, teamApiId } = careerGuessSchema.parse(req.body)
+    const { sharedTeamApiIds } = await checkCareerGuess(playerAApiId, playerBApiId)
+    res.json({ correct: sharedTeamApiIds.includes(teamApiId), sharedTeamApiIds })
   }),
 )

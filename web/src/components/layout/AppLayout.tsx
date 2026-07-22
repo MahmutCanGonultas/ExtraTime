@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { LogOut, Menu, Settings, X } from 'lucide-react'
+import {
+  LogOut,
+  Menu,
+  Settings,
+  X,
+  ChevronDown,
+  Grid3x3,
+  Goal,
+  Route as RouteIcon,
+  HelpCircle,
+  Swords,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { GroupSwitcher } from '@/features/groups/GroupSwitcher'
 import { SearchBar } from '@/features/football/SearchBar'
@@ -15,11 +27,23 @@ const baseNav = [
   { to: '/oyunlar', label: 'Oyunlar' },
 ]
 
+// The games shown in the "Oyunlar" dropdown / drawer section.
+const GAMES_NAV: { to: string; label: string; icon: LucideIcon; grad: string }[] = [
+  { to: '/kare-bulmaca', label: 'Kare Bulmaca', icon: Grid3x3, grad: 'from-emerald-400 to-cyan-500' },
+  { to: '/gol-kimin', label: 'Gol Kimin?', icon: Goal, grad: 'from-orange-400 to-rose-500' },
+  { to: '/kariyer-zinciri', label: 'Kariyer Zinciri', icon: RouteIcon, grad: 'from-violet-400 to-fuchsia-500' },
+  { to: '/kim-bu', label: 'Kim Bu?', icon: HelpCircle, grad: 'from-fuchsia-400 to-indigo-500' },
+  { to: '/oyun', label: 'Düello', icon: Swords, grad: 'from-amber-400 to-orange-500' },
+]
+const GAME_PATHS = ['/oyunlar', ...GAMES_NAV.map((g) => g.to)]
+
 export function AppLayout() {
   const { user, logout, isPlatformAdmin } = useAuth()
   const navLinks = isPlatformAdmin ? [...baseNav, { to: '/admin', label: 'Admin' }] : baseNav
   const [menuOpen, setMenuOpen] = useState(false)
+  const [gamesExpand, setGamesExpand] = useState(false)
   const location = useLocation()
+  const gamesActive = GAME_PATHS.includes(location.pathname)
 
   // Close the mobile menu whenever the route changes.
   useEffect(() => setMenuOpen(false), [location.pathname])
@@ -50,11 +74,15 @@ export function AppLayout() {
 
           {/* Desktop navigation */}
           <nav className="hidden min-w-0 items-center gap-1 lg:flex">
-            {navLinks.map((link) => (
-              <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
-                {link.label}
-              </NavLink>
-            ))}
+            {navLinks.map((link) =>
+              link.to === '/oyunlar' ? (
+                <GamesMenu key={link.to} active={gamesActive} />
+              ) : (
+                <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
+                  {link.label}
+                </NavLink>
+              ),
+            )}
           </nav>
 
           {/* Desktop account cluster */}
@@ -129,24 +157,61 @@ export function AppLayout() {
           <div className="flex-1 overflow-y-auto px-4 py-4">
             <SearchBar />
             <nav className="mt-4 flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.end}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'rounded-lg px-3 py-3 text-[15px] font-semibold transition',
-                      isActive
-                        ? 'bg-brand-500 text-ink-950'
-                        : 'text-ink-200 hover:bg-ink-850 hover:text-ink-100',
-                    )
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+              {navLinks.map((link) =>
+                link.to === '/oyunlar' ? (
+                  <div key={link.to}>
+                    <button
+                      onClick={() => setGamesExpand((o) => !o)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg px-3 py-3 text-[15px] font-semibold transition',
+                        gamesActive ? 'bg-brand-500 text-ink-950' : 'text-ink-200 hover:bg-ink-850 hover:text-ink-100',
+                      )}
+                    >
+                      Oyunlar
+                      <ChevronDown className={cn('h-4 w-4 transition', gamesExpand && 'rotate-180')} />
+                    </button>
+                    {gamesExpand && (
+                      <div className="mt-1 space-y-0.5 pl-2">
+                        {GAMES_NAV.map((g) => (
+                          <NavLink
+                            key={g.to}
+                            to={g.to}
+                            onClick={() => setMenuOpen(false)}
+                            className={({ isActive }) =>
+                              cn(
+                                'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                                isActive ? 'bg-ink-800 text-ink-50' : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
+                              )
+                            }
+                          >
+                            <span className={cn('grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br', g.grad)}>
+                              <g.icon className="h-4 w-4 text-white" />
+                            </span>
+                            {g.label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.end}
+                    onClick={() => setMenuOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'rounded-lg px-3 py-3 text-[15px] font-semibold transition',
+                        isActive
+                          ? 'bg-brand-500 text-ink-950'
+                          : 'text-ink-200 hover:bg-ink-850 hover:text-ink-100',
+                      )
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ),
+              )}
             </nav>
           </div>
 
@@ -190,6 +255,46 @@ export function AppLayout() {
       </main>
 
       <SiteFooter />
+    </div>
+  )
+}
+
+// Desktop "Oyunlar" trigger: clicking goes to the hub, hovering reveals the
+// games. The pt-2 bridge keeps the panel open while the cursor crosses the gap.
+function GamesMenu({ active }: { active: boolean }) {
+  return (
+    <div className="group relative">
+      <NavLink
+        to="/oyunlar"
+        className={cn(
+          'flex items-center gap-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition',
+          active ? 'bg-brand-500 text-ink-950' : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
+        )}
+      >
+        Oyunlar
+        <ChevronDown className="h-3.5 w-3.5 transition group-hover:rotate-180" />
+      </NavLink>
+      <div className="invisible absolute left-0 top-full z-40 w-60 pt-2 opacity-0 transition duration-150 group-hover:visible group-hover:opacity-100">
+        <div className="rounded-xl border border-ink-800 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-xl">
+          {GAMES_NAV.map((g) => (
+            <NavLink
+              key={g.to}
+              to={g.to}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition',
+                  isActive ? 'bg-ink-800 text-ink-50' : 'text-ink-300 hover:bg-ink-850 hover:text-ink-100',
+                )
+              }
+            >
+              <span className={cn('grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br shadow', g.grad)}>
+                <g.icon className="h-4 w-4 text-white" />
+              </span>
+              {g.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

@@ -44,3 +44,21 @@ export interface GoalGuessResult {
   correct: boolean
   scorer: string | null
 }
+
+// ── Kariyer Zinciri (Career Connect) ────────────────────────────────────────
+
+export interface CareerOption {
+  teamApiId: number
+  teamName: string
+}
+
+export interface CareerQuestion {
+  playerA: { apiId: number; name: string; photoUrl: string | null }
+  playerB: { apiId: number; name: string; photoUrl: string | null }
+  options: CareerOption[]
+}
+
+export interface CareerGuessResult {
+  correct: boolean
+  sharedTeamApiIds: number[]
+}
