@@ -96,9 +96,7 @@ function EventTimeline({ events, home, away }: { events: MatchEvent[]; home: Fix
               ? 'penaltı'
               : e.detail === 'Missed Penalty'
                 ? 'kaçan penaltı'
-                : e.type === 'subst' && e.assistName
-                  ? `${e.assistName} çıktı`
-                  : null
+                : null
         return (
           <li
             key={i}
@@ -113,30 +111,50 @@ function EventTimeline({ events, home, away }: { events: MatchEvent[]; home: Fix
             <span className={cn('shrink-0', isGoal ? 'text-lg' : 'text-sm')}>{eventIcon(e)}</span>
             <TeamLogo apiId={isHome ? home.apiFootballId : away.apiFootballId} size={isGoal ? 16 : 14} />
             <div className={cn('min-w-0 flex-1', isHome ? '' : 'text-right')}>
-              <div
-                className={cn(
-                  isGoal ? 'text-[15px] font-bold text-ink-100' : 'text-sm text-ink-200',
-                )}
-              >
-                {e.playerName ?? '—'}
-                {tag && e.type !== 'subst' && (
-                  <span className="ml-1 text-[11px] font-medium text-ink-500">· {tag}</span>
-                )}
-              </div>
-              {/* Assist — its own line, brand-tinted so the provider stands out too. */}
-              {assist && (
-                <div
-                  className={cn(
-                    'mt-0.5 flex items-center gap-1 text-xs font-semibold text-brand-300',
-                    !isHome && 'flex-row-reverse',
+              {e.type === 'subst' ? (
+                // Substitution: assist = the player coming IN, player = going OUT.
+                <div className={cn('flex flex-col gap-0.5', !isHome && 'items-end')}>
+                  {e.assistName ? (
+                    <>
+                      <span className="text-sm">
+                        <span className="font-semibold text-emerald-300">{e.assistName}</span>
+                        <span className="text-[11px] text-ink-500"> girdi</span>
+                      </span>
+                      <span className="text-xs text-ink-400">
+                        <span className="text-rose-300/80">{e.playerName ?? '—'}</span> çıktı
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-ink-200">
+                      {e.playerName ?? '—'} <span className="text-[11px] text-ink-500">çıktı</span>
+                    </span>
                   )}
-                >
-                  <span>👟</span>
-                  <span className="truncate">asist · {assist}</span>
                 </div>
-              )}
-              {e.type === 'subst' && tag && (
-                <div className="mt-0.5 text-xs text-ink-500">{tag}</div>
+              ) : (
+                <>
+                  <div
+                    className={cn(
+                      isGoal ? 'text-[15px] font-bold text-ink-100' : 'text-sm text-ink-200',
+                    )}
+                  >
+                    {e.playerName ?? '—'}
+                    {tag && (
+                      <span className="ml-1 text-[11px] font-medium text-ink-500">· {tag}</span>
+                    )}
+                  </div>
+                  {/* Assist — its own line, brand-tinted so the provider stands out too. */}
+                  {assist && (
+                    <div
+                      className={cn(
+                        'mt-0.5 flex items-center gap-1 text-xs font-semibold text-brand-300',
+                        !isHome && 'flex-row-reverse',
+                      )}
+                    >
+                      <span>👟</span>
+                      <span className="truncate">asist · {assist}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </li>

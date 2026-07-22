@@ -44,12 +44,12 @@ export function WeeklyChampions({
       </div>
       <CardBody className="space-y-2">
         {overallLeader && (
-          <div className="mb-1 flex items-center gap-2 rounded-lg border border-brand-500/30 bg-brand-500/10 px-3 py-2">
-            <Crown className="h-4 w-4 shrink-0 text-brand-300" />
+          <div className="mb-1 flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2">
+            <Crown className="h-4 w-4 shrink-0 text-amber-300" />
             <span className="text-sm text-ink-200">
               Genel lider: <span className="font-semibold text-ink-100">{overallLeader.displayName}</span>
               {' · '}
-              <span className="text-brand-300">{overallLeader.points} puan</span>
+              <span className="font-semibold text-amber-300">{overallLeader.points} puan</span>
             </span>
             <span className="ml-auto text-[11px] text-ink-500">tüm haftaların toplamı</span>
           </div>
@@ -64,13 +64,13 @@ export function WeeklyChampions({
                 onClick={() => setOpen(isOpen ? null : i)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left"
               >
-                <span className="section-label shrink-0 text-[11px] text-brand-300">{weekTitle(w)}</span>
+                <span className="section-label shrink-0 text-[11px] text-violet-300">{weekTitle(w)}</span>
                 <span className="ml-1 min-w-0 flex-1 truncate">
                   {w.champion ? (
                     <span className="flex items-center gap-1.5 text-sm">
                       <Trophy className="h-4 w-4 shrink-0 text-amber-300" />
                       <span className="font-semibold text-ink-100">{w.champion.displayName}</span>
-                      <span className="text-brand-300">· {w.champion.points} puan</span>
+                      <span className="font-semibold text-amber-300">· {w.champion.points} puan</span>
                     </span>
                   ) : leader && leader.points > 0 ? (
                     <span className="text-sm text-ink-400">
@@ -92,7 +92,7 @@ export function WeeklyChampions({
                       key={s.userId}
                       className={cn(
                         'flex items-center gap-2 text-sm',
-                        s.userId === currentUserId && 'font-semibold text-brand-300',
+                        s.userId === currentUserId && 'font-semibold text-violet-300',
                       )}
                     >
                       <span
@@ -110,7 +110,7 @@ export function WeeklyChampions({
                       <span
                         className={cn(
                           'score-num shrink-0 font-bold tabular-nums',
-                          idx === 0 ? 'text-amber-300' : 'text-brand-400',
+                          idx === 0 ? 'text-amber-300' : 'text-violet-300',
                         )}
                       >
                         {s.points}
