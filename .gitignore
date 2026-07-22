@@ -34,4 +34,5 @@ Thumbs.db
 # Temporary scratch/diagnostic scripts (underscore-prefixed)
 backend/_*.ts
 backend/_*.mjs
+backend/_*.out
 web/_*.ts

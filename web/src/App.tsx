@@ -27,6 +27,8 @@ import { GroupHubPage } from '@/pages/GroupHubPage'
 import { MiniGamePage } from '@/pages/MiniGamePage'
 import { LineupBuilderPage } from '@/pages/LineupBuilderPage'
 import { GuessPlayerPage } from '@/pages/GuessPlayerPage'
+import OyunlarPage from '@/pages/OyunlarPage'
+import KareBulmacaPage from '@/pages/KareBulmacaPage'
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -53,6 +55,8 @@ export function App() {
                 <Route path="/matches/:id" element={<MatchPage />} />
                 <Route path="/group" element={<GroupHubPage />} />
                 <Route path="/predictions" element={<Navigate to="/group" replace />} />
+                <Route path="/oyunlar" element={<OyunlarPage />} />
+                <Route path="/kare-bulmaca" element={<KareBulmacaPage />} />
                 <Route path="/oyun" element={<MiniGamePage />} />
                 <Route path="/kadro-kur" element={<LineupBuilderPage />} />
                 <Route path="/kim-bu" element={<GuessPlayerPage />} />

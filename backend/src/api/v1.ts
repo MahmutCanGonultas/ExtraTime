@@ -6,6 +6,7 @@ import { predictionsRouter } from '../features/predictions/predictions.routes'
 import { adminRouter } from '../features/admin/admin.routes'
 import { devRouter } from '../features/admin/dev.routes'
 import { footballRouter } from '../features/football/football.routes'
+import { gamesRouter } from '../features/games/games.routes'
 
 // Aggregates every feature router under /api/v1. New features mount here.
 export const v1Router = Router()
@@ -20,5 +21,6 @@ if (!isProduction) {
   v1Router.use('/admin/dev', devRouter)
 }
 v1Router.use(footballRouter)
+v1Router.use(gamesRouter)
 
 export default v1Router
