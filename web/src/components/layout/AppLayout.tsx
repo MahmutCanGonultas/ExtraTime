@@ -11,6 +11,7 @@ import {
   Route as RouteIcon,
   HelpCircle,
   Crown,
+  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -34,6 +35,7 @@ const GAMES_NAV: { to: string; label: string; icon: LucideIcon; grad: string }[]
   { to: '/gol-kimin', label: 'Gol Kimin?', icon: Goal, grad: 'from-orange-400 to-rose-500' },
   { to: '/kariyer-zinciri', label: 'Kariyer Zinciri', icon: RouteIcon, grad: 'from-violet-400 to-fuchsia-500' },
   { to: '/kim-bu', label: 'Kim Bu?', icon: HelpCircle, grad: 'from-fuchsia-400 to-indigo-500' },
+  { to: '/kadro-kur', label: 'Kadro Kur', icon: Users, grad: 'from-sky-400 to-blue-500' },
 ]
 const GAME_PATHS = ['/oyunlar', ...GAMES_NAV.map((g) => g.to)]
 

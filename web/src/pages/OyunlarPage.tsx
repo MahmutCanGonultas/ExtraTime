@@ -9,12 +9,13 @@ import {
   Link2,
   Gamepad2,
   Crown,
+  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ArenaShell, GAME_THEMES, GameHero } from '@/features/games/ui'
 
-type Preview = 'grid' | 'goal' | 'career' | 'guess' | 'duel' | 'legends'
+type Preview = 'grid' | 'goal' | 'career' | 'guess' | 'duel' | 'legends' | 'lineup'
 
 type Game = {
   to: string
@@ -82,6 +83,16 @@ const GAMES: Game[] = [
     grad: 'from-fuchsia-400 via-purple-500 to-indigo-600',
     glow: 'rgba(192,38,211,0.4)',
     preview: 'guess',
+  },
+  {
+    to: '/kadro-kur',
+    title: 'Kadro Kur',
+    tagline: 'Diziliş kur',
+    desc: 'Sürükle-bırak ile hayalindeki on biri diz, dizilişini kaydet ve paylaş.',
+    icon: Users,
+    grad: 'from-sky-400 via-blue-500 to-indigo-600',
+    glow: 'rgba(56,189,248,0.4)',
+    preview: 'lineup',
   },
 ]
 
@@ -152,6 +163,19 @@ function PreviewArt({ kind }: { kind: Preview }) {
           <span className="text-lg leading-none">🇧🇷 🇦🇷 🇫🇷</span>
           <span className="font-display text-sm font-bold uppercase tracking-wide">598 efsane</span>
         </div>
+      </div>
+    )
+  }
+  if (kind === 'lineup') {
+    return (
+      <div className="grid grid-cols-4 items-center gap-1.5">
+        {[1, 4, 3, 2].map((count, col) => (
+          <div key={col} className="flex flex-col items-center gap-1.5">
+            {Array.from({ length: count }, (_, i) => (
+              <div key={i} className="h-3 w-3 rounded-full bg-white/40 ring-1 ring-white/50" />
+            ))}
+          </div>
+        ))}
       </div>
     )
   }
