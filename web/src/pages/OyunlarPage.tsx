@@ -51,12 +51,11 @@ const GAMES: Game[] = [
   {
     to: '/gol-kimin',
     title: 'Gol Kimin?',
-    desc: 'Maç, skor ve dakika verilir — golü kimin attığını bil.',
+    desc: 'Maç, skor ve dakika verilir — golü kimin attığını bil. Günlük 10 soru.',
     icon: Goal,
     gradient: 'from-rose-500 to-pink-600',
     glow: 'shadow-rose-900/40',
-    badge: 'YAKINDA',
-    disabled: true,
+    badge: 'YENİ',
   },
   {
     to: '/kariyer-zinciri',

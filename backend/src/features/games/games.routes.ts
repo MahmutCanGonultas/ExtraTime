@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { getDailyGridPublic, validateGridGuess } from './grid.service'
+import { getDailyGoalQuiz, checkGoalGuess } from './goal.service'
 
 export const gamesRouter = Router()
 
@@ -31,5 +32,27 @@ gamesRouter.post(
   asyncHandler(async (req, res) => {
     const { row, col, playerApiId } = guessSchema.parse(req.body)
     res.json(await validateGridGuess(todayUtc(), row, col, playerApiId))
+  }),
+)
+
+// GET /api/v1/games/goal — the day's "Gol Kimin?" quiz (10 questions, no answers).
+gamesRouter.get(
+  '/games/goal',
+  asyncHandler(async (_req, res) => {
+    res.json({ date: todayUtc(), questions: await getDailyGoalQuiz(todayUtc()) })
+  }),
+)
+
+const goalGuessSchema = z.object({
+  eventId: z.coerce.number().int().positive(),
+  choice: z.string().trim().min(1).max(80),
+})
+
+// POST /api/v1/games/goal/guess — check one answer. Returns { correct, scorer }.
+gamesRouter.post(
+  '/games/goal/guess',
+  asyncHandler(async (req, res) => {
+    const { eventId, choice } = goalGuessSchema.parse(req.body)
+    res.json(await checkGoalGuess(eventId, choice))
   }),
 )
