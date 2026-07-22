@@ -31,6 +31,7 @@ import OyunlarPage from '@/pages/OyunlarPage'
 import KareBulmacaPage from '@/pages/KareBulmacaPage'
 import GolKiminPage from '@/pages/GolKiminPage'
 import KariyerZinciriPage from '@/pages/KariyerZinciriPage'
+import EfsanelerPage from '@/pages/EfsanelerPage'
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -61,6 +62,7 @@ export function App() {
                 <Route path="/kare-bulmaca" element={<KareBulmacaPage />} />
                 <Route path="/gol-kimin" element={<GolKiminPage />} />
                 <Route path="/kariyer-zinciri" element={<KariyerZinciriPage />} />
+                <Route path="/efsaneler" element={<EfsanelerPage />} />
                 <Route path="/oyun" element={<MiniGamePage />} />
                 <Route path="/kadro-kur" element={<LineupBuilderPage />} />
                 <Route path="/kim-bu" element={<GuessPlayerPage />} />

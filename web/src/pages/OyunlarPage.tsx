@@ -8,12 +8,13 @@ import {
   Check,
   Link2,
   Gamepad2,
+  Crown,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ArenaShell, GAME_THEMES, GameHero } from '@/features/games/ui'
 
-type Preview = 'grid' | 'goal' | 'career' | 'guess' | 'duel'
+type Preview = 'grid' | 'goal' | 'career' | 'guess' | 'duel' | 'legends'
 
 type Game = {
   to: string
@@ -28,6 +29,17 @@ type Game = {
 }
 
 const GAMES: Game[] = [
+  {
+    to: '/efsaneler',
+    title: 'Efsaneler',
+    tagline: '598 efsane · 69 ülke',
+    desc: 'Futbol tarihinin efsanelerini ve tüm kulüp kariyerlerini keşfet — Pelé’den Zidane’a.',
+    icon: Crown,
+    grad: 'from-amber-300 via-yellow-500 to-amber-600',
+    glow: 'rgba(245,196,63,0.4)',
+    preview: 'legends',
+    badge: 'YENİ',
+  },
   {
     to: '/kare-bulmaca',
     title: 'Kare Bulmaca',
@@ -128,6 +140,17 @@ function PreviewArt({ kind }: { kind: Preview }) {
         <div className="space-y-1">
           <div className="h-2 w-16 rounded-full bg-white/30" />
           <div className="h-2 w-10 rounded-full bg-white/20" />
+        </div>
+      </div>
+    )
+  }
+  if (kind === 'legends') {
+    return (
+      <div className="flex items-center gap-2 text-white">
+        <Crown className="h-9 w-9 text-white/80" />
+        <div className="flex flex-col gap-1">
+          <span className="text-lg leading-none">🇧🇷 🇦🇷 🇫🇷</span>
+          <span className="font-display text-sm font-bold uppercase tracking-wide">598 efsane</span>
         </div>
       </div>
     )

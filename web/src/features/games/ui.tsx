@@ -54,6 +54,15 @@ export const GAME_THEMES: Record<string, GameTheme> = {
     ring: 'ring-violet-400/30',
     chip: 'bg-violet-500/10',
   },
+  legends: {
+    grad: 'from-amber-300 via-yellow-500 to-amber-600',
+    text: 'from-amber-200 via-yellow-200 to-amber-300',
+    glow1: 'rgba(245,196,63,0.42)',
+    glow2: 'rgba(217,119,6,0.35)',
+    accent: '#fbbf24',
+    ring: 'ring-amber-400/30',
+    chip: 'bg-amber-500/10',
+  },
 }
 
 // The immersive backdrop + centred content column. Kept absolute-in-relative so

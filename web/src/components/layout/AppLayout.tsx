@@ -10,6 +10,7 @@ import {
   Goal,
   Route as RouteIcon,
   HelpCircle,
+  Crown,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -28,6 +29,7 @@ const baseNav = [
 
 // The games shown in the "Oyunlar" dropdown / drawer section.
 const GAMES_NAV: { to: string; label: string; icon: LucideIcon; grad: string }[] = [
+  { to: '/efsaneler', label: 'Efsaneler', icon: Crown, grad: 'from-amber-300 to-yellow-500' },
   { to: '/kare-bulmaca', label: 'Kare Bulmaca', icon: Grid3x3, grad: 'from-emerald-400 to-cyan-500' },
   { to: '/gol-kimin', label: 'Gol Kimin?', icon: Goal, grad: 'from-orange-400 to-rose-500' },
   { to: '/kariyer-zinciri', label: 'Kariyer Zinciri', icon: RouteIcon, grad: 'from-violet-400 to-fuchsia-500' },
