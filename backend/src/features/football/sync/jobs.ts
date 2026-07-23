@@ -275,12 +275,21 @@ async function runLiveScores(): Promise<SyncResult> {
     // final yet. We broadcast live scores solely for matches people are actually
     // predicting — never the whole world's fixtures — to stay within the API
     // budget. (This is the "sadece gruptaki maçlar" rule.)
+    // Group matches that kicked off within the last 5h and are EITHER still live,
+    // OR marked finished but with an implausibly low elapsed — a premature "FT" the
+    // API occasionally emits mid-match. We re-check the latter so a live match that
+    // briefly flipped to FT heals itself: otherwise it freezes forever (the live
+    // sync normally skips finished matches) and settles on the wrong partial score.
+    // A genuine full-time (elapsed ~90, or null) is left alone — no wasted requests.
     const active = await query<{ apiId: number; fixtureId: number }>(
       `SELECT DISTINCT f.api_football_id AS "apiId", f.id AS "fixtureId"
        FROM group_fixtures gf JOIN fixtures f ON f.id = gf.fixture_id
-       WHERE f.status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO')
-         AND f.kickoff_at <= now()
-         AND f.kickoff_at > now() - interval '5 hours'`,
+       WHERE f.kickoff_at <= now()
+         AND f.kickoff_at > now() - interval '5 hours'
+         AND (
+           f.status NOT IN ('FT','AET','PEN','PST','CANC','ABD','AWD','WO')
+           OR (f.status IN ('FT','AET','PEN') AND f.elapsed IS NOT NULL AND f.elapsed < 85)
+         )`,
     )
     if (active.rows.length === 0) return 0
 
@@ -300,6 +309,17 @@ async function runLiveScores(): Promise<SyncResult> {
           }
         }
       }
+    }
+
+    // If a match we just re-adopted was live again (it had wrongly been marked FT
+    // and possibly settled on a partial score), wipe that premature settlement so it
+    // re-scores for real at full-time. No-op when nothing was mis-settled.
+    if (live.length > 0) {
+      await query(
+        `UPDATE predictions SET points_awarded = NULL, settled_at = NULL
+         WHERE settled_at IS NOT NULL AND fixture_id = ANY($1)`,
+        [live.map((t) => t.fixtureId)],
+      )
     }
 
     // Goals detail (who scored) only for the still-live group matches. Fetch each
