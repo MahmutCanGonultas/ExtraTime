@@ -45,8 +45,14 @@ export function startScheduler(): void {
   // without anyone triggering it. syncLiveScores no-ops (zero API cost) when no
   // group match is in progress; settleFinishedFixtures is DB-only and idempotent.
   cron.schedule('* * * * *', async () => {
-    await syncLiveScores()
-    await settleFinishedFixtures()
+    // Guard the whole tick: a failure here must never bubble out of the cron
+    // callback as an unhandled rejection (the loop runs every minute forever).
+    try {
+      await syncLiveScores()
+      await settleFinishedFixtures()
+    } catch (err) {
+      logger.error({ err, job: 'live+settle' }, 'Live/settle tick failed — will retry next minute')
+    }
   })
 
   logger.info('Cron scheduler started')

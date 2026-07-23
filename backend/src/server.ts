@@ -21,3 +21,17 @@ function shutdown(signal: NodeJS.Signals) {
 
 process.on('SIGINT', () => shutdown('SIGINT'))
 process.on('SIGTERM', () => shutdown('SIGTERM'))
+
+// Unattended-operation safety net. A stray rejected promise (e.g. a cron job
+// whose promise wasn't awaited, or a transient API/DB blip) must NOT take the
+// whole server down — log it and keep serving. A truly uncaught exception leaves
+// the process in an undefined state, so we log and exit; the platform restarts it.
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled promise rejection — kept alive')
+})
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception — exiting for a clean restart')
+  server.close(() => process.exit(1))
+  // Force-exit if close() hangs, so the platform can restart promptly.
+  setTimeout(() => process.exit(1), 3000).unref()
+})

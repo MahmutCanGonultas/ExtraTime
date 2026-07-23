@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // The browser tab always reads just the brand (plus its logo favicon), never a
 // per-page prefix.
@@ -40,8 +41,9 @@ import { SettingsPage } from '@/pages/SettingsPage'
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         <BrowserRouter>
           <RouteTitle />
           <Suspense fallback={<div className="grid min-h-screen place-items-center text-ink-500">Yükleniyor…</div>}>
@@ -79,7 +81,8 @@ export function App() {
           </Routes>
           </Suspense>
         </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
