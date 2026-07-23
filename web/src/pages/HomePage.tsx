@@ -120,7 +120,10 @@ export function HomePage() {
     [...gfx, ...(recent.data ?? []).filter(inHome)].filter((f) => isFinished(f.status)),
     false,
   ).slice(0, 12)
-  const liveShown = ranked([...(live.data ?? []), ...gfx].filter((f) => isLive(f.status)), true)
+  // Live = only the group's own matches (the backend already scopes /fixtures/live
+  // to group_fixtures). Those are the ones refreshed every minute, so the feed stays
+  // truly live instead of showing a stale UEFA score from the slow sync.
+  const liveShown = ranked((live.data ?? []).filter((f) => isLive(f.status)), true)
 
   // The top-ranked upcoming match (a group / marquee game) — labelled "Günün maçı"
   // only when it's actually today, otherwise "Yaklaşan maç".

@@ -901,15 +901,18 @@ export interface LiveFixtureDTO extends FixtureDTO {
   goals: FixtureGoal[]
 }
 
-// Matches currently in progress, restricted to our configured competitions, each
-// with its goal scorers attached (one extra query for the whole set).
+// Matches currently in progress, restricted to the ones a group actually predicts
+// (i.e. present in group_fixtures) — these are exactly the matches the every-minute
+// syncLiveScores keeps fresh, so nothing here is served with a stale score. Other
+// competitions (e.g. UEFA games no group added) only refresh on the slow syncs, so
+// they'd lag; we deliberately keep them out of the live feed. Each row carries its
+// goal scorers (one extra query for the whole set).
 export async function getLiveFixtures(): Promise<LiveFixtureDTO[]> {
   const { rows } = await query<FixtureRow>(
     `${FIXTURE_SELECT}
-     WHERE lg.api_football_id = ANY($1)
-       AND f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
+     WHERE f.status IN ('1H','HT','2H','ET','BT','P','LIVE','SUSP','INT')
+       AND EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.fixture_id = f.id)
      ORDER BY f.kickoff_at`,
-    [CONFIGURED_LEAGUE_API_IDS],
   )
   const fixtures = rows.map(mapFixture)
   if (fixtures.length === 0) return []
