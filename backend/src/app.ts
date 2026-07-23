@@ -6,6 +6,7 @@ import { env, maintenanceMode } from './config/env'
 import { logger } from './lib/logger'
 import { healthRouter } from './features/health/health.routes'
 import { isMaintenanceOn } from './features/admin/maintenance'
+import { opsRouter } from './features/admin/ops.routes'
 import v1Router from './api/v1'
 import { errorHandler, notFoundHandler } from './lib/middleware/error'
 
@@ -46,6 +47,10 @@ export function createApp() {
   // Kept alive even during maintenance so the host doesn't mark the service dead
   // and restart-loop it.
   app.use('/health', healthRouter)
+
+  // The secret owner control panel is mounted BEFORE the maintenance guard, so the
+  // owner can flip the site back on from a browser even while it's "down".
+  app.use('/api/v1/ops', opsRouter)
 
   // Maintenance kill switch. The site can be taken down two ways: the MAINTENANCE_MODE
   // env var (a hard host-level override, read once at boot) or the runtime app_flags
