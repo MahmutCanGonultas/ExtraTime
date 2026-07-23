@@ -26,16 +26,20 @@ describe('calculatePoints', () => {
     expect(calculatePoints(withScore(3, 1), { home: 2, away: 1 })).toBe(2)
   })
 
-  it('correct draw but wrong predicted score scores 0 (1 - 1 penalty)', () => {
-    expect(calculatePoints(withScore(1, 1), { home: 2, away: 2 })).toBe(0)
+  it('correct draw but wrong predicted score scores 2 (3 - 1 penalty)', () => {
+    // Predicted 1-1 (a draw), match ends 2-2 (a draw): outcome right, score missed,
+    // so 3 - 1 = 2 — same treatment as a missed-score winner.
+    expect(calculatePoints(withScore(1, 1), { home: 2, away: 2 })).toBe(2)
+    expect(calculatePoints(withScore(0, 0), { home: 1, away: 1 })).toBe(2)
   })
 
   it('outcome-only correct winner scores 3', () => {
     expect(calculatePoints(outcomeOnly('HOME'), { home: 2, away: 0 })).toBe(3)
   })
 
-  it('outcome-only correct draw scores 1', () => {
-    expect(calculatePoints(outcomeOnly('DRAW'), { home: 1, away: 1 })).toBe(1)
+  it('outcome-only correct draw scores 3 (same as a winner)', () => {
+    expect(calculatePoints(outcomeOnly('DRAW'), { home: 1, away: 1 })).toBe(3)
+    expect(calculatePoints(outcomeOnly('DRAW'), { home: 0, away: 0 })).toBe(3)
   })
 
   it('wrong outcome scores 0', () => {

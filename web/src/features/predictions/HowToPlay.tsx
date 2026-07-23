@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 const scoring = [
   { label: 'Tam skor', points: 5, tone: 'text-brand-300' },
   { label: 'Kazanan (skorsuz)', points: 3, tone: 'text-ink-100' },
-  { label: 'Beraberlik (skorsuz)', points: 1, tone: 'text-ink-100' },
+  { label: 'Beraberlik (skorsuz)', points: 3, tone: 'text-ink-100' },
   { label: 'Yanlış', points: 0, tone: 'text-ink-500' },
 ]
 
@@ -28,7 +28,7 @@ export function HowToPlay() {
         <HelpCircle className="h-4 w-4 text-brand-400" />
         <span className="text-sm font-semibold text-ink-100">Nasıl oynanır?</span>
         <span className="ml-1 truncate text-xs text-ink-500">
-          Tam skor 5 · Kazanan 3 · Skor kaçarsa −1
+          Tam skor 5 · Doğru sonuç 3 · Skor kaçarsa −1
         </span>
         <ChevronDown className={cn('ml-auto h-4 w-4 shrink-0 text-ink-400 transition', open && 'rotate-180')} />
       </button>
@@ -59,9 +59,10 @@ export function HowToPlay() {
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
             <span>
               <span className="font-semibold text-ink-100">Skor girmek risklidir.</span> Tutturursan 5
-              puan; ama kazananı bilip skoru kaçırırsan <span className="font-semibold text-loss">1 puan
-              düşer</span> (kazananda 3 yerine 2, beraberlikte 0). Sadece “kim kazanır”ı seçersen bu risk
-              yok. Örn: 5-3 dedin, maç 2-1 bitti → 2 puan.
+              puan; ama sonucu (kazanan ya da beraberlik) bilip skoru kaçırırsan{' '}
+              <span className="font-semibold text-loss">1 puan düşer</span> (3 yerine 2). Sadece sonucu
+              seçersen bu risk yok. Örn: 1-1 dedin, maç 2-2 bitti → 2 puan; 5-3 dedin, maç 2-1 bitti → 2
+              puan.
             </span>
           </p>
         </CardBody>
