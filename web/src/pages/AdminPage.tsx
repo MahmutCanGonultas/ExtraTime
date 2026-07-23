@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useSyncStatus, useTriggerSync } from '@/features/admin/hooks'
 import { AdminOverview } from '@/features/admin/AdminOverview'
@@ -37,9 +38,20 @@ export function AdminPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-ink-100">Yönetim Paneli</h1>
-        <p className="mt-1 text-sm text-ink-400">Kullanıcıları, grupları ve veri senkronizasyonunu yönet.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-ink-800 bg-gradient-to-r from-ink-900 via-ink-900 to-ink-950 p-5">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: 'radial-gradient(120% 140% at 100% 0%, rgba(56,189,248,0.10), transparent 55%)' }}
+        />
+        <div className="relative flex items-center gap-3.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 shadow-lg ring-1 ring-white/15">
+            <ShieldCheck className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-ink-50">Yönetim Paneli</h1>
+            <p className="text-sm text-ink-400">Kullanıcıları, grupları ve veri senkronizasyonunu yönet.</p>
+          </div>
+        </div>
       </div>
 
       <Tabs items={TABS} active={tab} onChange={setTab} />
@@ -61,6 +73,7 @@ const SYNC_JOBS = [
   { key: 'topassists', label: 'Asist Krallığı' },
   { key: 'squads', label: 'Kadrolar' },
   { key: 'live', label: 'Canlı Skorlar' },
+  { key: 'stale-live', label: 'Takılı Maçlar' },
 ]
 
 function SyncPanel() {
