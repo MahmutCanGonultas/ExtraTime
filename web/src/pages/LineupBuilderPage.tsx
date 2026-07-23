@@ -596,14 +596,14 @@ export function LineupBuilderPage() {
         nearest = i
       }
     })
-    // Dropped right onto an existing player → the bench player takes that slot at
-    // its tidy formation spot (clear any free override), so it doesn't sit skewed
-    // toward the cursor. Only a drop in open space free-positions where you let go.
-    const onExisting = players[nearest] != null && best < 130
+    // A bench player ALWAYS snaps to its nearest formation slot at that slot's
+    // tidy spot — never free-positioned at the cursor — so it can't land skewed
+    // toward where you let go. (Any player already there is replaced and returns
+    // to the bench.) Free positioning stays a slot-player-only affordance.
     assign(nearest, squadToPlaced(src.player))
     setPositions((prev) => {
       const next = [...prev]
-      next[nearest] = onExisting ? null : { x: px, y: py }
+      next[nearest] = null
       return next
     })
   }
