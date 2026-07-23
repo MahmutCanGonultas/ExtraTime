@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw, Shirt, Plus, Heart, Sparkles } from 'lucide-react'
+import { Grid3x3, Search, X, Check, Trophy, Share2, RotateCcw, Shirt, Plus, Heart, Sparkles, Crown } from 'lucide-react'
 import { TeamLogo } from '@/components/TeamLogo'
 import { BallMark } from '@/components/Brand'
 import { flagEmoji } from '@/lib/flags'
@@ -8,9 +8,17 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { useDailyGrid, useGridGuess } from '@/features/games/hooks'
 import { useGuessSearch } from '@/features/football/hooks'
 import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/ui'
+import { searchLegends, legendSatisfiesGridCat } from '@/features/games/legendGame'
+import { countryFlag } from '@/features/games/legendFlags'
+import type { Legend } from '@/features/games/legends'
 import type { DailyGrid, GridCat } from '@/features/games/types'
 
 const THEME = GAME_THEMES.kare
+const LEGEND_POINTS = 20 // flat reward for a legend answer (no prominence data)
+
+// A pick is either a current player (validated by the backend) or a curated
+// legend (validated client-side, since legends aren't in the API player DB).
+type Pick = { kind: 'player'; playerApiId: number } | { kind: 'legend'; legend: Legend }
 const START_LIVES = 3
 // Pitch-green checkerboard — two rich, distinct grass tones with subtle depth.
 const GREEN_A = 'linear-gradient(160deg, #3aa15f 0%, #2b7a48 100%)'
@@ -18,7 +26,7 @@ const GREEN_B = 'linear-gradient(160deg, #2d8a4f 0%, #1e6639 100%)'
 // A light disc for crests; the drop-shadow gives even all-white logos an edge.
 const CREST_SHADOW = '[filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]'
 
-type Solved = { player: string; photoUrl: string | null; points: number }
+type Solved = { player: string; photoUrl: string | null; points: number; legend?: boolean }
 
 // ── Category header (big crest / flag / trophy + bold label) ─────────────────
 function HeaderCat({ cat }: { cat: GridCat }) {
@@ -59,7 +67,7 @@ function PickerSheet({
 }: {
   rowCat: GridCat
   colCat: GridCat
-  onPick: (playerApiId: number) => void
+  onPick: (pick: Pick) => void
   onClose: () => void
   pending: boolean
   error: boolean
@@ -67,6 +75,7 @@ function PickerSheet({
   const [term, setTerm] = useState('')
   const { data, isFetching } = useGuessSearch(term)
   const players = data ?? []
+  const legends = searchLegends(term)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog">
@@ -102,16 +111,16 @@ function PickerSheet({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {term.trim().length < 2 ? (
-            <p className="px-4 py-8 text-center text-sm text-white/50">Bu iki kategoriye de uyan bir oyuncu yaz.</p>
-          ) : players.length === 0 && !isFetching ? (
+            <p className="px-4 py-8 text-center text-sm text-white/50">Bu iki kategoriye de uyan bir oyuncu veya efsane yaz.</p>
+          ) : players.length === 0 && legends.length === 0 && !isFetching ? (
             <p className="px-4 py-8 text-center text-sm text-white/50">Sonuç yok.</p>
           ) : (
             <ul className="divide-y divide-white/5">
               {players.map((p) => (
-                <li key={p.playerApiId}>
+                <li key={`p-${p.playerApiId}`}>
                   <button
                     disabled={pending}
-                    onClick={() => onPick(p.playerApiId)}
+                    onClick={() => onPick({ kind: 'player', playerApiId: p.playerApiId })}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 disabled:opacity-50"
                   >
                     {p.photoUrl ? (
@@ -125,6 +134,26 @@ function PickerSheet({
                         <span>{flagEmoji(p.nationality) || '🏳️'}</span>
                         {p.position && <span>{p.position}</span>}
                         {p.teamName && <span className="text-white/40">· {p.teamName}</span>}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              ))}
+              {legends.map((l) => (
+                <li key={`l-${l.name}`}>
+                  <button
+                    disabled={pending}
+                    onClick={() => onPick({ kind: 'legend', legend: l })}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 disabled:opacity-50"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400/15 ring-1 ring-amber-400/30">
+                      <Crown className="h-4 w-4 text-amber-300" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-white">{l.name}</div>
+                      <div className="flex items-center gap-1.5 truncate text-[11px] text-white/50">
+                        <span>{countryFlag(l.country)}</span>
+                        <span className="rounded bg-amber-400/20 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-200">Efsane</span>
                       </div>
                     </div>
                   </button>
@@ -219,22 +248,37 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
   const score = Object.values(cells).reduce((s, v) => s + v.points, 0)
   const gameOver = lives <= 0 || solvedCount >= 9
 
-  async function submit(playerApiId: number) {
+  function fillCorrect(r: number, c: number, solved: Solved) {
+    persist({ ...cells, [key(r, c)]: solved }, lives)
+    setBurst(true)
+    setTimeout(() => setBurst(false), 1500)
+    setActive(null)
+  }
+  function markWrong() {
+    const nextLives = lives - 1
+    persist(cells, nextLives)
+    setPickError(true)
+    setTimeout(() => setPickError(false), 1600)
+    if (nextLives <= 0) setActive(null)
+  }
+
+  async function submit(pick: Pick) {
     if (!active || gameOver) return
     const { r, c } = active
-    const res = await guess.mutateAsync({ row: r, col: c, playerApiId })
+    const rowCat = grid.rows[r]
+    const colCat = grid.cols[c]
+    if (pick.kind === 'legend') {
+      // Validated client-side: legends aren't in the API player DB.
+      const ok = legendSatisfiesGridCat(pick.legend, rowCat) && legendSatisfiesGridCat(pick.legend, colCat)
+      if (ok) fillCorrect(r, c, { player: pick.legend.name, photoUrl: null, points: LEGEND_POINTS, legend: true })
+      else markWrong()
+      return
+    }
+    const res = await guess.mutateAsync({ row: r, col: c, playerApiId: pick.playerApiId })
     if (res.correct && res.player) {
-      const next = { ...cells, [key(r, c)]: { player: res.player.name, photoUrl: res.player.photoUrl, points: res.points ?? 5 } }
-      persist(next, lives)
-      setBurst(true)
-      setTimeout(() => setBurst(false), 1500)
-      setActive(null)
+      fillCorrect(r, c, { player: res.player.name, photoUrl: res.player.photoUrl, points: res.points ?? 5 })
     } else {
-      const nextLives = lives - 1
-      persist(cells, nextLives)
-      setPickError(true)
-      setTimeout(() => setPickError(false), 1600)
-      if (nextLives <= 0) setActive(null)
+      markWrong()
     }
   }
 
@@ -303,6 +347,10 @@ function GridBoard({ grid }: { grid: DailyGrid }) {
                       <span className="animate-pop-in flex h-full flex-col items-center justify-center gap-1 p-1">
                         {v.photoUrl ? (
                           <img src={v.photoUrl} alt="" className="h-12 w-12 rounded-full bg-white/20 object-cover ring-2 ring-white shadow-md" />
+                        ) : v.legend ? (
+                          <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-400/25 ring-2 ring-amber-300">
+                            <Crown className="h-6 w-6 text-amber-200" />
+                          </div>
                         ) : (
                           <div className="grid h-12 w-12 place-items-center rounded-full bg-white/25 ring-2 ring-white">
                             <Check className="h-6 w-6 text-white" />

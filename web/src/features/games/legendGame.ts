@@ -1,4 +1,6 @@
 import { allLegends, legendClubKeys, sharedClubs, type Legend } from './legends'
+import { LEGEND_CLUB_LOGO } from './legendClubLogos'
+import { TEAM_LEAGUE } from './legendClubLeague'
 
 // Deterministic per-day puzzles from the curated legends dataset — fully
 // client-side, no API. Same date → same puzzle for everyone.
@@ -130,3 +132,50 @@ export function legendWhoQuiz(date: string, n = 10): LegendWhoQuestion[] {
 export function todayUtc(): string {
   return new Date().toISOString().slice(0, 10)
 }
+
+// ── Legends as answers in Kare Bulmaca ──────────────────────────────────────
+// Legends aren't in the API player DB, so the grid picker also searches them and
+// validates client-side. A legend's clubs resolve to api ids (LEGEND_CLUB_LOGO)
+// and, for league cells, to a domestic league (TEAM_LEAGUE). Nationality matches
+// the (Turkish) category label; position is only known for goalkeepers.
+export function searchLegends(term: string, limit = 6): Legend[] {
+  const q = term.trim().toLocaleLowerCase('tr')
+  if (q.length < 2) return []
+  const out: Legend[] = []
+  for (const l of allLegends()) {
+    if (l.name.toLocaleLowerCase('tr').includes(q)) {
+      out.push(l)
+      if (out.length >= limit) break
+    }
+  }
+  return out
+}
+
+function legendClubApiIds(l: Legend): number[] {
+  const ids: number[] = []
+  for (const c of l.clubs) {
+    const id = LEGEND_CLUB_LOGO[c.name]
+    if (id && !ids.includes(id)) ids.push(id)
+  }
+  return ids
+}
+
+export type GridCatLite = {
+  kind: 'club' | 'nat' | 'league' | 'pos'
+  label: string
+  teamApiId: number | null
+  leagueApiId: number | null
+}
+
+export function legendSatisfiesGridCat(l: Legend, cat: GridCatLite): boolean {
+  const ids = legendClubApiIds(l)
+  if (cat.kind === 'club') return cat.teamApiId != null && ids.includes(cat.teamApiId)
+  if (cat.kind === 'league') return cat.leagueApiId != null && ids.some((id) => TEAM_LEAGUE[id] === cat.leagueApiId)
+  if (cat.kind === 'nat') {
+    const catCountry = cat.label.replace(/[^\p{L}\s]/gu, '').trim().toLocaleLowerCase('tr')
+    return l.country.toLocaleLowerCase('tr') === catCountry
+  }
+  if (cat.kind === 'pos') return l.isGoalkeeper && /kaleci/i.test(cat.label)
+  return false
+}
+
