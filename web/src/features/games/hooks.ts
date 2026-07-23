@@ -7,6 +7,7 @@ import type {
   GoalGuessResult,
   CareerQuestion,
   CareerGuessResult,
+  CareerWhoQuestion,
 } from './types'
 
 // The day's Kare Bulmaca grid (categories only; answers stay on the server).
@@ -55,5 +56,14 @@ export function useCareerGuess() {
   return useMutation({
     mutationFn: (v: { playerAApiId: number; playerBApiId: number; teamApiId: number }) =>
       api.post<CareerGuessResult>('/games/career/guess', v),
+  })
+}
+
+// "Kariyer Kimin?" — current-player variant (clubs come with api ids for crests).
+export function useCareerWhoQuiz() {
+  return useQuery({
+    queryKey: ['games', 'career-who'],
+    queryFn: () => api.get<{ date: string; questions: CareerWhoQuestion[] }>('/games/career-who'),
+    staleTime: 1000 * 60 * 30,
   })
 }

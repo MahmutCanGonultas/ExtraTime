@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
 import { getDailyGridPublic, validateGridGuess } from './grid.service'
 import { getDailyGoalQuiz, checkGoalGuess } from './goal.service'
-import { getDailyCareerQuiz, checkCareerGuess } from './career.service'
+import { getDailyCareerQuiz, checkCareerGuess, careerWhoQuiz } from './career.service'
 
 export const gamesRouter = Router()
 
@@ -63,6 +63,14 @@ gamesRouter.get(
   '/games/career',
   asyncHandler(async (_req, res) => {
     res.json({ date: todayUtc(), questions: await getDailyCareerQuiz(todayUtc()) })
+  }),
+)
+
+// GET /api/v1/games/career-who — "Kariyer Kimin?" for current players (with crests).
+gamesRouter.get(
+  '/games/career-who',
+  asyncHandler(async (_req, res) => {
+    res.json({ date: todayUtc(), questions: await careerWhoQuiz(todayUtc()) })
   }),
 )
 

@@ -146,6 +146,44 @@ export async function getDailyCareerQuiz(date: string): Promise<CareerQuestion[]
   return questions
 }
 
+// ── "Kariyer Kimin?" — güncel oyuncular ─────────────────────────────────────
+// Guess a current player from their club career. Clubs are api-id based, so the
+// client shows real crests. Deterministic per day (same pool as the pair quiz).
+export interface CareerWhoQuestion {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  clubs: { teamApiId: number; teamName: string }[]
+  options: string[]
+}
+
+export async function careerWhoQuiz(date: string, n = 10): Promise<CareerWhoQuestion[]> {
+  const pool = await loadPool()
+  if (pool.length === 0) return []
+  const rnd = seededRng(`careerwho#${date}`)
+  const picked = shuffle(pool, rnd).slice(0, Math.min(n * 2, pool.length)) // extra, some get filtered
+  const out: CareerWhoQuestion[] = []
+  for (const p of picked) {
+    if (out.length >= n) break
+    const clubs = [...p.clubs.entries()].map(([teamApiId, teamName]) => ({ teamApiId, teamName }))
+    if (clubs.length < 2) continue
+    const decoys: string[] = []
+    for (const d of shuffle(pool, seededRng(`cwd#${date}#${p.apiId}`))) {
+      if (decoys.length >= 3) break
+      if (d.name !== p.name && !decoys.includes(d.name)) decoys.push(d.name)
+    }
+    if (decoys.length < 3) continue
+    out.push({
+      playerApiId: p.apiId,
+      name: p.name,
+      photoUrl: p.photo,
+      clubs,
+      options: shuffle([p.name, ...decoys], seededRng(`cwo#${date}#${p.apiId}`)),
+    })
+  }
+  return out
+}
+
 // Validate: return the clubs both players actually share, so the client can
 // mark the correct option (decoys are non-shared by construction).
 export async function checkCareerGuess(

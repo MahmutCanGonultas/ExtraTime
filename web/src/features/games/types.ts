@@ -66,3 +66,12 @@ export interface CareerGuessResult {
   correct: boolean
   sharedTeamApiIds: number[]
 }
+
+// ── Kariyer Kimin? — current players (with crests) ──────────────────────────
+export interface CareerWhoQuestion {
+  playerApiId: number
+  name: string
+  photoUrl: string | null
+  clubs: { teamApiId: number; teamName: string }[]
+  options: string[]
+}
