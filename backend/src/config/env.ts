@@ -33,6 +33,12 @@ const envSchema = z
 
     CORS_ORIGIN: z.string().default('*'),
 
+    // Kill switch. Set MAINTENANCE_MODE=1 (or true/on) on the host and every API
+    // call answers 503; the frontend turns that into a full-screen "server error"
+    // page. Delete the variable to bring the site back. Nothing is destroyed —
+    // predictions, scores and data all sit untouched while it's on.
+    MAINTENANCE_MODE: z.string().optional(),
+
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -64,6 +70,14 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data
+
+// The owner's maintenance kill switch, resolved once at boot. Only explicit truthy
+// spellings enable it — so a leftover "0"/"false" doesn't accidentally take the
+// site down. Flip by setting/removing MAINTENANCE_MODE on the host (a restart
+// re-reads it).
+export const maintenanceMode = ['1', 'true', 'on', 'yes'].includes(
+  (env.MAINTENANCE_MODE ?? '').toLowerCase(),
+)
 
 // Reflecting every origin is only safe here because auth is a Bearer token (not a
 // cookie), but it's still a hardening gap — warn loudly in prod so the owner sets

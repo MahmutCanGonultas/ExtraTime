@@ -2,6 +2,7 @@
 // backend's consistent { error: { code, message } } shape, and never talks to
 // API-Football directly (everything goes through our own API).
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage'
+import { markSiteDown } from '@/lib/siteStatus'
 
 const TOKEN_KEY = 'extratime_token'
 
@@ -41,6 +42,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   })
+
+  // 503 = the backend's maintenance kill switch (or a genuine outage). Flip the
+  // whole app to the offline page rather than surfacing a per-widget error.
+  if (res.status === 503) markSiteDown()
 
   if (res.status === 204) return undefined as T
 

@@ -1,12 +1,24 @@
-import express from 'express'
+import express, { type Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
-import { env } from './config/env'
+import { env, maintenanceMode } from './config/env'
 import { logger } from './lib/logger'
 import { healthRouter } from './features/health/health.routes'
+import { isMaintenanceOn } from './features/admin/maintenance'
 import v1Router from './api/v1'
 import { errorHandler, notFoundHandler } from './lib/middleware/error'
+
+// The whole-site "server error" response. Sent for every API call while maintenance
+// is on; the frontend turns a 503 into a full-screen offline page.
+function respondUnavailable(res: Response): void {
+  res.status(503).json({
+    error: {
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'Sunucuya şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.',
+    },
+  })
+}
 
 export function createApp() {
   const app = express()
@@ -31,7 +43,25 @@ export function createApp() {
   app.use(pinoHttp({ logger }))
 
   // Health lives outside /api/v1 so pingers and the platform hit a stable path.
+  // Kept alive even during maintenance so the host doesn't mark the service dead
+  // and restart-loop it.
   app.use('/health', healthRouter)
+
+  // Maintenance kill switch. The site can be taken down two ways: the MAINTENANCE_MODE
+  // env var (a hard host-level override, read once at boot) or the runtime app_flags
+  // 'maintenance' flag (flipped with one DB write, no redeploy). When either is on,
+  // every /api/v1 request answers 503 and the frontend shows a full-screen "server
+  // error" page. Data is untouched — clear the var/flag to restore. /health above is
+  // left alive so the host won't mark the service dead and restart-loop it.
+  if (maintenanceMode) {
+    logger.warn('MAINTENANCE_MODE env is ON — all /api/v1 requests will return 503')
+  }
+  app.use('/api/v1', (_req, res, next) => {
+    if (maintenanceMode) return respondUnavailable(res)
+    isMaintenanceOn()
+      .then((on) => (on ? respondUnavailable(res) : next()))
+      .catch(() => next())
+  })
 
   app.use('/api/v1', v1Router)
 

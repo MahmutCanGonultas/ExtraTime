@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { SiteGate } from '@/components/SiteGate'
 
 // The browser tab always reads just the brand (plus its logo favicon), never a
 // per-page prefix.
@@ -43,6 +44,7 @@ import { YasalPage } from '@/pages/YasalPage'
 export function App() {
   return (
     <ErrorBoundary>
+      <SiteGate>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
         <BrowserRouter>
@@ -85,6 +87,7 @@ export function App() {
         </BrowserRouter>
         </AuthProvider>
       </QueryClientProvider>
+      </SiteGate>
     </ErrorBoundary>
   )
 }
