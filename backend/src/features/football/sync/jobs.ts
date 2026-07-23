@@ -319,6 +319,40 @@ async function runLiveScores(): Promise<SyncResult> {
   })
 }
 
+// Safety net for the "stuck live" bug. syncResults is date=today-bounded and the
+// live sync is group-only + within 5h of kickoff, so a suspended/abandoned match —
+// or one that only resolved to FT after the UTC day rolled over — can freeze in a
+// live status forever and keep showing as "live". This sweep re-fetches every
+// fixture still in a live status long after kickoff and writes its real status.
+// It costs nothing when nothing is stuck (~1 request per 20 stale fixtures otherwise).
+export async function syncStaleLiveFixtures(): Promise<SyncResult> {
+  return runJob('stale-live', async () => {
+    const { rows } = await query<{ apiId: number }>(
+      `SELECT api_football_id AS "apiId" FROM fixtures
+       WHERE status = ANY($1) AND kickoff_at < now() - interval '5 hours'
+       ORDER BY kickoff_at`,
+      [LIVE_STATUSES],
+    )
+    let updated = 0
+    const apiIds = rows.map((r) => r.apiId)
+    for (let i = 0; i < apiIds.length; i += 20) {
+      const batch = apiIds.slice(i, i + 20)
+      const raws = await apiFootballGet<RawFixture[]>('fixtures', { ids: batch.join('-') })
+      for (const raw of raws) {
+        if (await updateFixtureFromRaw(raw)) updated += 1
+      }
+    }
+    // Last resort: if the API itself is still frozen on a live status 8h+ after
+    // kickoff, mark it abandoned so a match can never be broadcast as live forever.
+    const coerced = await query(
+      `UPDATE fixtures SET status = 'ABD', updated_at = now()
+       WHERE status = ANY($1) AND kickoff_at < now() - interval '8 hours'`,
+      [LIVE_STATUSES],
+    )
+    return updated + (coerced.rowCount ?? 0)
+  })
+}
+
 // Detailed summary (events + statistics) for one finished fixture. Two requests.
 export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number): Promise<number> {
   const client = await getPool()!.connect()

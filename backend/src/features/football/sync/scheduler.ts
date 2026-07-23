@@ -5,6 +5,7 @@ import {
   syncFixtures,
   syncLiveScores,
   syncRecentMatchDetails,
+  syncStaleLiveFixtures,
   syncStandings,
   syncTopAssists,
   syncTopScorers,
@@ -33,6 +34,11 @@ export function startScheduler(): void {
   // Detailed summaries: enrich newly-finished matches shortly after results, a
   // bounded batch each run so it stays within budget.
   cron.schedule('20 18-23 * * *', () => void syncRecentMatchDetails())
+
+  // Hourly safety net: unstick any fixture frozen in a live status long after
+  // kickoff (suspended/abandoned matches, or ones that finished after the UTC day
+  // rolled over). Costs zero API requests when nothing is stuck.
+  cron.schedule('10 * * * *', () => void syncStaleLiveFixtures())
 
   // Every minute: refresh live GROUP-match scores, then settle any match that has
   // just finished so points + standings + weekly champions update automatically,

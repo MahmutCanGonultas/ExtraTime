@@ -14,6 +14,7 @@ import {
   seedLeaguesJob,
   syncFixtures,
   syncLiveScores,
+  syncStaleLiveFixtures,
   syncStandings,
   syncTopAssists,
   syncTopScorers,
@@ -331,6 +332,10 @@ adminRouter.post(
 adminRouter.post(
   '/sync/results',
   asyncHandler(async (_req, res) => res.json(await syncResultsAndSettle())),
+)
+adminRouter.post(
+  '/sync/stale-live',
+  asyncHandler(async (_req, res) => res.json(await syncStaleLiveFixtures())),
 )
 
 adminRouter.post(
