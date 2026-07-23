@@ -1024,6 +1024,15 @@ export interface PlayerCareer {
   clubs: Array<{ teamApiId: number | null; teamName: string; since: string | null }>
 }
 
+// True when we already hold this player — used to gate the lazy transfer fetch so
+// an untrusted caller can't spend API-Football budget on arbitrary/unknown ids.
+export async function hasPlayer(playerApiId: number): Promise<boolean> {
+  const { rowCount } = await query(`SELECT 1 FROM players WHERE player_api_id = $1 LIMIT 1`, [
+    playerApiId,
+  ])
+  return (rowCount ?? 0) > 0
+}
+
 export async function hasTransferSync(playerApiId: number): Promise<boolean> {
   const { rowCount } = await query(`SELECT 1 FROM player_transfer_sync WHERE player_api_id = $1`, [
     playerApiId,

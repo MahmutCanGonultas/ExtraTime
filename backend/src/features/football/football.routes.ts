@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
+import { requireAuth } from '../auth/requireAuth'
 import { AppError } from '../../lib/errors'
 import * as repo from './football.repository'
 import { getTeamHonours } from './teamTrophies'
@@ -9,6 +10,9 @@ import { syncPlayerTransfers } from './sync/jobs'
 import { logger } from '../../lib/logger'
 
 export const footballRouter = Router()
+// Browse data is behind login (the whole app is), and this also shields the lazy
+// player-career transfer fetch from anonymous callers spending API budget.
+footballRouter.use(requireAuth)
 
 const idSchema = z.coerce.number().int().positive()
 
@@ -133,7 +137,9 @@ footballRouter.get(
   '/players/:apiId/career',
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.apiId)
-    if (!(await repo.hasTransferSync(id))) {
+    // Only lazy-fill for a player we actually hold, so random/unknown ids can never
+    // drive an API-Football request (budget protection + cache-first invariant).
+    if ((await repo.hasPlayer(id)) && !(await repo.hasTransferSync(id))) {
       try {
         await syncPlayerTransfers(id)
       } catch (err) {

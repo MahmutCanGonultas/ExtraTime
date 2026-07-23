@@ -1,11 +1,15 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler } from '../../lib/middleware/async'
+import { requireAuth } from '../auth/requireAuth'
 import { getDailyGridPublic, validateGridGuess } from './grid.service'
 import { getDailyGoalQuiz, checkGoalGuess } from './goal.service'
 import { getDailyCareerQuiz, checkCareerGuess, careerWhoQuiz } from './career.service'
 
 export const gamesRouter = Router()
+// The games are login-only features; requiring auth also keeps the lazy transfer
+// fetch (grid guesses) off the reach of anonymous callers.
+gamesRouter.use(requireAuth)
 
 // Today's grid key in UTC, so every friend sees the same puzzle regardless of
 // where they open it (matches the app's UTC-everywhere rule).

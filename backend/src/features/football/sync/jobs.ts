@@ -112,6 +112,13 @@ async function perLeague(
   let total = 0
   for (const league of leagues) {
     const client = await getPool()!.connect()
+    // fn holds this client across a slow API round-trip; if Neon drops the idle
+    // socket meanwhile the client emits 'error' with no listener (pg-pool removes
+    // its own while checked out) → uncaughtException → whole-process crash. Guard
+    // it, mirroring syncFixtureDetail / the live-events block.
+    const onError = (err: unknown) =>
+      logger.error({ err, league: league.api_football_id }, 'perLeague client error')
+    client.on('error', onError)
     try {
       await client.query('BEGIN')
       total += await fn(client, league)
@@ -120,6 +127,7 @@ async function perLeague(
       await client.query('ROLLBACK').catch(() => {})
       logger.error({ err, league: league.api_football_id }, 'League sync failed; rolled back')
     } finally {
+      client.off('error', onError)
       client.release()
     }
   }
@@ -422,6 +430,9 @@ export async function syncPlayersFor(
     // the slow API calls can't terminate a long backfill mid-way.
     n += await withDbRetry(async () => {
       const client = await getPool()!.connect()
+      const onError = (err: unknown) =>
+        logger.error({ err, leagueId, season }, 'players client error')
+      client.on('error', onError)
       try {
         let cnt = 0
         for (const raw of body.response) {
@@ -429,6 +440,7 @@ export async function syncPlayersFor(
         }
         return cnt
       } finally {
+        client.off('error', onError)
         client.release()
       }
     })

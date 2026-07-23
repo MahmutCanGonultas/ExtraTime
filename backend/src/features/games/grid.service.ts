@@ -271,7 +271,10 @@ export async function validateGridGuess(
   if (!rowCat || !colCat) return { correct: false }
   // Lazily fill this player's full career the first time they're guessed (1 API
   // request, cached forever), so historical clubs/leagues count. Cache-first.
-  if (!(await hasTransferSync(playerApiId))) {
+  // Gate the API call on the id EXISTING in our player set, so an untrusted caller
+  // spraying random integer ids can never drive an API-Football request (budget).
+  const known = await query(`SELECT 1 FROM players WHERE player_api_id = $1 LIMIT 1`, [playerApiId])
+  if ((known.rowCount ?? 0) > 0 && !(await hasTransferSync(playerApiId))) {
     try {
       await syncPlayerTransfers(playerApiId)
     } catch {
