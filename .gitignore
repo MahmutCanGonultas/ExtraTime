@@ -36,3 +36,9 @@ backend/_*.ts
 backend/_*.mjs
 backend/_*.out
 web/_*.ts
+
+# Local-only working notes — never publish
+CLAUDE.md
+docs/yol-haritasi.md
+docs/yol-haritasi.pdf
+docs/senin-yapman-gerekenler.md
