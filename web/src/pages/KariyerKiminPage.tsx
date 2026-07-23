@@ -5,6 +5,8 @@ import { safeGetItem, safeSetItem } from '@/lib/storage'
 import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/ui'
 import { legendWhoQuiz, todayUtc, type LegendWhoQuestion } from '@/features/games/legendGame'
 import { countryFlag } from '@/features/games/legendFlags'
+import { LEGEND_CLUB_LOGO } from '@/features/games/legendClubLogos'
+import { TeamLogo } from '@/components/TeamLogo'
 
 const THEME = GAME_THEMES.legends
 const START_SHOWN = 2
@@ -177,17 +179,27 @@ function QuestionCard({
           )}
         </div>
         <ol className="space-y-1.5">
-          {q.legend.clubs.slice(0, visible).map((c, i) => (
-            <li key={i} className="flex items-center gap-2 text-sm">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/20 text-[10px] font-bold text-amber-200">
-                {i + 1}
-              </span>
-              <span className={cn('font-medium', c.loan ? 'text-white/50 italic' : 'text-white')}>
-                {c.name}
-                {c.loan && <span className="ml-1 text-[10px] text-white/40">(kiralık)</span>}
-              </span>
-            </li>
-          ))}
+          {q.legend.clubs.slice(0, visible).map((c, i) => {
+            const logoId = LEGEND_CLUB_LOGO[c.name]
+            return (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/20 text-[10px] font-bold text-amber-200">
+                  {i + 1}
+                </span>
+                {logoId ? (
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-white/90">
+                    <TeamLogo apiId={logoId} size={18} />
+                  </span>
+                ) : (
+                  <span className="h-6 w-6 shrink-0" />
+                )}
+                <span className={cn('font-medium', c.loan ? 'text-white/50 italic' : 'text-white')}>
+                  {c.name}
+                  {c.loan && <span className="ml-1 text-[10px] text-white/40">(kiralık)</span>}
+                </span>
+              </li>
+            )
+          })}
           {visible < total && (
             <li className="text-xs text-white/35">+{total - visible} kulüp gizli…</li>
           )}

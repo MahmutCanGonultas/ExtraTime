@@ -8,6 +8,7 @@ import { ArenaShell, GAME_THEMES, GameHero, GlassPanel } from '@/features/games/
 import type { CareerQuestion } from '@/features/games/types'
 import { legendPairQuiz, pairSharedSet, todayUtc, type LegendPairQuestion } from '@/features/games/legendGame'
 import { countryFlag } from '@/features/games/legendFlags'
+import { LEGEND_CLUB_LOGO } from '@/features/games/legendClubLogos'
 
 const THEME = GAME_THEMES.kariyer
 
@@ -426,9 +427,16 @@ function LegendQuestionCard({
                 key={opt}
                 disabled={!!answer}
                 onClick={() => onPick(opt)}
-                className={cn('flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold text-white transition', tone)}
+                className={cn('flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold text-white transition', tone)}
               >
-                <span>{opt}</span>
+                {LEGEND_CLUB_LOGO[opt] ? (
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-white/90">
+                    <TeamLogo apiId={LEGEND_CLUB_LOGO[opt]} size={18} />
+                  </span>
+                ) : (
+                  <span className="h-6 w-6 shrink-0" />
+                )}
+                <span className="flex-1">{opt}</span>
                 {answer && isCorrectOpt && <Check className="h-5 w-5 text-violet-300" />}
                 {answer && isChosen && !isCorrectOpt && <X className="h-5 w-5 text-rose-400" />}
               </button>
