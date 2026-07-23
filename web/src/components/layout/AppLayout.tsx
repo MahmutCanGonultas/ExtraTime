@@ -341,6 +341,12 @@ function SiteFooter() {
                 onay ilişkisi içinde değildir.
               </p>
             </div>
+            <NavLink
+              to="/yasal"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand-300 transition hover:text-brand-200"
+            >
+              Kullanım Şartları ve Yasal Bilgilendirme'nin tamamını okuyun →
+            </NavLink>
           </div>
           <div className="text-xs text-ink-600 md:text-right">
             <div className="font-medium text-ink-400">Portföy Projesi</div>

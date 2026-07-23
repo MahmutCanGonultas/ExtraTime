@@ -38,6 +38,7 @@ const KariyerKiminPage = lazy(() => import('@/pages/KariyerKiminPage'))
 import { MatchPage } from '@/pages/MatchPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { YasalPage } from '@/pages/YasalPage'
 
 export function App() {
   return (
@@ -74,6 +75,7 @@ export function App() {
                 <Route path="/stats" element={<Navigate to="/" replace />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/yasal" element={<YasalPage />} />
               </Route>
             </Route>
 
