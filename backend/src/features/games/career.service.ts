@@ -43,7 +43,7 @@ async function loadPool(): Promise<PoolPlayer[]> {
      ) AND p.photo_url IS NOT NULL
      GROUP BY p.player_api_id
      HAVING COUNT(DISTINCT p.team_api_id) >= 2
-     ORDER BY SUM(COALESCE(p.appearances, 0)) DESC
+     ORDER BY SUM(COALESCE(p.appearances, 0)) DESC, p.player_api_id
      LIMIT 220`,
     [PROMINENT_TEAMS],
   )

@@ -178,7 +178,8 @@ export default function KareBulmacaPage() {
       ) : isError || !grid ? (
         <div className="grid h-72 place-items-center text-white/50">Izgara yüklenemedi.</div>
       ) : (
-        <GridBoard grid={grid} />
+        // key by date so a new day's grid remounts fresh (no stale cells/lives).
+        <GridBoard key={grid.date} grid={grid} />
       )}
     </ArenaShell>
   )

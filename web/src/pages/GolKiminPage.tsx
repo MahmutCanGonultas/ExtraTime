@@ -27,7 +27,7 @@ export default function GolKiminPage() {
       ) : isError || !data || data.questions.length === 0 ? (
         <div className="grid h-72 place-items-center text-white/50">Quiz yüklenemedi.</div>
       ) : (
-        <Quiz date={data.date} questions={data.questions} />
+        <Quiz key={data.date} date={data.date} questions={data.questions} />
       )}
     </ArenaShell>
   )

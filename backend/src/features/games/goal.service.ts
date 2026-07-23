@@ -83,10 +83,12 @@ async function runningScoreAt(
 async function decoyPool(scorer: string, teamApiIds: number[], leagueApi: number): Promise<string[]> {
   // Decoys from the SAME team that scored (the running score reveals which side),
   // so every option is plausible; fall back to the league if that side is thin.
+  // Stable ORDER BY so the pool (and thus the seeded-shuffled decoys) is identical
+  // on every backend instance — the daily quiz must be the same for the whole group.
   const teamScorers = await query<{ player_name: string }>(
     `SELECT DISTINCT player_name FROM fixture_events
      WHERE type = 'Goal' AND player_name IS NOT NULL AND player_name <> $1
-       AND team_api_id = ANY($2) LIMIT 40`,
+       AND team_api_id = ANY($2) ORDER BY player_name LIMIT 40`,
     [scorer, teamApiIds],
   )
   let names = teamScorers.rows.map((r) => r.player_name)
@@ -96,7 +98,7 @@ async function decoyPool(scorer: string, teamApiIds: number[], leagueApi: number
          JOIN leagues l ON l.id = f.league_id
        WHERE e.type = 'Goal' AND e.player_name IS NOT NULL AND e.player_name <> $1
          AND l.api_football_id = $2
-       GROUP BY player_name ORDER BY COUNT(*) DESC LIMIT 40`,
+       GROUP BY player_name ORDER BY COUNT(*) DESC, player_name LIMIT 40`,
       [scorer, leagueApi],
     )
     names = [...new Set([...names, ...leagueScorers.rows.map((r) => r.player_name)])]
@@ -124,7 +126,7 @@ export async function getDailyGoalQuiz(date: string): Promise<GoalQuestion[]> {
        AND f.status IN ('FT', 'AET', 'PEN')
        AND l.api_football_id = ANY($1)
        AND (ht.api_football_id = ANY($2) OR at.api_football_id = ANY($2))
-     ORDER BY f.kickoff_at DESC
+     ORDER BY f.kickoff_at DESC, e.id
      LIMIT 800`,
     [QUIZ_LEAGUES, PROMINENT_TEAMS],
   )
@@ -133,8 +135,9 @@ export async function getDailyGoalQuiz(date: string): Promise<GoalQuestion[]> {
   const pickedFixtures = new Set<string>()
   const chosen: Candidate[] = []
   for (const c of shuffle(rows, rnd)) {
-    // At most one question per match, so the quiz spans many games.
-    const fx = `${c.home_api}-${c.away_api}-${c.home_score}-${c.away_score}`
+    // At most one question per match (keyed by the fixture itself, so two different
+    // games between the same teams with the same score aren't wrongly merged).
+    const fx = String(c.fixture_id)
     if (pickedFixtures.has(fx)) continue
     pickedFixtures.add(fx)
     chosen.push(c)

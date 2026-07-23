@@ -24,7 +24,7 @@ export default function KariyerKiminPage() {
       {questions.length === 0 ? (
         <div className="grid h-72 place-items-center text-white/50">Yüklenemedi.</div>
       ) : (
-        <Quiz date={date} questions={questions} />
+        <Quiz key={date} date={date} questions={questions} />
       )}
     </ArenaShell>
   )

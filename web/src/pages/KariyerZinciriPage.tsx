@@ -51,7 +51,7 @@ function GuncelMode() {
   if (isLoading) return <div className="grid h-72 place-items-center text-white/50">Yükleniyor…</div>
   if (isError || !data || data.questions.length === 0)
     return <div className="grid h-72 place-items-center text-white/50">Quiz yüklenemedi.</div>
-  return <Quiz date={data.date} questions={data.questions} />
+  return <Quiz key={data.date} date={data.date} questions={data.questions} />
 }
 
 function Quiz({ date, questions }: { date: string; questions: CareerQuestion[] }) {
@@ -280,7 +280,7 @@ function EfsaneMode() {
   const questions = useMemo(() => legendPairQuiz(date, 8), [date])
   if (questions.length === 0)
     return <div className="grid h-72 place-items-center text-white/50">Yüklenemedi.</div>
-  return <LegendQuiz date={date} questions={questions} />
+  return <LegendQuiz key={date} date={date} questions={questions} />
 }
 
 function LegendQuiz({ date, questions }: { date: string; questions: LegendPairQuestion[] }) {
