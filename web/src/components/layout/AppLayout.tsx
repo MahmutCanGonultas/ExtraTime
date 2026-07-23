@@ -311,18 +311,41 @@ function SiteFooter() {
               <BallMark size={18} />
               <span className="text-sm font-bold uppercase tracking-[0.2em] text-ink-200">EXTRATIME</span>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">
-              EXTRATIME, yazılım geliştirme yetkinliklerini sergilemek amacıyla hazırlanmış kişisel
-              bir portföy projesidir. Herhangi bir ticari amaç taşımaz; bahis, kumar ya da her türlü
-              maddi kazanç unsuru içermez ve kullanıcılarından hiçbir finansal beklentisi yoktur.
-              Tahmin oyunu yalnızca arkadaş grupları arasında, tamamen eğlence amacıyla oynanır.
-              Futbol verileri üçüncü taraf servislerden sağlanmakta olup tüm takım adları, logolar ve
-              marka hakları ilgili sahiplerine aittir.
-            </p>
+            <h2 className="mt-3 text-[11px] font-bold uppercase tracking-wide text-ink-300">
+              Yasal Bilgilendirme ve Sorumluluk Reddi
+            </h2>
+            <div className="mt-2 space-y-2 text-xs leading-relaxed text-ink-500">
+              <p>
+                ExtraTime; yazılım geliştirme yetkinliklerini sergilemek amacıyla hazırlanmış,
+                tamamen kişisel, eğitim amaçlı ve <span className="text-ink-400">ticari olmayan</span>{' '}
+                bir portföy projesidir.
+              </p>
+              <p>
+                Bu platform bir <span className="text-ink-300">bahis, kumar, iddaa veya şans oyunu
+                sitesi değildir</span> ve bu nitelikte hiçbir faaliyet yürütmez, buna aracılık etmez.
+                Platformda oran (bahis oranı) sunulmaz; para veya herhangi bir bedel yatırılmaz;
+                ikramiye, ödül ya da maddi kazanç dağıtılmaz. Skor tahmin oyunu yalnızca birbirini
+                tanıyan arkadaş grupları arasında, maddi hiçbir karşılığı bulunmayan sembolik
+                puanlarla ve tamamen eğlence amacıyla oynanır. Bu yönüyle, spor müsabakalarına dayalı
+                bahis ve şans oyunlarını düzenleyen mevzuat (7258 sayılı Kanun) kapsamında bir
+                faaliyet teşkil etmez.
+              </p>
+              <p>
+                Platform herhangi bir ödeme altyapısı içermez; kullanıcılardan ödeme veya finansal
+                bilgi talep etmez ve kullanıcılarından hiçbir finansal beklentisi yoktur.
+              </p>
+              <p>
+                Futbol verileri üçüncü taraf servislerden sağlanmaktadır. Tüm takım adları, logolar,
+                amblemler ve marka hakları ilgili sahiplerine ait olup burada yalnızca tanımlama
+                amacıyla kullanılmaktadır; ExtraTime bu markalarla resmî bir bağlantı, ortaklık veya
+                onay ilişkisi içinde değildir.
+              </p>
+            </div>
           </div>
           <div className="text-xs text-ink-600 md:text-right">
             <div className="font-medium text-ink-400">Portföy Projesi</div>
             <div className="mt-1">Ticari amaç güdülmez</div>
+            <div className="mt-1 text-ink-500">Bahis / kumar değildir</div>
             <div className="mt-3 text-ink-600">© {year} EXTRATIME</div>
           </div>
         </div>

@@ -128,6 +128,13 @@ export function AuthShell({
           </div>
 
           {footer && <div className="mt-6 text-center text-sm text-ink-400">{footer}</div>}
+
+          {/* Always-visible legal note — this is the public entry point. */}
+          <p className="mx-auto mt-6 max-w-sm text-center text-[11px] leading-relaxed text-ink-500">
+            ExtraTime kişisel, ticari olmayan bir portföy projesidir; bahis, kumar, iddaa veya şans
+            oyunu <span className="text-ink-400">değildir</span>. Skor tahmini yalnızca arkadaş
+            grupları arasında, maddi hiçbir karşılığı olmadan, tamamen eğlence amacıyla oynanır.
+          </p>
         </div>
       </main>
     </div>
