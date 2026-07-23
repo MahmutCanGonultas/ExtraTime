@@ -18,6 +18,27 @@ function shortDate(iso: string): string {
 }
 const shortLeague = (name: string) => name.replace(/^UEFA\s+/i, '')
 
+// Per-competition accent, so each card carries a subtle tone of its league
+// instead of every row being the same grey-blue.
+const LEAGUE_ACCENT: Record<number, string> = {
+  39: '#8b5cf6', // Premier League
+  140: '#f97316', // La Liga
+  78: '#ef4444', // Bundesliga
+  135: '#3b82f6', // Serie A
+  61: '#14b8a6', // Ligue 1
+  203: '#f43f5e', // Süper Lig
+  2: '#22d3ee', // Şampiyonlar Ligi
+  3: '#fb923c', // Avrupa Ligi
+  848: '#4ade80', // Konferans Ligi
+  1: '#38bdf8', // Dünya Kupası
+  253: '#a855f7', // MLS
+  307: '#10b981', // Suudi
+}
+function wash(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
 function TeamLine({ team, score, dim, win }: { team: Fixture['home']; score: number | null; dim: boolean; win: boolean }) {
   return (
     <div className="flex items-center gap-2">
@@ -46,10 +67,13 @@ export function FixtureRow({
   const showScore = finished || live
   const homeWon = finished && (fixture.homeScore ?? 0) > (fixture.awayScore ?? 0)
   const awayWon = finished && (fixture.awayScore ?? 0) > (fixture.homeScore ?? 0)
+  const accent = LEAGUE_ACCENT[fixture.leagueApiId] ?? '#64748b'
+  const isDefault = !live && !isGroup
 
   return (
     <Link
       to={`/matches/${fixture.id}`}
+      style={isDefault ? { backgroundImage: `linear-gradient(90deg, ${wash(accent, 0.14)}, ${wash(accent, 0.03)} 55%, rgba(28,41,66,0.45))` } : undefined}
       className={cn(
         'group relative flex items-center gap-3 overflow-hidden rounded-xl border px-3.5 py-2.5 shadow-sm transition',
         'hover:-translate-y-px hover:shadow-md',
@@ -57,11 +81,14 @@ export function FixtureRow({
           ? 'border-loss/40 bg-gradient-to-r from-loss/[0.12] to-loss/[0.03] hover:border-loss/60'
           : isGroup
             ? 'border-brand-500/40 bg-gradient-to-r from-brand-500/[0.13] to-brand-500/[0.03] hover:border-brand-500/60'
-            : 'border-ink-800 bg-gradient-to-r from-ink-850 to-ink-850/50 hover:border-ink-700 hover:from-ink-800',
+            : 'border-ink-800 hover:border-ink-700 hover:brightness-110',
       )}
     >
-      {/* left accent stripe */}
-      <span className={cn('absolute inset-y-0 left-0 w-1', live ? 'bg-loss' : isGroup ? 'bg-brand-500' : 'bg-ink-700 group-hover:bg-ink-600')} />
+      {/* left accent stripe — league-coloured on normal rows */}
+      <span
+        className={cn('absolute inset-y-0 left-0 w-1', live ? 'bg-loss' : isGroup ? 'bg-brand-500' : '')}
+        style={isDefault ? { backgroundColor: accent } : undefined}
+      />
 
       <div className="min-w-0 flex-1 space-y-1.5 pl-1">
         {(showLeague || isGroup) && (
