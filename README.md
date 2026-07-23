@@ -1,8 +1,8 @@
 # ExtraTime
 
 A full-stack football companion for a small group of friends: browse real league data,
-run a season-long score-prediction game with your friends, play a couple of football
-guessing games, and track everyone's form with charts.
+run a season-long score-prediction game with your friends, play a handful of daily
+football games, and track everyone's form with charts.
 
 The interface is in Turkish; the codebase is in English.
 
@@ -61,10 +61,24 @@ League and the World Cup.
 
 ### Extra games
 
+Most of these are **daily** puzzles: everyone in the group gets the same one (generated
+deterministically from a date seed) and progress is kept per day.
+
+- **Kare Bulmaca** — a 3×3 immaculate grid. Name a player who fits both a row and a column
+  category (club × nationality × league × position); rarer answers score more, 3 lives.
+- **Gol Kimin?** — a real match with the running score at the moment of a goal and its minute;
+  pick who scored from four options.
+- **Kariyer Zinciri** — find the club two players both turned out for.
+- **Kariyer Kimin?** — a player's club career is revealed one club at a time; guess who it is,
+  earlier for more points.
 - **Kim Bu?** — guess the player from a censored photo that opens with each wrong guess. Every
   guess is scored on nationality (with flag), position, team, league, age and shirt number.
 - **Kadro Kur** — a visual line-up builder: pick a formation, drop in any player, or load a
   team's current squad as a starting XI.
+
+Kariyer Zinciri, Kariyer Kimin and Kare Bulmaca also draw on a hand-curated **Futbol
+Efsaneleri** set — 598 retired greats with their full club careers — so legends like Maradona
+and Zidane show up alongside today's players.
 
 ### Under the hood
 
@@ -72,6 +86,9 @@ League and the World Cup.
   Postgres cache and everything is served from there.
 - **Current squads, daily** — rosters are refreshed every day from live squad data, so
   transfers show up during the window.
+- **Runs unattended** — cron jobs broadcast live group scores, settle finished matches and
+  self-heal fixtures stuck in a live state; the daily API budget is enforced end to end, so
+  the app keeps itself correct with nobody watching.
 
 ## Architecture — "four houses"
 
