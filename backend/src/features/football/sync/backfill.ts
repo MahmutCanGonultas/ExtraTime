@@ -8,12 +8,21 @@ import {
 import { isRestrictedPlan } from '../../../lib/api-football/plan'
 import { getPool, query } from '../../../db/pool'
 import { logger } from '../../../lib/logger'
-import type { RawTeamInfo, RawTopScorer, RawStandingsLeague } from '../types'
+import type { RawFixture, RawTeamInfo, RawTopScorer, RawStandingsLeague } from '../types'
 import { CONFIGURED_LEAGUE_API_IDS, DOMESTIC_CUP_API_IDS } from '../leagues.config'
-import { replaceTopAssists, replaceTopScorers, upsertStanding, upsertTeam } from './upserts'
+import {
+  collectTeams,
+  replaceTopAssists,
+  replaceTopScorers,
+  upsertFixturesBatch,
+  upsertStanding,
+  upsertTeam,
+  upsertTeamsBatch,
+} from './upserts'
 import {
   backfillCurrentSquadProfiles,
   runSyncJob,
+  syncCurrentSquads,
   syncFixtureDetail,
   syncPlayerProfiles,
   syncPlayersFor,
@@ -133,7 +142,8 @@ async function backfillTeamVenues(b: BackfillBudget): Promise<number> {
        AND EXISTS (
          SELECT 1 FROM fixtures f
          JOIN teams t ON t.id IN (f.home_team_id, f.away_team_id)
-         WHERE f.league_id = l.id AND t.stadium_name IS NULL
+         WHERE f.league_id = l.id
+           AND (t.stadium_name IS NULL OR t.founded IS NULL OR t.venue_image IS NULL)
        )
      ORDER BY l.season DESC, l.api_football_id`,
     [CONFIGURED_LEAGUE_API_IDS],
@@ -163,9 +173,17 @@ async function backfillTeamVenues(b: BackfillBudget): Promise<number> {
     try {
       for (const t of teams) {
         if (!t.team?.id || !t.team.name) continue
+        // The same response already carries the club's country, founding year and
+        // its ground's capacity and photograph. Not storing them is why 1,432 team
+        // pages show a generic gradient where a stadium should be — the request
+        // was always being paid for.
         await upsertTeam(client, t.team.id, t.team.name, {
           stadium: t.venue?.name ?? null,
           city: t.venue?.city ?? null,
+          country: t.team.country ?? null,
+          founded: t.team.founded ?? null,
+          capacity: t.venue?.capacity ?? null,
+          venueImage: t.venue?.image ?? null,
         })
         // Count what we actually learned, not every row we touched: a league is
         // re-read for the sake of a handful of teams, and reporting the whole
@@ -177,6 +195,111 @@ async function backfillTeamVenues(b: BackfillBudget): Promise<number> {
     }
   }
   return filled
+}
+
+/**
+ * Whole seasons that hold no fixtures at all — one request each, and the best
+ * value on this ladder by a distance.
+ *
+ * More than half the league-seasons the season switcher offers are completely
+ * empty: pick Premier League 2021/22 or Championship 2024/25 and all four tabs
+ * say "no data" at once. Eighty-five requests fills them, and every one of those
+ * pages then works forever, including after the plan drops — the free plan
+ * refuses `league`+`season` outright, so this is a door that closes on 25
+ * September and does not open again.
+ */
+async function backfillSeasonFixtures(b: BackfillBudget): Promise<number> {
+  const skip = await skipRecentlyTried('season-fixtures', 7)
+  const { rows } = await query<{ id: number; api_football_id: number; season: number }>(
+    `SELECT l.id, l.api_football_id, l.season
+     FROM leagues l
+     WHERE l.api_football_id = ANY($1)
+       AND NOT EXISTS (SELECT 1 FROM fixtures f WHERE f.league_id = l.id)
+     ORDER BY l.season DESC, l.api_football_id`,
+    [CONFIGURED_LEAGUE_API_IDS],
+  )
+  let done = 0
+  for (const l of rows) {
+    if (skip.has(l.id)) continue
+    if (!alive(b)) break
+
+    let fixtures: RawFixture[]
+    try {
+      fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
+        league: l.api_football_id,
+        season: l.season,
+      })
+    } catch (err) {
+      if (isAccountError(err)) return done
+      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Season fixtures fetch failed')
+      await markTried('season-fixtures', [l.id])
+      continue
+    }
+    await markTried('season-fixtures', [l.id])
+    // A season the API has nothing for (a cup draw not yet published) is recorded
+    // and retried in a week, not hammered.
+    if (fixtures.length === 0) continue
+
+    const client = await getPool()!.connect()
+    const onError = (err: unknown) =>
+      logger.error({ err, leagueId: l.id }, 'season-fixtures client error')
+    client.on('error', onError)
+    try {
+      await client.query('BEGIN')
+      const teamIds = await upsertTeamsBatch(client, collectTeams(fixtures))
+      await upsertFixturesBatch(client, l.id, fixtures, teamIds)
+      await client.query('COMMIT')
+      done += 1
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {})
+      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Season fixtures write failed')
+    } finally {
+      client.off('error', onError)
+      client.release()
+    }
+  }
+  return done
+}
+
+/**
+ * Squads for clubs we know about but hold no players for — one request each.
+ *
+ * 1,246 of the 1,743 clubs a user can click through to from a fixture have no
+ * squad row at all. Every cup opponent — 1461 Trabzon, Adanaspor, Altınordu —
+ * opens a team page that says "Kadro verisi yok" and stops there. players/squads
+ * returns name, shirt number, age, position and photo, which is everything both
+ * squad views actually render.
+ */
+async function backfillClubSquads(b: BackfillBudget, cap = 60): Promise<number> {
+  const skip = await skipRecentlyTried('squads', 30)
+  const { rows } = await query<{ id: number; team_api_id: number; league_id: number }>(
+    `SELECT t.id, t.api_football_id AS team_api_id, x.league_id
+     FROM teams t
+     JOIN LATERAL (
+       SELECT f.league_id
+       FROM fixtures f
+       WHERE f.home_team_id = t.id OR f.away_team_id = t.id
+       ORDER BY f.kickoff_at DESC
+       LIMIT 1
+     ) x ON true
+     WHERE NOT EXISTS (SELECT 1 FROM players p WHERE p.team_api_id = t.api_football_id)
+     LIMIT $1`,
+    [cap],
+  )
+  let done = 0
+  for (const t of rows) {
+    if (skip.has(t.id)) continue
+    if (!alive(b)) break
+    try {
+      const n = await syncCurrentSquads([{ teamApiId: t.team_api_id, leagueId: t.league_id }])
+      if (n > 0) done += 1
+    } catch (err) {
+      if (isAccountError(err)) return done
+      logger.warn({ err, teamApiId: t.team_api_id }, 'Squad backfill failed')
+    }
+    await markTried('squads', [t.id])
+  }
+  return done
 }
 
 /**
@@ -399,10 +522,18 @@ async function backfillPlayerProfiles(b: BackfillBudget, cap = 300): Promise<num
     // which fills nationality for ~500 players in ~30 requests. Asking
     // players/profiles one player at a time before that has happened is sixty times
     // the cost for the same field — the first run spent 104 requests to fill nine.
-    `SELECT DISTINCT player_api_id FROM players
-     WHERE season = (SELECT max(season) FROM players)
-       AND nationality IS NULL
-       AND appearances IS NOT NULL
+    // Eligible once the cheap route has had its chance at this player's
+    // league-season — either it worked (appearances filled) or it was tried and
+    // could not (a cup, where the paginated players endpoint returns nothing).
+    // Without the second half, a player in a competition with no roster feed would
+    // wait behind a rung that is never going to reach him.
+    `SELECT DISTINCT p.player_api_id FROM players p
+     WHERE p.season = (SELECT max(season) FROM players)
+       AND p.nationality IS NULL
+       AND (
+         p.appearances IS NOT NULL
+         OR EXISTS (SELECT 1 FROM backfill_attempts a WHERE a.scope = 'rosters' AND a.ref_id = p.league_id)
+       )
      LIMIT $1`,
     [cap],
   )
@@ -502,12 +633,16 @@ export async function backfillJob(
       // steps converge in a run or two and then cost nothing, handing their share
       // to the long queues below them.
       done.venues = await backfillTeamVenues(share(budget, 0.15))
+      // Whole empty seasons next: one request buys a league-season that currently
+      // renders four empty tabs, which is the best exchange rate on the ladder.
+      if (alive(budget)) done.seasonFixtures = await backfillSeasonFixtures(share(budget, 0.25))
       if (alive(budget)) done.pastSeasons = await backfillPastSeasons(share(budget, 0.15))
       // Rosters before match detail, despite the far shorter queue — precisely
       // because it is short and dense. ~30 requests fills a whole league-season of
       // 500 player pages; match detail buys one match per two requests, and its
       // four-thousand-item queue would otherwise make the players wait a week.
       if (alive(budget)) done.players = await backfillPlayers(share(budget, 0.4))
+      if (alive(budget)) done.squads = await backfillClubSquads(share(budget, 0.4))
       if (alive(budget)) done.matchDetails = await backfillMatchDetails(share(budget, 0.6))
       if (alive(budget)) done.profiles = await backfillPlayerProfiles(share(budget, 0.5))
       if (alive(budget)) done.transfers = await backfillTransfers(budget)

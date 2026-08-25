@@ -1544,13 +1544,23 @@ export async function restoreCompoundFirstNames(): Promise<number> {
  * updated.
  */
 export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number> {
+  interface RawProfile {
+    firstname: string | null
+    lastname: string | null
+    nationality: string | null
+    height: string | null
+    weight: string | null
+    photo: string | null
+    birth: { date: string | null; place: string | null; country: string | null } | null
+  }
+
   let updated = 0
   for (const id of playerApiIds) {
-    let player: { firstname: string | null; lastname: string | null; nationality: string | null } | undefined
+    let player: RawProfile | undefined
     try {
-      const resp = await apiFootballGet<
-        Array<{ player: { firstname: string | null; lastname: string | null; nationality: string | null } }>
-      >('players/profiles', { player: id })
+      const resp = await apiFootballGet<Array<{ player: RawProfile }>>('players/profiles', {
+        player: id,
+      })
       player = resp[0]?.player
     } catch (err) {
       if (err instanceof ApiPlanError || err instanceof BudgetExhaustedError) throw err
@@ -1558,21 +1568,41 @@ export async function syncPlayerProfiles(playerApiIds: number[]): Promise<number
       continue
     }
     if (!player) continue
+    // The response carries ten fields and this used to keep three. Height and the
+    // birth date are exactly what the squad card and the player header render as
+    // "—", and they cost nothing extra — the request was already made.
     const res = await withDbRetry(() =>
       query(
         `UPDATE players SET
            nationality = COALESCE(nationality, $2),
            firstname = COALESCE(firstname, $3),
            lastname = COALESCE(lastname, $4),
+           height = COALESCE(height, $5),
+           weight = COALESCE(weight, $6),
+           photo_url = COALESCE(photo_url, $7),
+           birth_date = COALESCE(birth_date, $8),
+           birth_place = COALESCE(birth_place, $9),
            updated_at = now()
-         WHERE player_api_id = $1 AND season = $5`,
-        [id, player.nationality ?? null, player.firstname ?? null, player.lastname ?? null, CURRENT_SQUAD_SEASON],
+         WHERE player_api_id = $1 AND season = $10`,
+        [
+          id,
+          player.nationality ?? null,
+          player.firstname ?? null,
+          player.lastname ?? null,
+          player.height ?? null,
+          player.weight ?? null,
+          player.photo ?? null,
+          player.birth?.date ?? null,
+          [player.birth?.place, player.birth?.country].filter(Boolean).join(', ') || null,
+          CURRENT_SQUAD_SEASON,
+        ],
       ),
     )
     updated += res.rowCount ?? 0
   }
   return updated
 }
+
 
 // One squad refresh = one API request per team, so refreshing every tracked team
 // daily would cost hundreds of requests/day. Instead we rotate: each run refreshes

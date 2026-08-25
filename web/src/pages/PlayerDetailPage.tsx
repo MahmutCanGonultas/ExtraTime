@@ -17,6 +17,19 @@ function seasonLabel(season: number): string {
   return `${season}/${next.toString().padStart(2, '0')}`
 }
 
+// "1992-02-12" → "12 Şubat 1992". Parsed as parts rather than through Date, so a
+// bare date is not shifted a day by the viewer's timezone.
+const MONTHS_TR = [
+  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+]
+function formatBirthDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) return iso
+  const month = MONTHS_TR[Number(m[2]) - 1]
+  return month ? `${Number(m[3])} ${month} ${m[1]}` : iso
+}
+
 export function PlayerDetailPage() {
   const { apiId } = useParams()
   const playerApiId = Number(apiId)
@@ -34,6 +47,16 @@ export function PlayerDetailPage() {
     data.age != null && `${data.age} yaş`,
     data.height,
   ].filter(Boolean) as string[]
+
+  // The künye: the things that are true about a person rather than about a season.
+  // Only rendered for what we actually hold, so a player we know little about gets a
+  // shorter strip rather than a row of dashes.
+  const profile = [
+    data.birthDate && { label: 'Doğum', value: formatBirthDate(data.birthDate) },
+    data.birthPlace && { label: 'Doğum yeri', value: data.birthPlace },
+    data.height && { label: 'Boy', value: data.height },
+    data.weight && { label: 'Kilo', value: data.weight },
+  ].filter(Boolean) as Array<{ label: string; value: string }>
 
   // THIS SEASON only — summed across the competitions the player featured in this
   // campaign (league + cups + Europe). This is the headline, not career totals.
@@ -83,6 +106,17 @@ export function PlayerDetailPage() {
           )}
         </div>
       </div>
+
+      {profile.length > 0 && (
+        <dl className="flex flex-wrap gap-x-8 gap-y-3 border-y border-ink-800/70 py-3">
+          {profile.map((f) => (
+            <div key={f.label}>
+              <dt className="text-[11px] uppercase tracking-wider text-ink-500">{f.label}</dt>
+              <dd className="mt-0.5 text-sm font-medium text-ink-200">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {/* THIS SEASON — the headline stats. */}
       <section>

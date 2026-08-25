@@ -16,18 +16,41 @@ export async function upsertTeam(
   db: PoolClient,
   apiId: number,
   name: string,
-  extra: { stadium?: string | null; city?: string | null } = {},
+  extra: {
+    stadium?: string | null
+    city?: string | null
+    country?: string | null
+    founded?: number | null
+    capacity?: number | null
+    venueImage?: string | null
+  } = {},
 ): Promise<number> {
   const { rows } = await db.query<{ id: number }>(
-    `INSERT INTO teams (api_football_id, name, stadium_name, city)
-     VALUES ($1, $2, $3, $4)
+    // Every field but the name is COALESCEd. Most callers know only a team's id and
+    // name (they are upserting it as a side effect of a fixture), so overwriting
+    // would mean the club's identity is wiped every time it plays.
+    `INSERT INTO teams (api_football_id, name, stadium_name, city, country, founded, venue_capacity, venue_image)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (api_football_id) DO UPDATE
        SET name = EXCLUDED.name,
            stadium_name = COALESCE(EXCLUDED.stadium_name, teams.stadium_name),
            city = COALESCE(EXCLUDED.city, teams.city),
+           country = COALESCE(EXCLUDED.country, teams.country),
+           founded = COALESCE(EXCLUDED.founded, teams.founded),
+           venue_capacity = COALESCE(EXCLUDED.venue_capacity, teams.venue_capacity),
+           venue_image = COALESCE(EXCLUDED.venue_image, teams.venue_image),
            updated_at = now()
      RETURNING id`,
-    [apiId, name, extra.stadium ?? null, extra.city ?? null],
+    [
+      apiId,
+      name,
+      extra.stadium ?? null,
+      extra.city ?? null,
+      extra.country ?? null,
+      extra.founded ?? null,
+      extra.capacity ?? null,
+      extra.venueImage ?? null,
+    ],
   )
   return rows[0].id
 }
