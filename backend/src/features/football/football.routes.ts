@@ -63,14 +63,24 @@ footballRouter.get(
 footballRouter.get(
   '/leagues/:id/topscorers',
   asyncHandler(async (req, res) => {
-    res.json({ topscorers: await repo.getTopScorers(parseId(req.params.id)) })
+    const leagueId = parseId(req.params.id)
+    const [topscorers, coverage] = await Promise.all([
+      repo.getTopScorers(leagueId),
+      repo.getGoalCoverage(leagueId),
+    ])
+    res.json({ topscorers, coverage })
   }),
 )
 
 footballRouter.get(
   '/leagues/:id/topassists',
   asyncHandler(async (req, res) => {
-    res.json({ topassists: await repo.getTopAssists(parseId(req.params.id)) })
+    const leagueId = parseId(req.params.id)
+    const [topassists, coverage] = await Promise.all([
+      repo.getTopAssists(leagueId),
+      repo.getGoalCoverage(leagueId),
+    ])
+    res.json({ topassists, coverage })
   }),
 )
 
