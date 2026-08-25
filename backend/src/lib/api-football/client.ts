@@ -41,6 +41,17 @@ export function runWithTally<T>(tally: RequestTally, fn: () => Promise<T>): Prom
 }
 
 /**
+ * True when the caller is already inside a job that is counting requests.
+ *
+ * Helpers that log their own `sync_logs` row must check this first: counted twice,
+ * once by themselves and once by the job that called them, they inflate the daily
+ * total the budget guard is hydrated from.
+ */
+export function hasActiveTally(): boolean {
+  return tallies.getStore() !== undefined
+}
+
+/**
  * The hard daily ceiling. API-Football's free plan allows 100 requests per day
  * and the counter resets around 00:00 UTC; going over does not just fail, it
  * fails for the rest of the day, so the app refuses to cross the line itself.

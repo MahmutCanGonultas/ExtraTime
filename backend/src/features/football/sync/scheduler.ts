@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { logger } from '../../../lib/logger'
 import { syncPlanStatus, syncStaleLiveFixtures } from './jobs'
+import { backfillJob } from './backfill'
 import { backlogTick, dailyListsTick, detailTick, hourlyTick, scheduleTick } from './ticks'
 import { settleFinishedFixtures } from '../../predictions/settle'
 
@@ -26,8 +27,14 @@ import { settleFinishedFixtures } from '../../predictions/settle'
 //   fixtures  full season  ~51/day    schedule  ±1 day       2/day
 //   details   events+stats ~60/day    events    bounded      <=4/run
 //   squads                 20/day     missed    bounded      <=4/run
+//   backfill  <=500/run    (paid)     backfill  disabled
 //   ────────────────────────────      ──────────────────────────────
-//   ~250/day of 7500                  ~25/day of 100
+//   ~250/day + backfill of 7500       ~25/day of 100
+//
+// The backfill is the one job that would spend the whole allowance if it could,
+// so it holds a 1000-request floor back. Everything it fetches is PERMANENT —
+// stored in Postgres and served cache-first — which is why it is worth spending a
+// paid month on, and why nothing is lost when the plan drops.
 //
 // Live scores are off on BOTH plans: a deliberate product choice, not a budget
 // one. Scores refresh hourly and settling is DB-only.
@@ -49,6 +56,12 @@ export function startScheduler(): void {
   cron.schedule('35 11-23 * * *', run('detail', detailTick))
   cron.schedule('0 4 * * *', run('schedule', scheduleTick))
   cron.schedule('40 4 * * *', run('daily-lists', dailyListsTick))
+
+  // Ten to: fill in what the app never fetched — match detail, player rosters,
+  // past-season tables, team venues. Only worth doing while the plan is paid, and
+  // it stops with 1000 requests still on the clock so the scores are never
+  // starved. A no-op on the restricted plan; what it collected simply stays.
+  cron.schedule('50 11-23 * * *', run('backfill', backfillJob))
 
   // Unstick any fixture frozen in a live status long after kickoff (suspended or
   // abandoned matches). Free when nothing is stuck.

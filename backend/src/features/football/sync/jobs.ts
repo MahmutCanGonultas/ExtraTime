@@ -8,6 +8,7 @@ import {
   BudgetExhaustedError,
   apiFootballGetEnvelope as apiFootballEnvelope,
   getBudget,
+  hasActiveTally,
   runWithTally,
 } from '../../../lib/api-football/client'
 import { isRestrictedPlan, savePlanState, shouldDeriveTables } from '../../../lib/api-football/plan'
@@ -100,7 +101,7 @@ async function logSync(
 // Wraps a job: reset the request counter, run the work, record one sync_logs row.
 // A failing job is logged and returned as unsuccessful — it never throws upward,
 // so a broken API or exhausted budget cannot crash the app.
-async function runJob(
+export async function runSyncJob(
   job: string,
   work: () => Promise<number>,
   opts: JobOptions = {},
@@ -189,7 +190,7 @@ interface RawStatus {
  * ceiling, date-keyed fetches, derived tables — with no redeploy.
  */
 export async function syncPlanStatus(): Promise<SyncResult> {
-  return runJob('plan', async () => {
+  return runSyncJob('plan', async () => {
     const body = await apiFootballEnvelope<RawStatus>('status')
     const plan = body.response?.subscription?.plan
     const limit = body.response?.requests?.limit_day
@@ -210,7 +211,7 @@ export async function syncPlanStatus(): Promise<SyncResult> {
 
 /** Seed the configured leagues into the DB (no API requests). */
 export async function seedLeaguesJob(): Promise<SyncResult> {
-  return runJob('seed', async () => {
+  return runSyncJob('seed', async () => {
     const client = await getPool()!.connect()
     try {
       return await seedLeagues(client)
@@ -306,7 +307,7 @@ async function upsertFixturesByLeague(
  */
 async function syncFixturesByDate(job: string, offsets: number[]): Promise<SyncResult> {
   const dates = datesInReach(offsets)
-  return runJob(
+  return runSyncJob(
     job,
     async () => {
       if (dates.length === 0) return 0
@@ -354,7 +355,7 @@ const MISSED_BUDGET_FLOOR = 30
  *    the last two hours, so a permanently stuck fixture cannot monopolise the run.
  */
 export async function syncMissedFixtures(limit = MISSED_PER_RUN): Promise<SyncResult> {
-  return runJob(
+  return runSyncJob(
     'missed-fixtures',
     async () => {
       const budget = await getBudget()
@@ -556,7 +557,7 @@ export async function rebuildStandingsForLeague(
  * previous rebuild already damaged.
  */
 export async function rebuildStandings(includeFinished = false): Promise<SyncResult> {
-  return runJob('standings-derived', async () => {
+  return runSyncJob('standings-derived', async () => {
     // Hard guard, not just a scheduling choice. This job overwrites the standings
     // table, so on a plan that CAN fetch the real one it must never run by
     // accident — an admin click, a stale cron entry, a leftover line in
@@ -621,7 +622,7 @@ export async function rebuildStandings(includeFinished = false): Promise<SyncRes
  * re-query loop would keep selecting it forever.
  */
 export async function backfillGoalsFromEvents(maxFixtures = 50000): Promise<SyncResult> {
-  return runJob('goals-from-events', async () => {
+  return runSyncJob('goals-from-events', async () => {
     const { rows } = await query<{ id: number }>(
       `SELECT DISTINCT e.fixture_id AS id
        FROM fixture_events e
@@ -675,7 +676,7 @@ export async function backfillGoalsFromEvents(maxFixtures = 50000): Promise<Sync
  * enough to accept, and it corrects itself as id-carrying rows accumulate.
  */
 export async function rebuildScorerLists(): Promise<SyncResult> {
-  return runJob('scorers-derived', async () => {
+  return runSyncJob('scorers-derived', async () => {
     // Same guard as rebuildStandings: the fetched lists carry `appearances`,
     // which cannot be derived, so replacing them is a downgrade.
     if (!(await shouldDeriveTables())) {
@@ -827,7 +828,7 @@ async function leaguesPlayedRecently(limit: number, hours = 36): Promise<ActiveL
 // ---------------------------------------------------------------------------
 
 export async function syncFixtures(includeInactive = false): Promise<SyncResult> {
-  return runJob('fixtures', async () => {
+  return runSyncJob('fixtures', async () => {
     const leagues = await getLeagues(includeInactive)
     return perLeague(leagues, async (client, league) => {
       const fixtures = await apiFootballGet<RawFixture[]>('fixtures', {
@@ -883,7 +884,7 @@ const SCORERS_MAX_LEAGUES = 3
 export async function syncStandingsForRecentMatches(
   limit = STANDINGS_MAX_LEAGUES,
 ): Promise<SyncResult> {
-  return runJob(
+  return runSyncJob(
     'standings',
     async () => perLeague(await leaguesPlayedRecently(limit), standingsForLeague),
     { minBudget: 3 },
@@ -894,7 +895,7 @@ export async function syncStandingsForRecentMatches(
 export async function syncTopScorersForRecentMatches(
   limit = SCORERS_MAX_LEAGUES,
 ): Promise<SyncResult> {
-  return runJob(
+  return runSyncJob(
     'topscorers',
     async () => perLeague(await leaguesPlayedRecently(limit), topScorersForLeague),
     { minBudget: 10 },
@@ -905,7 +906,7 @@ export async function syncTopScorersForRecentMatches(
 export async function syncTopAssistsForRecentMatches(
   limit = SCORERS_MAX_LEAGUES,
 ): Promise<SyncResult> {
-  return runJob(
+  return runSyncJob(
     'topassists',
     async () => perLeague(await leaguesPlayedRecently(limit), topAssistsForLeague),
     { minBudget: 10 },
@@ -914,19 +915,19 @@ export async function syncTopAssistsForRecentMatches(
 
 // Full-sweep variants of the three jobs above. Same caveat as syncFixtures.
 export async function syncStandings(includeInactive = false): Promise<SyncResult> {
-  return runJob('standings-full', async () =>
+  return runSyncJob('standings-full', async () =>
     perLeague(await getLeagues(includeInactive), standingsForLeague),
   )
 }
 
 export async function syncTopScorers(includeInactive = false): Promise<SyncResult> {
-  return runJob('topscorers-full', async () =>
+  return runSyncJob('topscorers-full', async () =>
     perLeague(await getLeagues(includeInactive), topScorersForLeague),
   )
 }
 
 export async function syncTopAssists(includeInactive = false): Promise<SyncResult> {
-  return runJob('topassists-full', async () =>
+  return runSyncJob('topassists-full', async () =>
     perLeague(await getLeagues(includeInactive), topAssistsForLeague),
   )
 }
@@ -1006,7 +1007,7 @@ export async function syncLiveScores(): Promise<SyncResult> {
 }
 
 async function runLiveScores(): Promise<SyncResult> {
-  return runJob('live', async () => {
+  return runSyncJob('live', async () => {
     // ONLY the matches that are in a group game AND have kicked off but aren't
     // final yet. We broadcast live scores solely for matches people are actually
     // predicting — never the whole world's fixtures — to stay within the API
@@ -1096,7 +1097,7 @@ async function runLiveScores(): Promise<SyncResult> {
 const STALE_LIVE_MAX_FIXTURES = 5
 
 export async function syncStaleLiveFixtures(): Promise<SyncResult> {
-  return runJob('stale-live', async () => {
+  return runSyncJob('stale-live', async () => {
     const { rows } = await query<{ apiId: number }>(
       `SELECT api_football_id AS "apiId" FROM fixtures
        WHERE status = ANY($1) AND kickoff_at < now() - interval '5 hours'
@@ -1151,7 +1152,7 @@ export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number)
 // Enrich recently-finished matches that have no detailed summary yet. Bounded per
 // run so it stays cheap on the cron; catches up newest-first.
 export async function syncRecentMatchDetails(limit = 30): Promise<SyncResult> {
-  return runJob('match-details', async () => {
+  return runSyncJob('match-details', async () => {
     const { rows } = await query<{ id: number; api_football_id: number }>(
       // Keyed off the STATISTICS, not detail_synced_at: syncMatchEvents stamps
       // that column having fetched only the event feed, so a match enriched by it
@@ -1195,7 +1196,7 @@ const EVENTS_BUDGET_FLOOR = 30
  * the derived scorer leaderboards are fed by the same single request.
  */
 export async function syncMatchEvents(limit = EVENTS_PER_RUN): Promise<SyncResult> {
-  return runJob(
+  return runSyncJob(
     'match-events',
     async () => {
       const budget = await getBudget()
@@ -1298,8 +1299,6 @@ export async function syncPlayersFor(
   return n
 }
 
-const transferTally = { count: 0 }
-
 // Full career: fetch one player's transfer history from API-Football (1 request) and
 // cache it. Called lazily the first time a player's detail page is opened. A short-
 // lived connection with an 'error' listener survives a Neon socket drop.
@@ -1308,13 +1307,21 @@ export async function syncPlayerTransfers(playerApiId: number): Promise<number> 
   // nobody schedules — which is exactly why it must still be counted. Without a
   // sync_logs row its requests vanish from the daily total the moment the process
   // restarts, and the budget guard would hand out an allowance already spent.
-  const raw = await runWithTally(transferTally, () =>
-    apiFootballGet<Array<{ transfers?: RawTransfer[] }>>('transfers', { player: playerApiId }),
-  )
-  if (transferTally.count > 0) {
-    const spent = transferTally.count
-    transferTally.count = 0
-    await logSync('transfers', 0, spent, true, null)
+  const fetchOne = () =>
+    apiFootballGet<Array<{ transfers?: RawTransfer[] }>>('transfers', { player: playerApiId })
+
+  let raw: Array<{ transfers?: RawTransfer[] }>
+  if (hasActiveTally()) {
+    // Inside a job (the backfill calls this in a loop): that job's tally already
+    // covers the request, and a second sync_logs row would count it twice in the
+    // daily total the budget guard is hydrated from.
+    raw = await fetchOne()
+  } else {
+    // A fresh tally per call, not a shared one: two player pages opened at once
+    // would otherwise interleave into the same counter.
+    const tally = { count: 0 }
+    raw = await runWithTally(tally, fetchOne)
+    if (tally.count > 0) await logSync('transfers', 0, tally.count, true, null)
   }
   const transfers = raw?.[0]?.transfers ?? []
   const client = await getPool()!.connect()
@@ -1573,7 +1580,7 @@ const SQUAD_REFRESH_MAX_TEAMS = 20
  * SQUAD_REFRESH_MAX_TEAMS), then re-derives nationality/name parts.
  */
 export async function refreshCurrentSquads(): Promise<SyncResult> {
-  return runJob('squads', async () => {
+  return runSyncJob('squads', async () => {
     const { rows } = await query<{ teamApiId: number; leagueId: number }>(
       `SELECT p.team_api_id AS "teamApiId", p.league_id AS "leagueId"
        FROM players p JOIN leagues l ON l.id = p.league_id

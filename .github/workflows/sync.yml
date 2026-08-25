@@ -17,10 +17,14 @@ name: Scheduled Sync
 # records what it allows), so nothing here needs changing when the subscription
 # lapses or comes back:
 #
-#   PAID (Pro, 7500/day)     ~250 requests/day
-#   FREE (100/day)           ~25 requests/day — tables and leaderboards are then
-#                            computed from stored results, since that plan refuses
-#                            league+season filters for the current season.
+#   PAID (Pro, 7500/day)     ~250/day of upkeep, plus a backfill that spends the
+#                            rest on data the app never fetched (match detail,
+#                            player rosters, past-season tables). That data is
+#                            PERMANENT — stored in Postgres, served cache-first —
+#                            so a paid month keeps paying after it ends.
+#   FREE (100/day)           ~25 requests/day, backfill disabled. Tables and
+#                            leaderboards are computed from stored results, since
+#                            that plan refuses league+season for the current season.
 #
 # The backend enforces the daily ceiling itself, so an accidental extra trigger
 # costs a skipped job rather than a suspended account.
@@ -28,7 +32,7 @@ name: Scheduled Sync
 on:
   schedule:
     - cron: '*/10 10-23 * * *' # settle + keep the host awake — costs no API requests
-    - cron: '3 11-23 * * *' # scores, tables, backlog, goalscorers
+    - cron: '3 11-23 * * *' # scores, tables, backlog, goalscorers, backfill
     - cron: '0 4 * * *' # schedule sweep, leaderboards, squads, plan probe
   workflow_dispatch: {}
 
@@ -57,6 +61,10 @@ jobs:
             curl -fsS -m 300 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/tick/$tick" \
               -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
           done
+          # Fill in what was never fetched. A no-op on the free plan, and it stops
+          # with 1000 requests still on the clock so the scores are never starved.
+          curl -fsS -m 400 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/backfill" \
+            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
 
   daily:
     name: Daily data

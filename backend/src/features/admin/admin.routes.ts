@@ -31,6 +31,7 @@ import {
 } from '../football/sync/jobs'
 import { getBudget } from '../../lib/api-football/client'
 import { getPlanState } from '../../lib/api-football/plan'
+import { backfillJob } from '../football/sync/backfill'
 import {
   backlogTick,
   dailyListsTick,
@@ -363,6 +364,16 @@ adminRouter.post(
   asyncHandler(async (req, res) => {
     const { name } = tickParam.parse(req.params)
     res.json(await TICKS[name]())
+  }),
+)
+
+// Fill in what was never fetched: match detail, player rosters, past-season
+// tables, team venues. Paid-plan only, and it leaves a floor for the scores.
+adminRouter.post(
+  '/sync/backfill',
+  asyncHandler(async (req, res) => {
+    const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(5000).optional() }).parse(req.query)
+    res.json(await backfillJob(limit))
   }),
 )
 
