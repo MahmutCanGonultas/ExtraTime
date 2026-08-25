@@ -163,6 +163,11 @@ export async function replaceFixtureGoals(
   fixtureId: number,
   events: RawFixtureEvent[],
 ): Promise<number> {
+  // An empty feed means we learned NOTHING, not that the match had no goals — a
+  // transient empty response would otherwise delete a good goal list. Only a feed
+  // that actually arrived is allowed to replace one. (A non-empty feed with no
+  // goals in it IS informative: a VAR reversal has to be able to remove one.)
+  if (events.length === 0) return 0
   await db.query('DELETE FROM fixture_goals WHERE fixture_id = $1', [fixtureId])
   const goals = events.filter(
     (e) => e.type === 'Goal' && e.detail !== 'Missed Penalty' && e.player.name,
@@ -203,8 +208,12 @@ export async function replaceFixtureEvents(
   fixtureId: number,
   events: RawFixtureEvent[],
 ): Promise<number> {
-  await db.query('DELETE FROM fixture_events WHERE fixture_id = $1', [fixtureId])
+  // Guard BEFORE the delete, not after: 1,196 fixtures in the backfill queue
+  // already have a feed and are only missing statistics, so they are re-read
+  // regularly — and returning early after deleting would wipe the feed every time
+  // the API answered with an empty list.
   if (events.length === 0) return 0
+  await db.query('DELETE FROM fixture_events WHERE fixture_id = $1', [fixtureId])
 
   const params: unknown[] = []
   const tuples = events.map((e, order) => {
@@ -237,6 +246,7 @@ export async function replaceFixtureStats(
   fixtureId: number,
   stats: RawFixtureStatistic[],
 ): Promise<number> {
+  if (stats.length === 0) return 0
   await db.query('DELETE FROM fixture_stats WHERE fixture_id = $1', [fixtureId])
   // Deduped on (team, type), last value winning. The table is UNIQUE on those two
   // plus the fixture, and a single INSERT ... ON CONFLICT cannot touch the same
@@ -253,6 +263,7 @@ export async function replaceFixtureStats(
   }
   const rows = [...byKey.values()]
   if (rows.length === 0) return 0
+
 
   const params: unknown[] = []
   const tuples = rows.map((r) => {
@@ -320,6 +331,10 @@ export async function replaceTopScorers(
   leagueId: number,
   scorers: RawTopScorer[],
 ): Promise<number> {
+  // An empty response is not "nobody has scored" — it is a competition whose
+  // league phase has not started, or a transient blank. Deleting on it threw away
+  // fetched leaderboards that could not be re-fetched once the plan lapsed.
+  if (scorers.length === 0) return 0
   await db.query('DELETE FROM top_scorers WHERE league_id = $1', [leagueId])
   let rank = 0
   for (const s of scorers) {
@@ -341,6 +356,7 @@ export async function replaceTopAssists(
   leagueId: number,
   assisters: RawTopScorer[],
 ): Promise<number> {
+  if (assisters.length === 0) return 0
   await db.query('DELETE FROM top_assists WHERE league_id = $1', [leagueId])
   let rank = 0
   for (const a of assisters) {

@@ -1,4 +1,10 @@
-import { apiFootballGet, getRequestCount } from '../../../lib/api-football/client'
+import {
+  ApiPlanError,
+  apiFootballGet,
+  BudgetExhaustedError,
+  getBudget,
+  getRequestCount,
+} from '../../../lib/api-football/client'
 import { isRestrictedPlan } from '../../../lib/api-football/plan'
 import { getPool, query } from '../../../db/pool'
 import { logger } from '../../../lib/logger'
@@ -43,6 +49,19 @@ interface BackfillBudget {
   start: number
   max: number
   until: number
+}
+
+/**
+ * An error that says nothing about the item and everything about the account.
+ *
+ * These two are thrown BEFORE the request is counted, so they cost nothing — which
+ * makes them uniquely dangerous here. Treated as a per-item failure they let one
+ * plan lapse spin through an entire queue at database speed, marking every item as
+ * tried without a single request being spent. Every loop must abandon the step
+ * instead, exactly as perLeague does in jobs.ts.
+ */
+function isAccountError(err: unknown): boolean {
+  return err instanceof ApiPlanError || err instanceof BudgetExhaustedError
 }
 
 const used = (b: BackfillBudget): number => getRequestCount() - b.start
@@ -124,11 +143,22 @@ async function backfillTeamVenues(b: BackfillBudget): Promise<number> {
   for (const l of rows) {
     if (skip.has(l.id)) continue
     if (!alive(b)) break
+    // Marked AFTER the request, never before: an account error costs nothing, so
+    // marking first would write a 30-day cooldown over the whole queue in the
+    // moment a plan lapses, for no requests at all.
+    let teams: RawTeamInfo[]
+    try {
+      teams = await apiFootballGet<RawTeamInfo[]>('teams', {
+        league: l.api_football_id,
+        season: l.season,
+      })
+    } catch (err) {
+      if (isAccountError(err)) return filled
+      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Venue fetch failed')
+      await markTried('venues', [l.id])
+      continue
+    }
     await markTried('venues', [l.id])
-    const teams = await apiFootballGet<RawTeamInfo[]>('teams', {
-      league: l.api_football_id,
-      season: l.season,
-    })
     const client = await getPool()!.connect()
     try {
       for (const t of teams) {
@@ -173,33 +203,52 @@ async function backfillPastSeasons(b: BackfillBudget): Promise<number> {
   for (const l of rows) {
     if (skip.has(l.id)) continue
     if (!alive(b) || left(b) < 3) break
-    await markTried('past-seasons', [l.id])
-    const client = await getPool()!.connect()
+
+    // Fetch all three FIRST, holding no database connection. The previous version
+    // kept a pooled client inside an open transaction across these calls — up to
+    // four minutes with the 429 backoffs — and pg-pool removes its own 'error'
+    // handler while a client is checked out, so a Neon socket reset would have
+    // raised an uncaughtException and taken the whole backend down with it.
+    let data, scorers, assists
     try {
-      await client.query('BEGIN')
-      const data = await apiFootballGet<RawStandingsLeague[]>('standings', {
+      data = await apiFootballGet<RawStandingsLeague[]>('standings', {
         league: l.api_football_id,
         season: l.season,
       })
+      scorers = await apiFootballGet<RawTopScorer[]>('players/topscorers', {
+        league: l.api_football_id,
+        season: l.season,
+      })
+      assists = await apiFootballGet<RawTopScorer[]>('players/topassists', {
+        league: l.api_football_id,
+        season: l.season,
+      })
+    } catch (err) {
+      if (isAccountError(err)) return done
+      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Past-season fetch failed')
+      await markTried('past-seasons', [l.id])
+      continue
+    }
+    await markTried('past-seasons', [l.id])
+
+    const client = await getPool()!.connect()
+    const onError = (err: unknown) =>
+      logger.error({ err, leagueId: l.id }, 'past-seasons client error')
+    client.on('error', onError)
+    try {
+      await client.query('BEGIN')
       for (const group of data[0]?.league.standings ?? []) {
         for (const row of group) await upsertStanding(client, l.id, row)
       }
-      const scorers = await apiFootballGet<RawTopScorer[]>('players/topscorers', {
-        league: l.api_football_id,
-        season: l.season,
-      })
       await replaceTopScorers(client, l.id, scorers)
-      const assists = await apiFootballGet<RawTopScorer[]>('players/topassists', {
-        league: l.api_football_id,
-        season: l.season,
-      })
       await replaceTopAssists(client, l.id, assists)
       await client.query('COMMIT')
       done += 1
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {})
-      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Past-season backfill failed')
+      logger.warn({ err, league: l.api_football_id, season: l.season }, 'Past-season write failed')
     } finally {
+      client.off('error', onError)
       client.release()
     }
   }
@@ -216,6 +265,12 @@ async function backfillPastSeasons(b: BackfillBudget): Promise<number> {
  */
 async function backfillMatchDetails(b: BackfillBudget): Promise<number> {
   let done = 0
+  let consecutiveFailures = 0
+  const tried: number[] = []
+  const flush = async () => {
+    await markTried('match-detail', tried.splice(0))
+  }
+
   while (alive(b) && left(b) >= 2) {
     const { rows } = await query<{ id: number; api_football_id: number }>(
       `SELECT f.id, f.api_football_id
@@ -226,11 +281,15 @@ async function backfillMatchDetails(b: BackfillBudget): Promise<number> {
            NOT EXISTS (SELECT 1 FROM fixture_events e WHERE e.fixture_id = f.id)
            OR NOT EXISTS (SELECT 1 FROM fixture_stats st WHERE st.fixture_id = f.id)
          )
-         -- detail_synced_at is stamped on every attempt, success or failure, so
-         -- this is what makes the loop terminate: a match the API has nothing for
-         -- drops out for a week instead of being re-fetched until the budget is
-         -- gone. Never-attempted matches are still preferred.
-         AND (f.detail_synced_at IS NULL OR f.detail_synced_at < now() - interval '7 days')
+         -- The attempt log, not detail_synced_at. That column is read by
+         -- syncMatchEvents as "this match has been enriched", and writing it from
+         -- here to mean "we tried and it did not work" removed matches from the
+         -- restricted plan's only who-scored job for good.
+         AND NOT EXISTS (
+           SELECT 1 FROM backfill_attempts a
+           WHERE a.scope = 'match-detail' AND a.ref_id = f.id
+             AND a.attempted_at > now() - interval '7 days'
+         )
        ORDER BY f.detail_synced_at NULLS FIRST, f.kickoff_at DESC
        -- A big batch on purpose: this query anti-joins two tables of hundreds of
        -- thousands of rows, so it is far more expensive than the work it hands
@@ -240,21 +299,38 @@ async function backfillMatchDetails(b: BackfillBudget): Promise<number> {
       [CONFIGURED_LEAGUE_API_IDS],
     )
     if (rows.length === 0) break
+
     for (const r of rows) {
       if (!alive(b) || left(b) < 2) break
       try {
         await syncFixtureDetail(r.id, r.api_football_id)
+        consecutiveFailures = 0
         done += 1
       } catch (err) {
+        // Nothing about THIS fixture went wrong — the account did. Leave it in the
+        // queue and abandon the step; marking it would cost nothing and delete
+        // thousands of rows from the queue in the seconds after a plan lapse.
+        if (isAccountError(err)) {
+          await flush()
+          logger.warn({ err }, 'Match-detail backfill stopping: the account, not the fixture')
+          return done
+        }
         logger.warn({ err, fixtureId: r.id }, 'Match-detail backfill failed; skipping')
-        // Stamp it so a fixture the API cannot answer for does not block the
-        // queue forever — the next pass moves on to the next match.
-        await query('UPDATE fixtures SET detail_synced_at = now() WHERE id = $1', [r.id]).catch(
-          () => {},
-        )
+        // A run of failures that are not account errors still means something is
+        // wrong upstream. Stop rather than walk the whole queue burning requests.
+        if ((consecutiveFailures += 1) >= 5) {
+          await flush()
+          logger.warn({ consecutiveFailures }, 'Match-detail backfill stopping after repeated failures')
+          return done
+        }
       }
+      // Recorded whatever the outcome, so a match the API has nothing for waits a
+      // week rather than sitting at the head of the queue.
+      tried.push(r.id)
+      if (tried.length >= 100) await flush()
     }
   }
+  await flush()
   return done
 }
 
@@ -292,16 +368,17 @@ async function backfillPlayers(b: BackfillBudget): Promise<number> {
     // A league-season is all-or-nothing: stopping half way through the pages would
     // leave it looking populated while most of it is still blank.
     if (!alive(b) || left(b) < 40) break
-    // Marked before the attempt, not after: whatever the outcome, one try per
-    // league-season per cooldown is the budget this step gets.
-    await markTried('rosters', [l.id])
     try {
       const n = await syncPlayersFor(l.id, l.api_football_id, l.season)
       if (n > 0) done += 1
       else logger.info({ league: l.api_football_id, season: l.season }, 'No roster available')
     } catch (err) {
+      if (isAccountError(err)) return done
       logger.warn({ err, league: l.api_football_id, season: l.season }, 'Player backfill failed')
     }
+    // One try per league-season per cooldown, whatever the outcome — but only for
+    // an attempt that actually reached the API.
+    await markTried('rosters', [l.id])
   }
   return done
 }
@@ -333,8 +410,17 @@ async function backfillPlayerProfiles(b: BackfillBudget, cap = 300): Promise<num
   const todo = rows.map((r) => r.player_api_id).filter((id) => !skip.has(id))
   if (todo.length === 0) return 0
   const batch = todo.slice(0, Math.max(0, Math.min(todo.length, left(b))))
+  let updated = 0
+  try {
+    updated = await syncPlayerProfiles(batch)
+  } catch (err) {
+    // Nothing marked: an account error would otherwise put three hundred players
+    // behind a thirty-day cooldown without a single request being spent.
+    if (isAccountError(err)) return 0
+    logger.warn({ err }, 'Profile backfill failed')
+  }
   await markTried('profiles', batch)
-  return syncPlayerProfiles(batch)
+  return updated
 }
 
 /**
@@ -360,6 +446,7 @@ async function backfillTransfers(b: BackfillBudget, cap = 200): Promise<number> 
       await syncPlayerTransfers(r.player_api_id)
       done += 1
     } catch (err) {
+      if (isAccountError(err)) return done
       logger.warn({ err, playerApiId: r.player_api_id }, 'Transfer backfill failed; skipping')
     }
   }
@@ -394,9 +481,19 @@ export async function backfillJob(
         logger.info({ job: 'backfill' }, 'Restricted plan — backfill is a paid-plan luxury, skipping')
         return 0
       }
+      // runSyncJob's minBudget is a gate, checked once — it stops a run STARTING
+      // below the floor but does nothing to stop one spending straight through it.
+      // Cap the run at what is actually left above the floor so the promise the
+      // comment makes is the one the code keeps.
+      const daily = await getBudget()
+      const room = Math.max(0, daily.remaining - BACKFILL_DAILY_FLOOR)
+      if (room === 0) {
+        logger.info({ job: 'backfill', ...daily }, 'At the daily floor — leaving the rest for the scores')
+        return 0
+      }
       const budget: BackfillBudget = {
         start: getRequestCount(),
-        max: requests,
+        max: Math.min(requests, room),
         until: Date.now() + ms,
       }
       const done: Record<string, number> = {}

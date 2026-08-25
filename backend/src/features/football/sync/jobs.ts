@@ -1154,15 +1154,22 @@ export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number)
 export async function syncRecentMatchDetails(limit = 30): Promise<SyncResult> {
   return runSyncJob('match-details', async () => {
     const { rows } = await query<{ id: number; api_football_id: number }>(
-      // Keyed off the STATISTICS, not detail_synced_at: syncMatchEvents stamps
-      // that column having fetched only the event feed, so a match enriched by it
-      // would otherwise never get its possession/shot numbers even on a paid plan.
+      // Keyed off the STATISTICS, not detail_synced_at alone: syncMatchEvents
+      // stamps that column having fetched only the event feed, so a match enriched
+      // by it would otherwise never get its possession/shot numbers.
+      //
+      // But the stamp still has to bound the retry. Nearly a thousand finished
+      // matches have no statistics and never will — API-Football does not cover
+      // them for the domestic cups — and without this window the newest thirty of
+      // them were re-bought every hour, sixty requests for nothing, rewriting
+      // their event feeds thirteen times a day.
       `SELECT f.id, f.api_football_id
        FROM fixtures f JOIN leagues lg ON lg.id = f.league_id
        WHERE lg.api_football_id = ANY($1)
          AND f.status IN ('FT','AET','PEN')
          AND NOT EXISTS (SELECT 1 FROM fixture_stats st WHERE st.fixture_id = f.id)
-       ORDER BY f.kickoff_at DESC
+         AND (f.detail_synced_at IS NULL OR f.detail_synced_at < now() - interval '7 days')
+       ORDER BY f.detail_synced_at NULLS FIRST, f.kickoff_at DESC
        LIMIT $2`,
       [MATCH_DETAIL_LEAGUE_API_IDS, limit],
     )
@@ -1208,12 +1215,14 @@ export async function syncMatchEvents(limit = EVENTS_PER_RUN): Promise<SyncResul
                 EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.fixture_id = f.id) AS is_group
          FROM fixtures f JOIN leagues l ON l.id = f.league_id
          WHERE f.status IN ('FT','AET','PEN')
-           -- Both conditions matter. The events check is what we actually want;
-           -- detail_synced_at is what stops a match that genuinely HAS no events
-           -- (an abandoned or unreported game) from being re-fetched every hour
-           -- for the rest of its life.
-           AND f.detail_synced_at IS NULL
            AND NOT EXISTS (SELECT 1 FROM fixture_events e WHERE e.fixture_id = f.id)
+           -- detail_synced_at stops a match that genuinely HAS no events (an
+           -- abandoned or unreported game) from being re-fetched every hour. It is
+           -- a WINDOW, not a verdict: this is the only job that writes
+           -- fixture_events on the restricted plan, and the goal lists the derived
+           -- leaderboards are built from come from it, so no single stamp may
+           -- remove a match from this queue for good.
+           AND (f.detail_synced_at IS NULL OR f.detail_synced_at < now() - interval '7 days')
            AND (
              EXISTS (SELECT 1 FROM group_fixtures gf WHERE gf.fixture_id = f.id)
              OR (l.is_active AND l.api_football_id = ANY($1))
