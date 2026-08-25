@@ -21,9 +21,33 @@ const envSchema = z
 
     API_FOOTBALL_KEY: z.string().min(1).optional(),
     API_FOOTBALL_BASE_URL: z.string().url().default('https://v3.football.api-sports.io'),
-    // Requests/minute the API plan allows (free ~10, paid much higher). The
-    // client spaces requests to stay under this and avoid HTTP 429.
-    API_FOOTBALL_RPM: z.coerce.number().int().positive().default(10),
+    // Requests/minute the API plan allows. The client spaces requests to stay
+    // under this and avoid HTTP 429. The free plan allows 10/min, but setting 10
+    // here means aiming exactly at the ceiling — and the deployed app and a local
+    // script (or the cron and the external trigger) can be spending it at the same
+    // time, which is how a catch-up sweep lost seven of its ten days to a 429.
+    // Default to 8 and leave the headroom.
+    API_FOOTBALL_RPM: z.coerce.number().int().positive().default(8),
+    // Requests/DAY the plan allows — the hard ceiling the client refuses to
+    // cross (free = 100, Pro = 7500; resets ~00:00 UTC). Keep a little headroom
+    // for calls made outside the app, like `npm run check:api`, which the API
+    // counts but our own counter never sees.
+    API_FOOTBALL_DAILY_LIMIT: z.coerce.number().int().positive().default(7500),
+
+    // Compute league tables and scorer leaderboards from the results we store,
+    // instead of fetching them.
+    //
+    // Turn this ON only when the plan cannot serve `standings` / `topscorers`
+    // for the current season — that is the FREE plan, which answers those with
+    // "Free plans do not have access to this season". On a paid plan leave it
+    // OFF: the fetched table knows about point deductions and head-to-head
+    // tie-breaks that a rebuild cannot, and letting the rebuild run alongside it
+    // silently degrades the real thing (it already destroyed the 2025 tables
+    // once, on 2026-08-24).
+    DERIVE_FROM_RESULTS: z
+      .string()
+      .default('')
+      .transform((v) => ['1', 'true', 'on', 'yes'].includes(v.toLowerCase())),
 
     SYNC_SECRET: z.string().min(1).optional(),
 

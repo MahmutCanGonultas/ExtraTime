@@ -1,6 +1,6 @@
 import { query } from '../../db/pool'
 import { isFinal } from '../football/status'
-import { deactivateEndedTournaments, syncResults } from '../football/sync/jobs'
+import { deactivateEndedTournaments, syncTodayResults } from '../football/sync/jobs'
 import { calculatePoints } from './scoring'
 
 /**
@@ -67,9 +67,13 @@ export async function settleFinishedFixtures(): Promise<number> {
   return total
 }
 
-/** Results sync + settle in one call — used by the cron job and the admin endpoint. */
+/**
+ * Results sync + settle in one call — used by the cron job and the admin
+ * endpoint. The sync half is now a single `fixtures?date=today` request covering
+ * every league at once (see syncTodayResults), so this costs 1 API request.
+ */
 export async function syncResultsAndSettle() {
-  const sync = await syncResults()
+  const sync = await syncTodayResults()
   const settled = await settleFinishedFixtures()
   // Retire any tournament that just played its last match (drops off the home page).
   const retired = await deactivateEndedTournaments()

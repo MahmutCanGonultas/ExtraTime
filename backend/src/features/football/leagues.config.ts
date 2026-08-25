@@ -85,6 +85,35 @@ export const MATCH_DETAIL_LEAGUE_API_IDS = [
   253, 307, // MLS, Suudi Pro Ligi
 ]
 
+// Which competitions are worth spending a request per match on to learn who
+// scored. Same list, named for what actually uses it now: goal detail is the one
+// cost that scales with how much football is played, so it is deliberately
+// scoped to the competitions this group follows. Every other match still shows
+// its score — it just has no scorer list, and its goals do not feed the derived
+// top-scorer leaderboards.
+export const GOAL_DETAIL_LEAGUE_API_IDS = MATCH_DETAIL_LEAGUE_API_IDS
+
+// Competitions whose table is a plain round-robin, so it can be DERIVED from the
+// fixtures we already store instead of fetched (see rebuildStandings in
+// sync/jobs.ts). This is not an optimisation but a necessity: API-Football's free
+// plan refuses `standings?league=X&season=2026` outright ("Free plans do not have
+// access to this season"), while `fixtures?date=...` returns the current season
+// happily — so results are reachable and the table has to be computed from them.
+//
+// Deliberately excludes: knockout cups (a bracket, not a table), the three UEFA
+// competitions and the World Cup (their table covers only a group/league phase,
+// and folding the knockout matches in would corrupt it).
+//
+// The competitions that ARE listed also stage knockouts under the same league id —
+// promotion and relegation play-offs, and the MLS post-season — so rebuildStandings
+// counts only rounds named "Regular Season …". Without that filter a Championship
+// club showed 48 games in a 46-game league and three Ligue 2 sides appeared in the
+// Ligue 1 table via the barrage. MLS is ranked per conference from group_label.
+export const DERIVABLE_STANDINGS_API_IDS = [
+  203, 39, 140, 135, 78, 61, 94, 88, 71, 307, 253, // top divisions
+  40, 141, 79, 95, 204, // second divisions
+]
+
 // The single source of truth for "our leagues". Any browse/upcoming/live list is
 // restricted to these api_football_ids — no stray competition ever leaks in.
 export const CONFIGURED_LEAGUE_API_IDS = [

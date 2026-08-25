@@ -13,12 +13,31 @@ import {
   refreshCurrentSquads,
   seedLeaguesJob,
   syncFixtures,
+  backfillGoalsFromEvents,
+  rebuildScorerLists,
+  rebuildStandings,
+  syncMissedFixtures,
+  syncPlanStatus,
   syncLiveScores,
+  syncMatchEvents,
+  syncScheduleWindow,
   syncStaleLiveFixtures,
   syncStandings,
+  syncStandingsForRecentMatches,
   syncTopAssists,
+  syncTopAssistsForRecentMatches,
   syncTopScorers,
+  syncTopScorersForRecentMatches,
 } from '../football/sync/jobs'
+import { getBudget } from '../../lib/api-football/client'
+import { getPlanState } from '../../lib/api-football/plan'
+import {
+  backlogTick,
+  dailyListsTick,
+  detailTick,
+  hourlyTick,
+  scheduleTick,
+} from '../football/sync/ticks'
 import { settleFinishedFixtures, settleFixture, syncResultsAndSettle } from '../predictions/settle'
 
 export const adminRouter = Router()
@@ -325,6 +344,119 @@ adminRouter.post(
   '/sync/backfill',
   asyncHandler(async (_req, res) => res.json({ results: await backfillAllSeasons() })),
 )
+// --- The scheduled ticks, exactly as node-cron runs them ---------------------
+// These call the SAME functions as the internal cron (features/football/sync/
+// ticks.ts), so the external trigger and the internal one cannot drift apart.
+// Each one adapts to the current plan on its own.
+const TICKS = {
+  hourly: hourlyTick,
+  backlog: backlogTick,
+  detail: detailTick,
+  schedule: scheduleTick,
+  'daily-lists': dailyListsTick,
+} as const
+
+const tickParam = z.object({ name: z.enum(['hourly', 'backlog', 'detail', 'schedule', 'daily-lists']) })
+
+adminRouter.post(
+  '/sync/tick/:name',
+  asyncHandler(async (req, res) => {
+    const { name } = tickParam.parse(req.params)
+    res.json(await TICKS[name]())
+  }),
+)
+
+// Probe the plan and record what it allows. One request; run it after changing
+// subscription so the app switches strategy without waiting for the daily check.
+adminRouter.post(
+  '/sync/plan',
+  asyncHandler(async (_req, res) => res.json(await syncPlanStatus())),
+)
+
+// Settle only — pure DB work, ZERO API requests. This is what the frequent
+// external trigger calls: it turns an already-synced full-time score into
+// points, weekly champions and standings without touching API-Football.
+adminRouter.post(
+  '/sync/settle',
+  asyncHandler(async (_req, res) => res.json({ settled: await settleFinishedFixtures() })),
+)
+
+// --- The cheap jobs the cron runs (a handful of requests each) ---------------
+adminRouter.post(
+  '/sync/schedule',
+  asyncHandler(async (_req, res) => res.json(await syncScheduleWindow())),
+)
+// A per-run cap the caller may lower but not raise past sanity. Zod, not
+// Number.isFinite: a fractional or absurd limit would flow straight into a
+// LIMIT clause and a request-per-item loop.
+const limitQuery = z.object({ limit: z.coerce.number().int().min(1).max(50).optional() })
+
+adminRouter.post(
+  '/sync/match-events',
+  asyncHandler(async (req, res) => {
+    const { limit } = limitQuery.parse(req.query)
+    res.json(await syncMatchEvents(limit))
+  }),
+)
+
+// Derive the goal list from event feeds already stored. Zero API requests.
+adminRouter.post(
+  '/sync/goals-from-events',
+  asyncHandler(async (_req, res) => res.json(await backfillGoalsFromEvents())),
+)
+
+// Scorer + assist leaderboards recomputed from stored goals. Zero API requests,
+// and the only way to have current ones — players/topscorers is season-gated.
+adminRouter.post(
+  '/sync/scorers-derived',
+  asyncHandler(async (_req, res) => res.json(await rebuildScorerLists())),
+)
+// League tables recomputed from the results we already store. ZERO API requests,
+// and the only way to have a current table on the free plan — see rebuildStandings.
+adminRouter.post(
+  '/sync/standings-derived',
+  asyncHandler(async (req, res) => {
+    // ?includeFinished=1 also rebuilds seasons that are already over. Normally we
+    // leave those alone — their table was fetched from the API while the
+    // subscription was live and knows about point deductions a rebuild cannot —
+    // so use it only to repair a season a previous rebuild damaged.
+    const includeFinished = req.query.includeFinished === '1'
+    res.json(await rebuildStandings(includeFinished))
+  }),
+)
+
+// Drain the backlog of matches whose result was never recorded. One request per
+// fixture (the free plan refuses the batched `ids` parameter), so pass ?limit=
+// deliberately — it will not spend below the reserve the scores need.
+adminRouter.post(
+  '/sync/missed',
+  asyncHandler(async (req, res) => {
+    const { limit } = limitQuery.parse(req.query)
+    res.json(await syncMissedFixtures(limit))
+  }),
+)
+
+// NOTE: the three routes below ask the API for a league+season, which the FREE
+// plan refuses for the current season ("Free plans do not have access to this
+// season"). They are kept for the day the subscription comes back; today they
+// spend ~50 requests and return nothing.
+adminRouter.post(
+  '/sync/standings-recent',
+  asyncHandler(async (_req, res) => res.json(await syncStandingsForRecentMatches())),
+)
+adminRouter.post(
+  '/sync/topscorers-recent',
+  asyncHandler(async (_req, res) => res.json(await syncTopScorersForRecentMatches())),
+)
+adminRouter.post(
+  '/sync/topassists-recent',
+  asyncHandler(async (_req, res) => res.json(await syncTopAssistsForRecentMatches())),
+)
+
+// --- Expensive per-league sweeps: one request PER league-season (~50 of them),
+// AND season-gated on the free plan, so today they cost ~50 requests to return
+// zero rows. Off the cron entirely; kept for a future paid plan and for the past
+// seasons (2022-2024) the free plan does still serve.
 adminRouter.post(
   '/sync/fixtures',
   asyncHandler(async (_req, res) => res.json(await syncFixtures())),
@@ -363,6 +495,23 @@ adminRouter.post(
 adminRouter.post(
   '/sync/topassists',
   asyncHandler(async (_req, res) => res.json(await syncTopAssists())),
+)
+
+// Today's API spend against the plan's daily ceiling, plus the per-job
+// breakdown — the number to look at before triggering anything by hand.
+adminRouter.get(
+  '/sync/budget',
+  asyncHandler(async (_req, res) => {
+    const [budget, plan] = await Promise.all([getBudget(), getPlanState()])
+    const { rows } = await query(
+      `SELECT job_name, SUM(api_requests_used)::int AS requests, COUNT(*)::int AS runs
+       FROM sync_logs
+       WHERE ran_at >= (date_trunc('day', now() AT TIME ZONE 'utc') AT TIME ZONE 'utc')
+       GROUP BY job_name
+       ORDER BY requests DESC`,
+    )
+    res.json({ ...budget, plan, byJob: rows })
+  }),
 )
 
 // Latest run per job, for the admin sync-health screen.

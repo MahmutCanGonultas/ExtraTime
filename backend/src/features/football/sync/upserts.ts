@@ -154,6 +154,10 @@ export async function upsertFixturesBatch(
 
 // Replace the goal list for one fixture (delete + re-insert), so a VAR reversal
 // simply drops the goal on the next sync. Only 'Goal' events are stored.
+//
+// The player/assist API ids are stored alongside the names: the derived
+// top-scorer list groups on the name (historical rows have no id) but uses an id
+// wherever one exists, to link the row to a player page and photo.
 export async function replaceFixtureGoals(
   db: PoolClient,
   fixtureId: number,
@@ -165,9 +169,19 @@ export async function replaceFixtureGoals(
   for (const g of goals) {
     if (!g.player.name) continue
     await db.query(
-      `INSERT INTO fixture_goals (fixture_id, team_api_id, player_name, assist_name, minute, detail)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [fixtureId, g.team.id, g.player.name, g.assist?.name ?? null, g.time.elapsed, g.detail],
+      `INSERT INTO fixture_goals
+         (fixture_id, team_api_id, player_name, player_api_id, assist_name, assist_api_id, minute, detail)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        fixtureId,
+        g.team.id,
+        g.player.name,
+        g.player.id ?? null,
+        g.assist?.name ?? null,
+        g.assist?.id ?? null,
+        g.time.elapsed,
+        g.detail,
+      ],
     )
     n += 1
   }
