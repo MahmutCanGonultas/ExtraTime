@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { useSyncStatus, useTriggerSync } from '@/features/admin/hooks'
+import { useSyncBudget, useSyncStatus, useTriggerSync } from '@/features/admin/hooks'
 import { AdminOverview } from '@/features/admin/AdminOverview'
 import { AdminUsers } from '@/features/admin/AdminUsers'
 import { AdminGroups } from '@/features/admin/AdminGroups'
@@ -65,41 +65,76 @@ export function AdminPage() {
   )
 }
 
+// The jobs worth triggering by hand. The five ticks are exactly what the cron
+// runs — same code path — and each adapts to the live plan on its own, so this
+// list does not change when the subscription lapses or comes back.
 const SYNC_JOBS = [
-  { key: 'fixtures', label: 'Fikstür' },
-  { key: 'results', label: 'Sonuçlar' },
-  { key: 'standings', label: 'Puan Durumu' },
-  { key: 'topscorers', label: 'Gol Krallığı' },
-  { key: 'topassists', label: 'Asist Krallığı' },
-  { key: 'squads', label: 'Kadrolar' },
-  { key: 'live', label: 'Canlı Skorlar' },
-  { key: 'stale-live', label: 'Takılı Maçlar' },
+  { key: 'tick/hourly', label: 'Skorlar + Puan Durumu', cost: 'saatlik iş' },
+  { key: 'tick/detail', label: 'Maç Detayları', cost: 'maç başına' },
+  { key: 'tick/schedule', label: 'Fikstür', cost: 'günlük iş' },
+  { key: 'tick/daily-lists', label: 'Krallıklar + Kadrolar', cost: 'günlük iş' },
+  { key: 'tick/backlog', label: 'Eksik Maçlar', cost: 'maç başına' },
+  { key: 'settle', label: 'Puanlama', cost: 'bedava' },
+  { key: 'plan', label: 'Plan Kontrolü', cost: '1 istek' },
+  { key: 'goals-from-events', label: 'Golleri Türet', cost: 'bedava' },
+  { key: 'stale-live', label: 'Takılı Maçlar', cost: 'genelde bedava' },
 ]
 
 function SyncPanel() {
   const status = useSyncStatus()
+  const budget = useSyncBudget()
   const trigger = useTriggerSync()
+
+  const b = budget.data
+  // Amber once the bounded jobs are about to stop themselves (they hold a
+  // 30-request floor back for the scores), red when even that is nearly gone.
+  const tone = !b ? 'neutral' : b.remaining <= 15 ? 'loss' : b.remaining <= 35 ? 'warning' : 'win'
+  const barColor = tone === 'loss' ? 'bg-loss' : tone === 'warning' ? 'bg-amber-400' : 'bg-win'
 
   return (
     <Card>
       <CardHeader title="Senkronizasyon Sağlığı" />
       <CardBody className="space-y-4">
+        {b && (
+          <div className="rounded-lg border border-ink-800 bg-ink-900/40 p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-ink-300">Bugünkü API kotası</span>
+              <span className="text-sm tabular-nums text-ink-100">
+                <Badge tone={tone}>
+                  {b.used} / {b.limit}
+                </Badge>
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-800">
+              <div
+                className={`h-full rounded-full ${barColor}`}
+                style={{ width: `${Math.min(100, (b.used / b.limit) * 100)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-ink-500">
+              <span className="text-ink-300">{b.plan?.plan ?? '?'}</span> planı · {b.remaining} istek
+              kaldı · sayaç ~00:00 UTC&apos;de sıfırlanır.
+              {b.plan?.restricted
+                ? ' Bu plan güncel sezonu lig+sezon filtresiyle vermiyor, bu yüzden puan durumu ve krallıklar kayıtlı maç sonuçlarından hesaplanıyor (bedava).'
+                : ' Puan durumu ve krallıklar API’den çekiliyor — puan silme cezaları dahil.'}
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {SYNC_JOBS.map((j) => (
             <Button
               key={j.key}
               size="sm"
               variant="secondary"
+              title={`Maliyet: ${j.cost}`}
               onClick={() => trigger.mutate(j.key)}
               disabled={trigger.isPending}
             >
               {j.label}
+              <span className="ml-1.5 text-[10px] text-ink-500">{j.cost}</span>
             </Button>
           ))}
         </div>
-        <p className="text-xs text-ink-500">
-          Her senkronizasyon API-Football kotasından harcar; canlı maç günlerinde dikkatli tetikle.
-        </p>
         {trigger.isError && (
           <p className="text-sm text-loss">
             Senkronizasyon başarısız:{' '}
