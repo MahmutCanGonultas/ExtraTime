@@ -200,18 +200,29 @@ export function useLiveFixtures() {
   })
 }
 
-export function useUpcomingFixtures(limit = 12) {
+// `leagues` narrows the window on the SERVER. A caller that renders only a few
+// competitions must say so: asking for the next fifty kickoffs anywhere and
+// filtering here means a night of European qualifiers can fill the whole window
+// and leave the caller with nothing to show.
+const leaguesParam = (leagues?: number[]) =>
+  leagues?.length ? `&leagues=${leagues.join(',')}` : ''
+
+export function useUpcomingFixtures(limit = 12, leagues?: number[]) {
+  const key = leagues?.join(',') ?? ''
   return useQuery({
-    queryKey: ['fixtures', 'upcoming', limit],
-    queryFn: () => api.get<{ fixtures: Fixture[] }>(`/fixtures/upcoming?limit=${limit}`),
+    queryKey: ['fixtures', 'upcoming', limit, key],
+    queryFn: () =>
+      api.get<{ fixtures: Fixture[] }>(`/fixtures/upcoming?limit=${limit}${leaguesParam(leagues)}`),
     select: (d) => d.fixtures,
   })
 }
 
-export function useRecentFixtures(limit = 12) {
+export function useRecentFixtures(limit = 12, leagues?: number[]) {
+  const key = leagues?.join(',') ?? ''
   return useQuery({
-    queryKey: ['fixtures', 'recent', limit],
-    queryFn: () => api.get<{ fixtures: Fixture[] }>(`/fixtures/recent?limit=${limit}`),
+    queryKey: ['fixtures', 'recent', limit, key],
+    queryFn: () =>
+      api.get<{ fixtures: Fixture[] }>(`/fixtures/recent?limit=${limit}${leaguesParam(leagues)}`),
     select: (d) => d.fixtures,
   })
 }

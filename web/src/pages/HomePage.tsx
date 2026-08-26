@@ -67,8 +67,12 @@ export function HomePage() {
 
   const live = useLiveFixtures()
   // Fetch generously, then keep only the leagues we feature on the home page.
-  const upcoming = useUpcomingFixtures(50)
-  const recent = useRecentFixtures(50)
+  // Ask the server for OUR competitions. Filtering here instead meant the feed
+  // depended on the eight leagues we show happening to appear in the next fifty
+  // kickoffs worldwide — which they do not, on a night with twenty-four
+  // Conference League ties.
+  const upcoming = useUpcomingFixtures(50, HOME_LEAGUES)
+  const recent = useRecentFixtures(50, HOME_LEAGUES)
   const leaguesQ = useLeagues(false)
   const leaderboard = useLeaderboard(groupId)
   const groupFx = useGroupFixtures(groupId)

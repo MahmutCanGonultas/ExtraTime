@@ -2,6 +2,9 @@ import { logger } from '../../../lib/logger'
 import { isRestrictedPlan, shouldDeriveTables } from '../../../lib/api-football/plan'
 import {
   backfillGoalsFromEvents,
+  syncStandings,
+  syncTopAssists,
+  syncTopScorers,
   rebuildScorerLists,
   rebuildStandings,
   refreshCurrentSquads,
@@ -11,8 +14,6 @@ import {
   syncRecentMatchDetails,
   syncScheduleWindow,
   syncStandingsForRecentMatches,
-  syncTopAssistsForRecentMatches,
-  syncTopScorersForRecentMatches,
   type SyncResult,
 } from './jobs'
 import { settleFinishedFixtures, syncResultsAndSettle } from '../../predictions/settle'
@@ -38,9 +39,12 @@ export async function hourlyTick(): Promise<Record<string, unknown>> {
   // A suspended paid account answers yes to the first and no to the second — it
   // must stop spending, but it must not rewrite the official numbers.
   const derive = await shouldDeriveTables()
+  // Hourly, only the leagues that have just finished a match — a table cannot move
+  // otherwise, and re-reading all fifty every hour would be fifty requests an hour
+  // to learn nothing. The full sweep happens once a day in dailyListsTick.
   const standings = derive
     ? await rebuildStandings()
-    : await syncStandingsForRecentMatches()
+    : await syncStandingsForRecentMatches(12, 6)
   return { restricted: await isRestrictedPlan(), derive, results, standings }
 }
 
@@ -94,10 +98,17 @@ export async function scheduleTick(): Promise<Record<string, unknown>> {
  */
 export async function dailyListsTick(): Promise<Record<string, unknown>> {
   if (!(await isRestrictedPlan())) {
-    const scorers = await syncTopScorersForRecentMatches()
-    const assists = await syncTopAssistsForRecentMatches()
+    // Once a day, EVERY active league-season — not the handful that happened to
+    // play in the last day and a half. The per-league caps this used to obey
+    // (eight tables, three scorer lists) were sized for a hundred requests a day;
+    // on a paid plan the whole sweep is about a hundred and fifty of seven and a
+    // half thousand, and it is the difference between a table that is always right
+    // and one that is right for the leagues that played on Saturday.
+    const standings = await syncStandings(false)
+    const scorers = await syncTopScorers(false)
+    const assists = await syncTopAssists(false)
     const squads = await refreshCurrentSquads()
-    return { restricted: false, scorers, assists, squads }
+    return { restricted: false, standings, scorers, assists, squads }
   }
   logger.info({ tick: 'daily-lists' }, 'Restricted plan — leaderboards are rebuilt hourly instead')
   return { restricted: true, skipped: 'derived hourly' }

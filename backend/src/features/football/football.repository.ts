@@ -962,29 +962,39 @@ export async function getLiveFixtures(): Promise<LiveFixtureDTO[]> {
   return fixtures.map((f) => ({ ...f, goals: byFixture.get(f.id) ?? [] }))
 }
 
-// Soonest upcoming matches in our ACTIVE, configured competitions — bounded so
-// we never ship hundreds of rows.
-export async function getUpcomingFixtures(limit = 12): Promise<FixtureDTO[]> {
+/**
+ * Soonest upcoming matches, bounded so we never ship hundreds of rows.
+ *
+ * `leagues` narrows the window BEFORE the limit is applied, and that is the whole
+ * point of it. The home page shows eight competitions; without this it asked for
+ * the next fifty matches in the world and filtered them in the browser, so on a
+ * week heavy with European qualifiers — twenty-four Conference League ties in one
+ * evening — every one of those fifty could belong to a competition the page does
+ * not display, and the feed came up empty while the database was full.
+ */
+export async function getUpcomingFixtures(limit = 12, leagues?: number[]): Promise<FixtureDTO[]> {
+  const wanted = leagues?.length ? leagues : CONFIGURED_LEAGUE_API_IDS
   const { rows } = await query<FixtureRow>(
     `${FIXTURE_SELECT}
      WHERE lg.is_active = true AND lg.api_football_id = ANY($2)
        AND f.status = 'NS' AND f.kickoff_at > now()
      ORDER BY f.kickoff_at ASC
      LIMIT $1`,
-    [limit, CONFIGURED_LEAGUE_API_IDS],
+    [limit, wanted],
   )
   return rows.map(mapFixture)
 }
 
-// Most recent finished matches in our ACTIVE, configured competitions.
-export async function getRecentFixtures(limit = 12): Promise<FixtureDTO[]> {
+/** Most recent finished matches. `leagues` narrows before the limit, as above. */
+export async function getRecentFixtures(limit = 12, leagues?: number[]): Promise<FixtureDTO[]> {
+  const wanted = leagues?.length ? leagues : CONFIGURED_LEAGUE_API_IDS
   const { rows } = await query<FixtureRow>(
     `${FIXTURE_SELECT}
      WHERE lg.is_active = true AND lg.api_football_id = ANY($2)
        AND f.status IN ('FT','AET','PEN')
      ORDER BY f.kickoff_at DESC
      LIMIT $1`,
-    [limit, CONFIGURED_LEAGUE_API_IDS],
+    [limit, wanted],
   )
   return rows.map(mapFixture)
 }
