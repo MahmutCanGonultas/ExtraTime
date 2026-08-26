@@ -7,17 +7,33 @@ name: Scheduled Sync
 #   API_BASE_URL  e.g. https://extratime-api.onrender.com   (no trailing slash)
 #   SYNC_SECRET   the same value as the backend's SYNC_SECRET
 #
-# API budget: sync/live is a FREE no-op unless a match is actually live, so it is
-# safe to run often. sync/results and sync/squads each cost many API requests, so
-# they run only hourly / daily. GitHub's cron is best-effort (can lag 5-15 min);
-# for truly live scores keep the host awake (paid tier, or a cron-job.org
-# keep-alive ping to /health every ~10 min) so the internal 2-minute cron runs.
+# WHAT each tick does is NOT defined here — it lives in
+# backend/src/features/football/sync/ticks.ts, which the internal cron calls too.
+# This file only decides WHEN. Defining the work in both places is how the two
+# triggers drift apart and one ends up calling something expensive or something
+# that no longer exists.
+#
+# Each tick adapts to the live API-Football plan on its own (a daily /status probe
+# records what it allows), so nothing here needs changing when the subscription
+# lapses or comes back:
+#
+#   PAID (Pro, 7500/day)     ~250/day of upkeep, plus a backfill that spends the
+#                            rest on data the app never fetched (match detail,
+#                            player rosters, past-season tables). That data is
+#                            PERMANENT — stored in Postgres, served cache-first —
+#                            so a paid month keeps paying after it ends.
+#   FREE (100/day)           ~25 requests/day, backfill disabled. Tables and
+#                            leaderboards are computed from stored results, since
+#                            that plan refuses league+season for the current season.
+#
+# The backend enforces the daily ceiling itself, so an accidental extra trigger
+# costs a skipped job rather than a suspended account.
 
 on:
   schedule:
-    - cron: '*/5 10-23 * * *' # live scores — cheap, every 5 min during match hours (also wakes the host)
-    - cron: '3 11-23 * * *' # results + settle predictions — hourly (this one is API-heavy)
-    - cron: '0 6 * * *' # daily: fixtures, standings, scorers, assists, squads (transfers)
+    - cron: '*/10 10-23 * * *' # settle + keep the host awake — costs no API requests
+    - cron: '3 11-23 * * *' # scores, tables, backlog, goalscorers, backfill
+    - cron: '0 4 * * *' # schedule sweep, leaderboards, squads, plan probe
   workflow_dispatch: {}
 
 concurrency:
@@ -25,31 +41,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  live:
-    name: Live scores
-    if: github.event.schedule == '*/5 10-23 * * *'
+  settle:
+    name: Settle + keep-alive
+    if: github.event.schedule == '*/10 10-23 * * *'
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -fsS -m 90 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/live" \
+          curl -fsS -m 90 "${{ secrets.API_BASE_URL }}/health" || true
+          curl -fsS -m 90 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/settle" \
             -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
 
-  results:
-    name: Results + settle
+  hourly:
+    name: Scores + details
     if: github.event.schedule == '3 11-23 * * *'
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -fsS -m 120 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/results" \
+          for tick in hourly backlog detail; do
+            curl -fsS -m 300 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/tick/$tick" \
+              -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
+          done
+          # Fill in what was never fetched. A no-op on the free plan, and it stops
+          # with 1000 requests still on the clock so the scores are never starved.
+          curl -fsS -m 400 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/backfill" \
             -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
 
   daily:
     name: Daily data
-    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 4 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for job in fixtures standings topscorers topassists squads; do
-            curl -fsS -m 300 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/$job" \
+          curl -fsS -m 120 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/plan" \
+            -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
+          for tick in schedule daily-lists; do
+            curl -fsS -m 600 -X POST "${{ secrets.API_BASE_URL }}/api/v1/admin/sync/tick/$tick" \
               -H "x-sync-secret: ${{ secrets.SYNC_SECRET }}" || true
           done

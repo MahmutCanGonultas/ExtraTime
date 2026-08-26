@@ -43,12 +43,20 @@ export function useAdminGroupOverview(groupId: number, enabled: boolean) {
   })
 }
 
-export function useAdminCandidateFixtures(groupId: number, enabled: boolean) {
+// `search` goes to the server, not to a filter here — the endpoint returns the
+// next hundred kickoffs, which is only about four days of football.
+export function useAdminCandidateFixtures(groupId: number, enabled: boolean, search = '') {
   return useQuery({
-    queryKey: ['admin-candidate-fixtures', groupId],
-    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/admin/groups/${groupId}/candidate-fixtures`),
+    queryKey: ['admin-candidate-fixtures', groupId, search.trim()],
+    queryFn: () =>
+      api.get<{ fixtures: GameFixture[] }>(
+        `/admin/groups/${groupId}/candidate-fixtures${
+          search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ''
+        }`,
+      ),
     select: (d) => d.fixtures,
     enabled: enabled && groupId > 0,
+    placeholderData: (prev) => prev,
   })
 }
 
@@ -346,11 +354,38 @@ export function useSyncStatus() {
   })
 }
 
-// Triggers a sync job (fixtures | results | standings | topscorers | topassists).
+export interface SyncBudget {
+  used: number
+  limit: number
+  remaining: number
+  day: string
+  /**
+   * What the API-Football plan currently allows, from the daily /status probe.
+   * `restricted` is the Free plan: it refuses league+season filters for the
+   * current season, so tables and leaderboards are computed from stored results.
+   */
+  plan: { plan: string; dailyLimit: number; restricted: boolean; checkedAt: string | null }
+  byJob: Array<{ job_name: string; requests: number; runs: number }>
+}
+
+// Today's API spend against the plan's daily ceiling. The free plan allows 100
+// requests a day, so this is the number to look at before triggering anything.
+export function useSyncBudget() {
+  return useQuery({
+    queryKey: ['sync-budget'],
+    queryFn: () => api.get<SyncBudget>('/admin/sync/budget'),
+  })
+}
+
+// Triggers a sync job. See SYNC_JOBS in AdminPage for the ones worth triggering —
+// several older endpoints still exist but are refused by the free plan.
 export function useTriggerSync() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (job: string) => api.post(`/admin/sync/${job}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sync-status'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['sync-status'] })
+      void qc.invalidateQueries({ queryKey: ['sync-budget'] })
+    },
   })
 }

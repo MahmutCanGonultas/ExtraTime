@@ -1,59 +1,76 @@
 import cron from 'node-cron'
 import { logger } from '../../../lib/logger'
-import {
-  refreshCurrentSquads,
-  syncFixtures,
-  syncLiveScores,
-  syncRecentMatchDetails,
-  syncStaleLiveFixtures,
-  syncStandings,
-  syncTopAssists,
-  syncTopScorers,
-} from './jobs'
-import { settleFinishedFixtures, syncResultsAndSettle } from '../../predictions/settle'
+import { syncPlanStatus, syncStaleLiveFixtures } from './jobs'
+import { backfillJob } from './backfill'
+import { backlogTick, dailyListsTick, detailTick, hourlyTick, scheduleTick } from './ticks'
+import { settleFinishedFixtures } from '../../predictions/settle'
 
-// Internal cron. On free hosting the process may sleep, so the same jobs are
-// also reachable over HTTP (dual trigger) and woken by an external cron.
-// Schedules use the server timezone — set TZ on the host if it isn't UTC.
+// Internal cron. On free hosting the process may sleep, so the same jobs are also
+// reachable over HTTP (dual trigger) and woken by an external cron
+// (.github/workflows/sync.yml). Schedules use the server timezone: set TZ on the
+// host if it isn't UTC.
+//
+// WHAT each tick does lives in ticks.ts, which the HTTP routes call too — so the
+// two triggers cannot drift apart. This file only decides WHEN.
+//
+// ── TWO PLANS, ONE SCHEDULE ────────────────────────────────────────────────
+// The subscription lapses and comes back, so nothing here assumes which plan is
+// live. Each tick asks isRestrictedPlan(), which reads what the daily /status
+// probe recorded — so when Pro expires the app degrades on its own, with no
+// redeploy and without anyone having to notice.
+//
+//   PAID (Pro: 7500/day)              RESTRICTED (Free: 100/day)
+//   ──────────────────────            ──────────────────────────
+//   results   date=today   1/run      results   date=today   1/run
+//   standings fetched      ~8/day     standings DERIVED      0
+//   scorers   fetched      ~6/day     scorers   DERIVED      0
+//   fixtures  full season  ~51/day    schedule  ±1 day       2/day
+//   details   events+stats ~60/day    events    bounded      <=4/run
+//   squads                 20/day     missed    bounded      <=4/run
+//   backfill  <=500/run    (paid)     backfill  disabled
+//   ────────────────────────────      ──────────────────────────────
+//   ~250/day + backfill of 7500       ~25/day of 100
+//
+// The backfill is the one job that would spend the whole allowance if it could,
+// so it holds a 1000-request floor back. Everything it fetches is PERMANENT —
+// stored in Postgres and served cache-first — which is why it is worth spending a
+// paid month on, and why nothing is lost when the plan drops.
+//
+// Live scores are off on BOTH plans: a deliberate product choice, not a budget
+// one. Scores refresh hourly and settling is DB-only.
 export function startScheduler(): void {
-  // Fixtures: twice a day.
-  cron.schedule('0 6,18 * * *', () => void syncFixtures())
+  // Know the plan before spending anything on it, then re-check daily.
+  void syncPlanStatus()
+  cron.schedule('0 3 * * *', () => void syncPlanStatus())
 
-  // Squads: once a day, so transfers (new club, shirt number) show up — matters
-  // during the transfer window. Runs early, before the standings/scorer sync.
-  cron.schedule('0 4 * * *', () => void refreshCurrentSquads())
+  const run = (name: string, tick: () => Promise<unknown>) => () => {
+    // Guard every tick: a failure must never leave the cron callback as an
+    // unhandled rejection, because the loop runs forever.
+    void tick().catch((err: unknown) => {
+      logger.error({ err, tick: name }, 'Scheduled tick failed — will retry on the next run')
+    })
+  }
 
-  // Standings, scorers, assists: once a day, staggered a few minutes apart.
-  cron.schedule('30 6 * * *', () => void syncStandings())
-  cron.schedule('45 6 * * *', () => void syncTopScorers())
-  cron.schedule('50 6 * * *', () => void syncTopAssists())
+  cron.schedule('5 11-23 * * *', run('hourly', hourlyTick))
+  cron.schedule('20 11-23 * * *', run('backlog', backlogTick))
+  cron.schedule('35 11-23 * * *', run('detail', detailTick))
+  cron.schedule('0 4 * * *', run('schedule', scheduleTick))
+  cron.schedule('40 4 * * *', run('daily-lists', dailyListsTick))
 
-  // Results: hourly through the evening match window (sync then settle).
-  cron.schedule('5 18-23 * * *', () => void syncResultsAndSettle())
+  // Ten to: fill in what the app never fetched — match detail, player rosters,
+  // past-season tables, team venues. Only worth doing while the plan is paid, and
+  // it stops with 1000 requests still on the clock so the scores are never
+  // starved. A no-op on the restricted plan; what it collected simply stays.
+  cron.schedule('50 11-23 * * *', run('backfill', backfillJob))
 
-  // Detailed summaries: enrich newly-finished matches shortly after results, a
-  // bounded batch each run so it stays within budget.
-  cron.schedule('20 18-23 * * *', () => void syncRecentMatchDetails())
+  // Unstick any fixture frozen in a live status long after kickoff (suspended or
+  // abandoned matches). Free when nothing is stuck.
+  cron.schedule('20 5 * * *', run('stale-live', syncStaleLiveFixtures))
 
-  // Hourly safety net: unstick any fixture frozen in a live status long after
-  // kickoff (suspended/abandoned matches, or ones that finished after the UTC day
-  // rolled over). Costs zero API requests when nothing is stuck.
-  cron.schedule('10 * * * *', () => void syncStaleLiveFixtures())
+  // Every 5 minutes: settle any match just marked final. Pure DB work, zero API
+  // cost — the hourly tick writes the score, this turns it into points and weekly
+  // champions without anyone triggering it.
+  cron.schedule('*/5 * * * *', run('settle', settleFinishedFixtures))
 
-  // Every minute: refresh live GROUP-match scores, then settle any match that has
-  // just finished so points + standings + weekly champions update automatically,
-  // without anyone triggering it. syncLiveScores no-ops (zero API cost) when no
-  // group match is in progress; settleFinishedFixtures is DB-only and idempotent.
-  cron.schedule('* * * * *', async () => {
-    // Guard the whole tick: a failure here must never bubble out of the cron
-    // callback as an unhandled rejection (the loop runs every minute forever).
-    try {
-      await syncLiveScores()
-      await settleFinishedFixtures()
-    } catch (err) {
-      logger.error({ err, job: 'live+settle' }, 'Live/settle tick failed — will retry next minute')
-    }
-  })
-
-  logger.info('Cron scheduler started')
+  logger.info('Cron scheduler started (plan-aware; degrades to the free-plan strategy on its own)')
 }

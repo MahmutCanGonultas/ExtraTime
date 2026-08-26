@@ -239,6 +239,34 @@ export async function getBracket(leagueId: number): Promise<Bracket> {
   return buildBracket(fixtures)
 }
 
+export interface GoalCoverage {
+  finished: number
+  covered: number
+}
+
+/**
+ * How much of a league-season's played football the scorer lists are actually
+ * built from.
+ *
+ * On the free plan these leaderboards are DERIVED from per-match goal detail
+ * rather than fetched (players/topscorers is season-gated), and that detail costs
+ * one API request per match — so coverage lags behind the results. A table built
+ * from a third of the matches is misleading unless it says which third, which is
+ * what this feeds.
+ */
+export async function getGoalCoverage(leagueId: number): Promise<GoalCoverage> {
+  const { rows } = await query<GoalCoverage>(
+    `SELECT count(*)::int AS finished,
+            count(*) FILTER (
+              WHERE EXISTS (SELECT 1 FROM fixture_events e WHERE e.fixture_id = f.id)
+            )::int AS covered
+     FROM fixtures f
+     WHERE f.league_id = $1 AND f.status IN ('FT','AET','PEN')`,
+    [leagueId],
+  )
+  return rows[0] ?? { finished: 0, covered: 0 }
+}
+
 export async function getTopScorers(leagueId: number) {
   const { rows } = await query(
     `SELECT ts.rank, ts.player_name AS "playerName", ts.player_api_id AS "playerApiId",

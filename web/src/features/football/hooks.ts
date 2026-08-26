@@ -55,19 +55,34 @@ export function useBracket(leagueId: number) {
   })
 }
 
+// `coverage` says how many of the league's finished matches the leaderboard was
+// actually built from. On the free plan these lists are computed from per-match
+// goal detail, which arrives a few matches at a time, so a partial list has to
+// admit it rather than pass as the official table.
+export interface GoalCoverage {
+  finished: number
+  covered: number
+}
+
 export function useTopScorers(leagueId: number) {
   return useQuery({
     queryKey: ['topscorers', leagueId],
-    queryFn: () => api.get<{ topscorers: TopScorer[] }>(`/leagues/${leagueId}/topscorers`),
-    select: (d) => d.topscorers,
+    queryFn: () =>
+      api.get<{ topscorers: TopScorer[]; coverage: GoalCoverage }>(
+        `/leagues/${leagueId}/topscorers`,
+      ),
+    select: (d) => ({ rows: d.topscorers, coverage: d.coverage }),
   })
 }
 
 export function useTopAssists(leagueId: number) {
   return useQuery({
     queryKey: ['topassists', leagueId],
-    queryFn: () => api.get<{ topassists: TopAssist[] }>(`/leagues/${leagueId}/topassists`),
-    select: (d) => d.topassists,
+    queryFn: () =>
+      api.get<{ topassists: TopAssist[]; coverage: GoalCoverage }>(
+        `/leagues/${leagueId}/topassists`,
+      ),
+    select: (d) => ({ rows: d.topassists, coverage: d.coverage }),
   })
 }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
+  type GoalCoverage,
   useBracket,
   useLeagueFixtures,
   useLeagues,
@@ -240,18 +241,42 @@ function FixturesTab({ leagueId }: { leagueId: number }) {
   )
 }
 
+// The leaderboards are computed from the matches whose goal detail we hold, and
+// that detail arrives a few matches at a time. Say so whenever it is incomplete —
+// an unlabelled partial table reads as the official one and quietly misleads.
+function CoverageNote({ coverage }: { coverage?: GoalCoverage }) {
+  if (!coverage || coverage.finished === 0) return null
+  if (coverage.covered >= coverage.finished) return null
+  return (
+    <p className="px-4 pb-3 text-xs text-ink-500">
+      Oynanan {coverage.finished} maçın {coverage.covered} tanesinin gol detayı işlendi — liste
+      tamamlandıkça güncellenecek.
+    </p>
+  )
+}
+
 function ScorersTab({ leagueId }: { leagueId: number }) {
   const { data, isLoading, isError, refetch } = useTopScorers(leagueId)
   if (isLoading) return <Loading />
   if (isError) return <ErrorState onRetry={() => refetch()} />
-  if (!data?.length) return <EmptyState title="Gol krallığı verisi yok" />
-  return <ScorersTable rows={data} />
+  if (!data?.rows.length) return <EmptyState title="Gol krallığı verisi yok" />
+  return (
+    <>
+      <ScorersTable rows={data.rows} />
+      <CoverageNote coverage={data.coverage} />
+    </>
+  )
 }
 
 function AssistsTab({ leagueId }: { leagueId: number }) {
   const { data, isLoading, isError, refetch } = useTopAssists(leagueId)
   if (isLoading) return <Loading />
   if (isError) return <ErrorState onRetry={() => refetch()} />
-  if (!data?.length) return <EmptyState title="Asist krallığı verisi yok" />
-  return <AssistsTable rows={data} />
+  if (!data?.rows.length) return <EmptyState title="Asist krallığı verisi yok" />
+  return (
+    <>
+      <AssistsTable rows={data.rows} />
+      <CoverageNote coverage={data.coverage} />
+    </>
+  )
 }

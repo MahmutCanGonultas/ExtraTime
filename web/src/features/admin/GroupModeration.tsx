@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Gavel, Pencil, Plus, Search, X } from 'lucide-react'
 import {
   useAdminAddFixture,
@@ -371,16 +371,16 @@ function ResultOverride({
 function AdminAddMatch({ groupId }: { groupId: number }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const candidates = useAdminCandidateFixtures(groupId, open)
-  const add = useAdminAddFixture(groupId)
+  // Debounced, because every keystroke now reaches the database.
+  const [term, setTerm] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q), 250)
+    return () => clearTimeout(t)
+  }, [q])
 
-  const list = (candidates.data ?? []).filter((f) => {
-    if (!q) return true
-    const t = q.toLocaleLowerCase('tr')
-    return (
-      f.homeName.toLocaleLowerCase('tr').includes(t) || f.awayName.toLocaleLowerCase('tr').includes(t)
-    )
-  })
+  const candidates = useAdminCandidateFixtures(groupId, open, term)
+  const add = useAdminAddFixture(groupId)
+  const list = candidates.data ?? []
 
   return (
     <div className="mt-2">
