@@ -19,6 +19,23 @@ import { settleFinishedFixtures } from '../../predictions/settle'
 // probe recorded — so when Pro expires the app degrades on its own, with no
 // redeploy and without anyone having to notice.
 //
+// The free-plan day, added up (it is the tighter of the two and the one that has
+// already gone wrong once). Effective ceiling 95 — five held back because our
+// counter cannot see requests made outside the app:
+//
+//   scores            26   one per run, and a run happens TWICE an hour: this
+//                          file and .github/workflows/sync.yml both fire
+//   schedule sweep     2   yesterday and tomorrow
+//   stale-live        <=5  free unless a fixture is stuck
+//   plan probe         1
+//   ─────────────────────
+//   carried            34  <- what EVENTS_BUDGET_FLOOR / MISSED_BUDGET_FLOOR (45)
+//                          exist to protect
+//   goal detail       <=50 bounded, stops at the floor
+//   backlog           <=50 bounded, stops at the same floor
+//   ─────────────────────
+//   ~84 of 95. The two bounded jobs share whatever is above the floor.
+//
 //   PAID (Pro: 7500/day)              RESTRICTED (Free: 100/day)
 //   ──────────────────────            ──────────────────────────
 //   results   date=today   1/run      results   date=today   1/run

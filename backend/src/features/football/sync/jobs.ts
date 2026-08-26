@@ -334,7 +334,9 @@ export async function syncTodayResults(): Promise<SyncResult> {
 // One request per fixture, so the backlog drainer is bounded exactly like the
 // goal-detail job: a per-run cap and a floor of requests reserved for the scores.
 const MISSED_PER_RUN = 4
-const MISSED_BUDGET_FLOOR = 30
+// The same floor, for the same reason — see EVENTS_BUDGET_FLOOR. Both bounded
+// jobs stop here, so together they spend the day down to it and no further.
+const MISSED_BUDGET_FLOOR = 45
 
 /**
  * Fill in matches whose result was never recorded — one request each, oldest
@@ -1192,12 +1194,17 @@ export async function syncRecentMatchDetails(limit = 30): Promise<SyncResult> {
   })
 }
 
-// How many fixtures one events run may fetch, and the floor it must leave in the
-// day's budget for the load-bearing jobs (hourly results, the schedule sweep).
-// Running hourly, these two numbers cap goal-detail spending at roughly half the
-// daily allowance while guaranteeing the scores themselves always get through.
+// How many fixtures one events run may fetch, and the floor it must leave for the
+// jobs that carry the site.
+//
+// The floor is not a guess. On the free plan the load-bearing work is: the scores,
+// one request a run — and a run happens TWICE an hour, because node-cron and the
+// GitHub Actions trigger both fire — so 26 across the day; plus the schedule sweep
+// (2), the stale-live sweep (up to 5) and the plan probe (1). That is 34. A floor
+// of 30 would have left the last hour's scores to be refused by the daily cap,
+// which is exactly the wrong thing to drop.
 const EVENTS_PER_RUN = 4
-const EVENTS_BUDGET_FLOOR = 30
+const EVENTS_BUDGET_FLOOR = 45
 
 /**
  * "Who scored", one request per match.

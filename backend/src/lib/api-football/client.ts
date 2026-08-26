@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { env } from '../../config/env'
 import { query } from '../../db/pool'
 import { logger } from '../logger'
-import { getDailyLimit, markRestricted } from './plan'
+import { getDailyLimit, isRestrictedPlan, markRestricted } from './plan'
 
 // Shape every API-Football v3 endpoint returns.
 export interface ApiFootballEnvelope<T> {
@@ -117,19 +117,51 @@ export interface BudgetSnapshot {
   day: string
 }
 
-/** Today's API spend. Jobs check this before starting expensive work. */
+/**
+ * A few requests held back from the plan's stated ceiling.
+ *
+ * Our counter only sees what this app spends. A `npm run check:api`, a curl while
+ * debugging, a second deployment pointed at the same key — none of those reach
+ * sync_logs, and all of them count against the API's own tally. Running to
+ * exactly 100 therefore means running slightly over it, and going over is what
+ * got the account suspended. Five requests out of a hundred is cheap insurance;
+ * on a paid plan the reserve is capped so it stays a rounding error.
+ */
+function safetyReserve(limit: number): number {
+  return Math.min(50, Math.max(3, Math.ceil(limit * 0.05)))
+}
+
+/** Today's API spend, against the ceiling we are willing to spend to. */
 export async function getBudget(): Promise<BudgetSnapshot> {
   await hydrateBudget()
-  const limit = await getDailyLimit()
+  const reported = await getDailyLimit()
+  const limit = Math.max(1, reported - safetyReserve(reported))
   return { used: budgetUsed, limit, remaining: Math.max(0, limit - budgetUsed), day: budgetDay }
 }
 
 const REQUEST_TIMEOUT_MS = 15_000
 
-// Serialize requests with a minimum gap (derived from the plan's requests/min)
-// so a burst — e.g. a multi-league backfill — never trips HTTP 429.
-const MIN_REQUEST_GAP_MS = Math.ceil(60_000 / env.API_FOOTBALL_RPM)
+/**
+ * Serialise requests with a minimum gap so a burst never trips HTTP 429.
+ *
+ * The gap follows the PLAN, not just the env var. The daily ceiling already
+ * adjusts itself when a subscription lapses; the per-minute rate has to as well,
+ * because the two limits move together — Pro allows about 300 a minute, the free
+ * tier ten. Leaving the paid spacing in place after a lapse would mean answering
+ * the drop in daily allowance by hammering the API twenty-four times faster than
+ * it will accept, and 429s are how an account gets firewalled on top of being
+ * throttled.
+ *
+ * FREE_PLAN_RPM sits under the free tier's ten rather than on it: this app and an
+ * external cron can be spending the same minute.
+ */
+const FREE_PLAN_RPM = 8
 let lastRequestAt = 0
+
+async function minRequestGapMs(): Promise<number> {
+  const rpm = (await isRestrictedPlan()) ? Math.min(FREE_PLAN_RPM, env.API_FOOTBALL_RPM) : env.API_FOOTBALL_RPM
+  return Math.ceil(60_000 / rpm)
+}
 
 // How long to wait after an HTTP 429, per retry. The first is a short breather
 // for a brief collision; the second clears a whole per-minute window.
@@ -139,7 +171,8 @@ const RATE_LIMIT_BACKOFF_MS = [20_000, 65_000]
 // the day's spend — the safe direction against a hard ceiling.
 
 async function throttle(): Promise<void> {
-  const wait = lastRequestAt + MIN_REQUEST_GAP_MS - Date.now()
+  const gap = await minRequestGapMs()
+  const wait = lastRequestAt + gap - Date.now()
   if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
   lastRequestAt = Date.now()
 }
@@ -197,7 +230,8 @@ export async function apiFootballGetEnvelope<T>(
   // Pro lapses the limit drops from 7500 to 100 the moment the plan probe runs,
   // with no redeploy. Carrying a stale 7500 into a free-plan day is how the
   // account was suspended the first time.
-  const limit = await getDailyLimit()
+  const reported = await getDailyLimit()
+  const limit = Math.max(1, reported - safetyReserve(reported))
   await hydrateBudget()
   if (budgetUsed >= limit) {
     throw new BudgetExhaustedError(budgetUsed, limit)
