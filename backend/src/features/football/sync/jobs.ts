@@ -880,13 +880,18 @@ async function topAssistsForLeague(client: PoolClient, league: ActiveLeague): Pr
 const STANDINGS_MAX_LEAGUES = 8
 const SCORERS_MAX_LEAGUES = 3
 
-/** Daily league tables — only for leagues that played in the last 36h. */
+/**
+ * League tables for leagues that have just played. `hours` is how far back to
+ * look: a few hours for the hourly top-up, a day and a half for a daily pass.
+ * A table cannot move unless its league played, so this is the whole trick.
+ */
 export async function syncStandingsForRecentMatches(
   limit = STANDINGS_MAX_LEAGUES,
+  hours = 36,
 ): Promise<SyncResult> {
   return runSyncJob(
     'standings',
-    async () => perLeague(await leaguesPlayedRecently(limit), standingsForLeague),
+    async () => perLeague(await leaguesPlayedRecently(limit, hours), standingsForLeague),
     { minBudget: 3 },
   )
 }

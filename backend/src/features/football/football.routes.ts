@@ -221,21 +221,35 @@ footballRouter.get(
 
 const upcomingQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(12),
+  // Comma-separated API-Football league ids. Narrows the window before the limit,
+  // so a caller that only renders a handful of competitions gets that handful
+  // rather than whatever happened to kick off soonest anywhere.
+  leagues: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(',')
+            .map((n) => Number(n.trim()))
+            .filter((n) => Number.isInteger(n) && n > 0)
+        : undefined,
+    ),
 })
 
 footballRouter.get(
   '/fixtures/upcoming',
   asyncHandler(async (req, res) => {
-    const { limit } = upcomingQuerySchema.parse(req.query)
-    res.json({ fixtures: await repo.getUpcomingFixtures(limit) })
+    const { limit, leagues } = upcomingQuerySchema.parse(req.query)
+    res.json({ fixtures: await repo.getUpcomingFixtures(limit, leagues) })
   }),
 )
 
 footballRouter.get(
   '/fixtures/recent',
   asyncHandler(async (req, res) => {
-    const { limit } = upcomingQuerySchema.parse(req.query)
-    res.json({ fixtures: await repo.getRecentFixtures(limit) })
+    const { limit, leagues } = upcomingQuerySchema.parse(req.query)
+    res.json({ fixtures: await repo.getRecentFixtures(limit, leagues) })
   }),
 )
 
