@@ -190,13 +190,28 @@ export function useCreateGame(groupId: number) {
   })
 }
 
-export function useGameCandidates(groupId: number, gameId: number, enabled: boolean) {
+/**
+ * Matches still addable to a game. `search` is sent to the server rather than
+ * applied here: the endpoint returns the next hundred kickoffs, which across
+ * twenty-six competitions is about four days, so filtering in the browser meant
+ * next weekend's fixtures were unreachable however you spelled them.
+ */
+export function useGameCandidates(
+  groupId: number,
+  gameId: number,
+  enabled: boolean,
+  search = '',
+) {
+  const q = search.trim()
   return useQuery({
-    queryKey: ['candidate-fixtures', groupId, gameId],
+    queryKey: ['candidate-fixtures', groupId, gameId, q],
     queryFn: () =>
-      api.get<{ fixtures: GameFixture[] }>(`/groups/${groupId}/games/${gameId}/candidate-fixtures`),
+      api.get<{ fixtures: GameFixture[] }>(
+        `/groups/${groupId}/games/${gameId}/candidate-fixtures${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+      ),
     select: (d) => d.fixtures,
     enabled: enabled && groupId > 0 && gameId > 0,
+    placeholderData: (prev) => prev,
   })
 }
 

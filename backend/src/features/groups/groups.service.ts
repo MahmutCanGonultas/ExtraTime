@@ -171,10 +171,28 @@ async function assertActiveGame(groupId: number, gameId: number): Promise<void> 
 
 /** The season whose standings we show "now": the open game, or, between games,
  *  the most recent finished one — so the final table stays on screen. */
+/**
+ * The game a group lands on when it opens the app.
+ *
+ * Active first, then — and this is the part that was missing — one that actually
+ * has matches in it. A group can have two active games at once, and ordering only
+ * by start date picks the newest, which is typically the one an admin has just
+ * created and not yet filled. Every member then opens Tahminler and Puanlar to an
+ * empty fixture list and a leaderboard of zeroes, while the game they have been
+ * playing all season sits one tab away.
+ */
 export async function getCurrentSeasonId(groupId: number): Promise<number | null> {
   const { rows } = await query<{ id: number }>(
-    `SELECT id FROM group_seasons WHERE group_id = $1
-     ORDER BY (status = 'active') DESC, started_at DESC LIMIT 1`,
+    // Counted through a LEFT JOIN rather than a correlated EXISTS in ORDER BY —
+    // the same shape listSeasons already uses, and the one the in-memory Postgres
+    // the integration test runs on can plan.
+    `SELECT gs.id
+     FROM group_seasons gs
+     LEFT JOIN group_fixtures gf ON gf.season_id = gs.id
+     WHERE gs.group_id = $1
+     GROUP BY gs.id, gs.status, gs.started_at
+     ORDER BY (gs.status = 'active') DESC, count(gf.id) DESC, gs.started_at DESC
+     LIMIT 1`,
     [groupId],
   )
   return rows[0]?.id ?? null
@@ -414,8 +432,21 @@ export async function groupHomeFixtures(groupId: number, userId: number) {
 
 /** Upcoming, still-predictable matches the leader can add to a game — excludes any
  *  fixture already used in ANY of the group's games (a match lives in one game). */
-export async function getCandidateFixtures(groupId: number, gameId: number) {
+/**
+ * Matches the leader can still add to a game.
+ *
+ * `search` matters more than it looks. Without it this returned the next hundred
+ * kickoffs and the panel filtered those hundred in the browser — which sounds
+ * fine until you notice a hundred fixtures is about four days of football across
+ * twenty-six competitions. An admin building next weekend's game could not reach
+ * next weekend: the match was in the database, in the pool, and simply past the
+ * end of the window. Searching now happens in SQL, so the whole pool is
+ * reachable and the response stays small.
+ */
+export async function getCandidateFixtures(groupId: number, gameId: number, search?: string) {
   await assertActiveGame(groupId, gameId)
+  const term = search?.trim()
+  const like = term ? `%${term}%` : null
   const { rows } = await query(
     `SELECT f.id AS "fixtureId", ${FIXTURE_FIELDS}
      FROM fixtures f
@@ -425,9 +456,15 @@ export async function getCandidateFixtures(groupId: number, gameId: number) {
      WHERE lg.api_football_id = ANY($2)
        AND f.status = 'NS' AND f.kickoff_at > now()
        AND f.id NOT IN (SELECT fixture_id FROM group_fixtures WHERE group_id = $1)
+       AND (
+         $3::text IS NULL
+         OR unaccent(ht.name) ILIKE unaccent($3)
+         OR unaccent(at.name) ILIKE unaccent($3)
+         OR unaccent(lg.name) ILIKE unaccent($3)
+       )
      ORDER BY f.kickoff_at ASC
      LIMIT 100`,
-    [groupId, CONFIGURED_LEAGUE_API_IDS],
+    [groupId, CONFIGURED_LEAGUE_API_IDS, like],
   )
   return rows
 }

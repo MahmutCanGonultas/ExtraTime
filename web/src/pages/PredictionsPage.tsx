@@ -26,7 +26,12 @@ export function PredictionsPage() {
 
   const activeGames = (gamesQ.data ?? []).filter((g) => g.status === 'active')
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const gameId = selectedId ?? activeGames[0]?.id ?? null
+  // Default to an active game that actually HAS matches. A group can have two
+  // active at once, and the list arrives newest-first — which is usually the one
+  // an admin has just created and not yet filled, so everyone landed on an empty
+  // fixture list while the game they were playing sat behind a tab.
+  const gameId =
+    selectedId ?? (activeGames.find((g) => g.matchCount > 0) ?? activeGames[0])?.id ?? null
   const gameDetail = useGameDetail(groupId, gameId)
   const removeFixture = useRemoveGameFixture(groupId, gameId ?? 0)
 

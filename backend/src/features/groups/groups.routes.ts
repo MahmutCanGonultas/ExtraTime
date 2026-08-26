@@ -121,7 +121,8 @@ groupsRouter.get(
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
     const gameId = parseIdParam(req.params.gameId)
-    res.json({ fixtures: await groups.getCandidateFixtures(id, gameId) })
+    const { q } = z.object({ q: z.string().trim().max(80).optional() }).parse(req.query)
+    res.json({ fixtures: await groups.getCandidateFixtures(id, gameId, q) })
   }),
 )
 

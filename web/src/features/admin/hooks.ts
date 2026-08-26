@@ -43,12 +43,20 @@ export function useAdminGroupOverview(groupId: number, enabled: boolean) {
   })
 }
 
-export function useAdminCandidateFixtures(groupId: number, enabled: boolean) {
+// `search` goes to the server, not to a filter here — the endpoint returns the
+// next hundred kickoffs, which is only about four days of football.
+export function useAdminCandidateFixtures(groupId: number, enabled: boolean, search = '') {
   return useQuery({
-    queryKey: ['admin-candidate-fixtures', groupId],
-    queryFn: () => api.get<{ fixtures: GameFixture[] }>(`/admin/groups/${groupId}/candidate-fixtures`),
+    queryKey: ['admin-candidate-fixtures', groupId, search.trim()],
+    queryFn: () =>
+      api.get<{ fixtures: GameFixture[] }>(
+        `/admin/groups/${groupId}/candidate-fixtures${
+          search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ''
+        }`,
+      ),
     select: (d) => d.fixtures,
     enabled: enabled && groupId > 0,
+    placeholderData: (prev) => prev,
   })
 }
 

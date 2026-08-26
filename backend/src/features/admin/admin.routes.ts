@@ -113,7 +113,10 @@ adminRouter.get(
   adminOnly,
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id)
-    res.json({ fixtures: await groups.getCandidateFixtures(id, await requireActiveGameId(id)) })
+    const { q } = z.object({ q: z.string().trim().max(80).optional() }).parse(req.query)
+    res.json({
+      fixtures: await groups.getCandidateFixtures(id, await requireActiveGameId(id), q),
+    })
   }),
 )
 adminRouter.post(

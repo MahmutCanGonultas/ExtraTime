@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Plus, Search } from 'lucide-react'
 import { useAddGameFixture, useGameCandidates } from '@/features/groups/hooks'
 import { TeamLogo } from '@/components/TeamLogo'
@@ -12,18 +12,16 @@ import { cn } from '@/lib/cn'
 export function AddMatchesPanel({ groupId, gameId }: { groupId: number; gameId: number }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const candidates = useGameCandidates(groupId, gameId, open)
-  const add = useAddGameFixture(groupId, gameId)
+  // Debounced, because every keystroke now reaches the database.
+  const [term, setTerm] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q), 250)
+    return () => clearTimeout(t)
+  }, [q])
 
-  const list = (candidates.data ?? []).filter((f) => {
-    if (!q) return true
-    const t = q.toLocaleLowerCase('tr')
-    return (
-      f.homeName.toLocaleLowerCase('tr').includes(t) ||
-      f.awayName.toLocaleLowerCase('tr').includes(t) ||
-      f.leagueName.toLocaleLowerCase('tr').includes(t)
-    )
-  })
+  const candidates = useGameCandidates(groupId, gameId, open, term)
+  const add = useAddGameFixture(groupId, gameId)
+  const list = candidates.data ?? []
 
   return (
     <Card>
@@ -53,7 +51,7 @@ export function AddMatchesPanel({ groupId, gameId }: { groupId: number; gameId: 
             <Skeleton className="h-40" />
           ) : list.length === 0 ? (
             <p className="py-6 text-center text-sm text-ink-500">
-              Eklenecek yaklaşan maç bulunamadı.
+              {term ? `"${term}" için maç bulunamadı.` : 'Eklenecek yaklaşan maç bulunamadı.'}
             </p>
           ) : (
             <ul className="no-scrollbar max-h-80 space-y-1 overflow-y-auto">
