@@ -308,6 +308,12 @@ export async function upsertStanding(
   leagueId: number,
   row: RawStandingRow,
 ): Promise<void> {
+  // A standings row without a team is not a team we can store. It happens — MLS
+  // 2018 has one — and it used to take the whole league down with it: the insert
+  // violated teams.api_football_id NOT NULL, which aborted the transaction, which
+  // meant every other row in that table was rolled back too. Six leagues had no
+  // 2018 table for the sake of one bad row.
+  if (row.team?.id == null || !row.team.name) return
   const teamId = await upsertTeam(db, row.team.id, row.team.name)
   await db.query(
     `INSERT INTO standings (

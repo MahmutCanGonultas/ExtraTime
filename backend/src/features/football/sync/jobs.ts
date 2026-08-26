@@ -1145,9 +1145,15 @@ export async function syncFixtureDetail(fixtureId: number, apiFixtureId: number)
       fixture: apiFixtureId,
     })
     const ne = await replaceFixtureEvents(client, fixtureId, events)
+    // The goal list comes from the SAME response and must be written beside the
+    // feed. Leaving it out is why match pages showed a score with nothing under
+    // it: the events were fetched and stored, the page reads fixture_goals, and
+    // the two were only reconciled by a separate derivation job that ran once an
+    // hour. 2,779 goal rows were sitting in fixture_events waiting for it.
+    const ng = await replaceFixtureGoals(client, fixtureId, events)
     const ns = await replaceFixtureStats(client, fixtureId, stats)
     await client.query('UPDATE fixtures SET detail_synced_at = now() WHERE id = $1', [fixtureId])
-    return ne + ns
+    return ne + ng + ns
   } finally {
     client.off('error', onError)
     client.release()
